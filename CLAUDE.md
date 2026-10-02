@@ -46,6 +46,8 @@
 | `functions/api/nicknames.ts` | POST - AI nickname generation |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
+| `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
+| `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
 
 ## Architecture
 
@@ -102,6 +104,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - Event mode flag
 - `padel_event_courts` - Event court count
+- `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
 
 ### Cloud Sharing
 
@@ -141,7 +144,9 @@ npm run preview # Preview production build
 - Championship detection uses `match.id.includes('championship')`
 - Event mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
-- Kiosk/display views communicate only through KV (no localStorage)
+- Kiosk/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
+- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
+- AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
 - PIN stored internally for cloud sync but not displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
 

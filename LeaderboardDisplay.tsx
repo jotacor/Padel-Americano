@@ -9,6 +9,7 @@ import {
   Filter,
   Users
 } from 'lucide-react';
+import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 
 const SKILL_COLORS = {
   low: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
@@ -20,6 +21,7 @@ const POLL_INTERVAL = 5000;
 
 const LeaderboardDisplay: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { t, locale } = useI18n();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ const LeaderboardDisplay: React.FC = () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        setError(response.status === 404 ? 'Tournament not found' : 'Failed to load');
+        setError(response.status === 404 ? t('common.tournamentNotFound') : t('common.failedToLoad'));
         return;
       }
       const data = await response.json();
@@ -38,7 +40,7 @@ const LeaderboardDisplay: React.FC = () => {
       setError(null);
       setLastUpdated(new Date());
     } catch {
-      setError('Connection error');
+      setError(t('common.connectionError'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,7 @@ const LeaderboardDisplay: React.FC = () => {
       <div className="min-h-screen bg-purple-950 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 text-center max-w-md">
           <Info className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-slate-800 mb-2">{error || 'Not Found'}</h1>
+          <h1 className="text-2xl font-black text-slate-800 mb-2">{error || t('common.notFound')}</h1>
         </div>
       </div>
     );
@@ -115,7 +117,7 @@ const LeaderboardDisplay: React.FC = () => {
               <h1 className="text-base md:text-xl font-black text-white tracking-tight italic">
                 <span className="text-purple-400">TOTOGI</span> PADEL
               </h1>
-              <p className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">Invitational — Live Leaderboard</p>
+              <p className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">{t('display.subtitle')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
@@ -129,11 +131,11 @@ const LeaderboardDisplay: React.FC = () => {
                 }`}
               >
                 <Filter className="w-3 h-3 md:w-4 md:h-4" />
-                {hideTotogians ? 'Prize' : 'All'}
+                {hideTotogians ? t('display.prize') : t('display.all')}
               </button>
             )}
             <div className="text-right">
-              <div className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">Rounds</div>
+              <div className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">{t('common.rounds')}</div>
               <div className="text-xl md:text-2xl font-black text-white">{tournament.rounds.length}</div>
             </div>
           </div>
@@ -145,11 +147,11 @@ const LeaderboardDisplay: React.FC = () => {
         <div className="bg-purple-900/40 rounded-2xl md:rounded-3xl border border-purple-800/50 overflow-hidden">
           <div className="px-4 md:px-6 py-3 md:py-4 border-b border-purple-800/50 flex items-center justify-between">
             <h2 className="text-base md:text-lg font-black text-white flex items-center gap-2">
-              <Award className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" /> Standings
+              <Award className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" /> {t('common.standings')}
             </h2>
             <div className="flex items-center gap-2">
               <Users className="w-3 h-3 md:w-4 md:h-4 text-purple-500" />
-              <span className="text-purple-400 text-xs md:text-sm font-bold">{displayLeaderboard.length} players</span>
+              <span className="text-purple-400 text-xs md:text-sm font-bold">{t('display.playersCount', { n: displayLeaderboard.length })}</span>
             </div>
           </div>
 
@@ -188,23 +190,23 @@ const LeaderboardDisplay: React.FC = () => {
                     )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="font-bold text-[10px]">
-                        <span className="text-emerald-400">{entry.wins}W</span>
+                        <span className="text-emerald-400">{t('common.wins', { n: entry.wins })}</span>
                         <span className="text-purple-700">-</span>
-                        <span className="text-rose-400">{entry.losses}L</span>
+                        <span className="text-rose-400">{t('common.losses', { n: entry.losses })}</span>
                         <span className="text-purple-700">-</span>
-                        <span className="text-purple-500">{entry.ties}T</span>
+                        <span className="text-purple-500">{t('common.ties', { n: entry.ties })}</span>
                       </span>
-                      <span className="text-[9px] text-purple-500 font-bold">{entry.matchesPlayed} games</span>
+                      <span className="text-[9px] text-purple-500 font-bold">{t('display.gamesCount', { n: entry.matchesPlayed })}</span>
                       {isEvent && (
                         <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                          {skill}
+                          {t(`skill.${skill}`)}
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="font-black text-2xl text-white italic tracking-tighter leading-none">{entry.totalPoints}</span>
-                    <div className="text-[8px] text-purple-500 font-bold uppercase">pts</div>
+                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t('common.pts')}</div>
                   </div>
                 </div>
               );
@@ -216,11 +218,11 @@ const LeaderboardDisplay: React.FC = () => {
             <thead>
               <tr className="text-[9px] font-black text-purple-500 uppercase tracking-widest border-b border-purple-800/30">
                 <th className="px-6 py-3 w-16">#</th>
-                <th className="px-6 py-3">Player</th>
-                {isEvent && <th className="px-4 py-3 text-center">Skill</th>}
-                <th className="px-6 py-3 text-center">Record</th>
-                <th className="px-6 py-3 text-center">Games</th>
-                <th className="px-6 py-3 text-right">Points</th>
+                <th className="px-6 py-3">{t('common.player')}</th>
+                {isEvent && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
+                <th className="px-6 py-3 text-center">{t('display.record')}</th>
+                <th className="px-6 py-3 text-center">{t('display.games')}</th>
+                <th className="px-6 py-3 text-right">{t('common.points')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-800/20">
@@ -262,7 +264,7 @@ const LeaderboardDisplay: React.FC = () => {
                           const skill = player?.skillLevel || 'medium';
                           return (
                             <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {skill}
+                              {t(`skill.${skill}`)}
                             </span>
                           );
                         })()}
@@ -270,11 +272,11 @@ const LeaderboardDisplay: React.FC = () => {
                     )}
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-1 font-black text-sm">
-                        <span className="text-emerald-400">{entry.wins}W</span>
+                        <span className="text-emerald-400">{t('common.wins', { n: entry.wins })}</span>
                         <span className="text-purple-700">-</span>
-                        <span className="text-rose-400">{entry.losses}L</span>
+                        <span className="text-rose-400">{t('common.losses', { n: entry.losses })}</span>
                         <span className="text-purple-700">-</span>
-                        <span className="text-purple-500">{entry.ties}T</span>
+                        <span className="text-purple-500">{t('common.ties', { n: entry.ties })}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -296,9 +298,12 @@ const LeaderboardDisplay: React.FC = () => {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <span className="text-purple-400 text-[10px] md:text-xs font-bold">Live • Updated {lastUpdated.toLocaleTimeString()}</span>
+            <span className="text-purple-400 text-[10px] md:text-xs font-bold">{t('display.liveUpdated', { time: lastUpdated.toLocaleTimeString(locale) })}</span>
           </div>
-          <img src="/totogi-logo.png" alt="totogi" className="h-3 md:h-4 opacity-40" />
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher variant="dark" />
+            <img src="/totogi-logo.png" alt="totogi" className="h-3 md:h-4 opacity-40" />
+          </div>
         </div>
       </div>
     </div>
