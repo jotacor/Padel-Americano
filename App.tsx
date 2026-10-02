@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Player, Tournament, Round, LeaderboardEntry, Match } from './types.ts';
+import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useNicknamesAvailable } from './utils/nicknames.ts';
+import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
+import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { 
   Users, 
   Trophy, 
@@ -28,7 +30,10 @@ import {
   Sparkles,
   UserPlus,
   UserMinus,
-  Monitor
+  Monitor,
+  Shuffle,
+  Link2,
+  Unlink
 } from 'lucide-react';
 
 interface ShareState {
@@ -60,6 +65,11 @@ const App: React.FC = () => {
   // League ("event") mode
   const [eventMode, setEventMode] = useState(false);
   const [eventNumCourts, setEventNumCourts] = useState(4);
+
+  // Pairs: rotating (Americano) or fixed (manager picks partners)
+  const [pairMode, setPairMode] = useState<PairMode>('rotating');
+  const [pairs, setPairs] = useState<Pair[]>([]);
+  const [pairingWith, setPairingWith] = useState<string | null>(null);
   
   // Sharing state
   const [shareState, setShareState] = useState<ShareState>({
@@ -80,6 +90,8 @@ const App: React.FC = () => {
   const nicknamesAvailable = useNicknamesAvailable();
 
   const isEvent = eventMode || tournament?.mode === 'event';
+  const isFixed = (tournament?.pairMode ?? pairMode) === 'fixed';
+  const minForFinals = isFixed ? 2 : 4;
   const themeColor = isEvent ? 'purple' : 'indigo';
   
   // Theme classes
@@ -118,6 +130,10 @@ const App: React.FC = () => {
     const savedCourtNames = localStorage.getItem('padel_court_names');
     const savedEventMode = localStorage.getItem('padel_event_mode');
     const savedEventCourts = localStorage.getItem('padel_event_courts');
+    const savedPairMode = localStorage.getItem('padel_pair_mode');
+    const savedPairs = localStorage.getItem('padel_pairs');
+    if (savedPairMode === 'fixed') setPairMode('fixed');
+    if (savedPairs) setPairs(JSON.parse(savedPairs));
     if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
     if (savedCourtNames) setCourtNames(JSON.parse(savedCourtNames));
     if (savedEventMode === 'true') setEventMode(true);
@@ -129,6 +145,8 @@ const App: React.FC = () => {
         if (parsed.courtNames) setCourtNames(parsed.courtNames);
         if (parsed.mode === 'event') setEventMode(true);
         if (parsed.numCourts) setEventNumCourts(parsed.numCourts);
+        if (parsed.pairMode) setPairMode(parsed.pairMode);
+        if (parsed.pairs) setPairs(parsed.pairs);
         setActiveTab('rounds');
       } catch (e) {
         console.error("Failed to load tournament", e);
@@ -162,6 +180,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('padel_event_courts', eventNumCourts.toString());
   }, [eventNumCourts]);
+
+  useEffect(() => {
+    localStorage.setItem('padel_pair_mode', pairMode);
+    localStorage.setItem('padel_pairs', JSON.stringify(pairs));
+  }, [pairMode, pairs]);
 
   // Load share state from localStorage
   useEffect(() => {
@@ -330,24 +353,53 @@ const App: React.FC = () => {
       return;
     }
     setPlayers(players.filter(p => p.id !== id));
+    setPairs(prev => prev.filter(pair => !pair.includes(id)));
+    if (pairingWith === id) setPairingWith(null);
   };
 
   const togglePlayerActive = (id: string) => {
-    setPlayers(prev => prev.map(p => 
-      p.id === id ? { ...p, isActive: !p.isActive } : p
-    ));
+    // Fixed pairs join and sit out together
+    const partner = isFixed ? partnerOf(id) : null;
+    const ids = new Set(partner ? [id, partner] : [id]);
+    const active = !(players.find(p => p.id === id)?.isActive !== false);
+    const apply = (list: Player[]) => list.map(p => ids.has(p.id) ? { ...p, isActive: active } : p);
+    setPlayers(apply);
     if (tournament?.mode === 'event') {
-      setTournament(prev => prev ? {
-        ...prev,
-        players: prev.players.map(p =>
-          p.id === id ? { ...p, isActive: !p.isActive } : p
-        ),
-      } : prev);
+      setTournament(prev => prev ? { ...prev, players: apply(prev.players) } : prev);
     }
   };
 
+  // Fixed pairs. After a League starts, new pairs can still be formed from unpaired players
+  const currentPairs = tournament?.pairs ?? pairs;
+  const canEditPairs = !tournament || tournament.mode === 'event';
+  const partnerOf = (id: string): string | null => {
+    const pair = currentPairs.find(p => p.includes(id));
+    return pair ? (pair[0] === id ? pair[1] : pair[0]) : null;
+  };
+  const pairHasPlayed = (pair: Pair) => !!tournament?.rounds.some(r =>
+    r.matches.some(m => pairKey(m.teamA) === pairKey(pair) || pairKey(m.teamB) === pairKey(pair)));
+  const updatePairs = (fn: (prev: Pair[]) => Pair[]) => {
+    setPairs(fn);
+    if (tournament) setTournament(prev => prev ? { ...prev, pairs: fn(prev.pairs ?? []) } : prev);
+  };
+  const selectForPair = (id: string) => {
+    if (!pairingWith) return setPairingWith(id);
+    if (pairingWith !== id) updatePairs(prev => [...prev, [pairingWith, id]]);
+    setPairingWith(null);
+  };
+  const unpair = (pair: Pair) => updatePairs(prev => prev.filter(p => pairKey(p) !== pairKey(pair)));
+
   const startTournament = async () => {
     if (players.length < 4) return alert(t('alert.minPlayers'));
+    const fixed = pairMode === 'fixed';
+    const tournamentPairs = pairs.filter(pair => pair.every(id => players.some(p => p.id === id)));
+    if (fixed) {
+      if (tournamentPairs.length < 2) return alert(t('alert.minPairs'));
+      const unpaired = players.filter(p => !tournamentPairs.some(pair => pair.includes(p.id)));
+      // League lets unpaired players wait for a partner; Random needs everyone paired up front
+      if (!eventMode && unpaired.length) return alert(t('alert.unpairedPlayers', { names: unpaired.map(p => p.name).join(', ') }));
+    }
+    const pairFields = { pairMode, ...(fixed && { pairs: tournamentPairs }) };
     
     let tournamentPlayers = [...players];
     
@@ -400,9 +452,10 @@ const App: React.FC = () => {
         courtNames: [...courtNames],
         mode: 'event',
         numCourts: eventNumCourts,
+        ...pairFields,
       });
     } else {
-      const rounds = generateAmericanoSchedule(tournamentPlayers);
+      const rounds = fixed ? generateFixedPairsSchedule(tournamentPairs) : generateAmericanoSchedule(tournamentPlayers);
       setTournament({
         id: crypto.randomUUID(),
         name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
@@ -411,8 +464,10 @@ const App: React.FC = () => {
         isStarted: true,
         courtNames: [...courtNames],
         mode: 'classic',
+        ...pairFields,
       });
     }
+    setPairingWith(null);
     setCurrentRoundIndex(0);
     setActiveTab('rounds');
   };
@@ -477,12 +532,16 @@ const App: React.FC = () => {
       setPlayers([]);
       setCourtNames([]);
       setEventMode(false);
+      setPairMode('rotating');
+      setPairs([]);
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
       localStorage.removeItem('padel_court_names');
       localStorage.removeItem('padel_share_state');
       localStorage.removeItem('padel_event_mode');
       localStorage.removeItem('padel_event_courts');
+      localStorage.removeItem('padel_pair_mode');
+      localStorage.removeItem('padel_pairs');
       setActiveTab('setup');
     }
   };
@@ -491,13 +550,18 @@ const App: React.FC = () => {
     if (!tournament) return;
     const newRoundIndex = tournament.rounds.length;
     
+    const fixed = tournament.pairMode === 'fixed';
     if (tournament.mode === 'event') {
       const activePlayers = tournament.players.filter(p => p.isActive !== false);
-      if (activePlayers.length < 4) {
-        return alert(t('alert.minActivePlayers'));
+      const activeIds = new Set(activePlayers.map(p => p.id));
+      const activePairs = (tournament.pairs ?? []).filter(pair => pair.every(id => activeIds.has(id)));
+      if (fixed ? activePairs.length < 2 : activePlayers.length < 4) {
+        return alert(t(fixed ? 'alert.minActivePairs' : 'alert.minActivePlayers'));
       }
       const nc = tournament.numCourts || Math.floor(activePlayers.length / 4);
-      const newRound = generateEventRound(
+      const newRound = fixed
+        ? generateFixedPairsRound(activePairs, tournament.players, tournament.rounds, newRoundIndex, nc)
+        : generateEventRound(
         activePlayers,
         tournament.players,
         tournament.rounds,
@@ -510,11 +574,13 @@ const App: React.FC = () => {
         courtNames: [...courtNames],
       });
     } else {
-      const newRound = generateAdditionalRound(
-        tournament.players,
-        tournament.rounds,
-        newRoundIndex
-      );
+      const newRound = fixed
+        ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, Math.floor(tournament.players.length / 4))
+        : generateAdditionalRound(
+          tournament.players,
+          tournament.rounds,
+          newRoundIndex
+        );
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound]
@@ -524,14 +590,20 @@ const App: React.FC = () => {
   };
 
   const addChampionshipRound = () => {
-    if (!tournament || leaderboard.length < 4) return;
+    if (!tournament || leaderboard.length < minForFinals) return;
     const newRoundIndex = tournament.rounds.length;
-    const newRound = generateChampionshipRound(
-      tournament.players,
-      leaderboard,
-      tournament.rounds,
-      newRoundIndex
-    );
+    const newRound = isFixed
+      ? generateFixedPairsChampionship(
+        leaderboard.map(e => pairOfEntry(tournament, e)).filter((p): p is Pair => !!p),
+        newRoundIndex,
+        Math.floor(tournament.players.length / 4)
+      )
+      : generateChampionshipRound(
+        tournament.players,
+        leaderboard,
+        tournament.rounds,
+        newRoundIndex
+      );
     setTournament({
       ...tournament,
       rounds: [...tournament.rounds, newRound]
@@ -576,43 +648,13 @@ const App: React.FC = () => {
 
   const getPlayer = (id: string) => tournament?.players.find(p => p.id === id);
 
-  const leaderboard = useMemo<LeaderboardEntry[]>(() => {
-    if (!tournament) return [];
-    const stats: Record<string, LeaderboardEntry> = {};
-    tournament.players.forEach(p => stats[p.id] = {
-      playerId: p.id, playerName: p.name, playerNickname: p.nickname, totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
-    });
+  const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
-    tournament.rounds.forEach(r => r.matches.forEach(m => {
-      if (!m.isCompleted || m.scoreA === null || m.scoreB === null) return;
-      const processTeam = (pIds: [string, string], s: number, os: number) => {
-        pIds.forEach(id => {
-          if (!stats[id]) return;
-          stats[id].totalPoints += s;
-          stats[id].pointDifferential += (s - os);
-          stats[id].matchesPlayed++;
-          if (s > os) stats[id].wins++;
-          else if (s < os) stats[id].losses++;
-          else stats[id].ties++;
-        });
-      };
-      processTeam(m.teamA, m.scoreA, m.scoreB);
-      processTeam(m.teamB, m.scoreB, m.scoreA);
-    }));
-
-    return Object.values(stats)
-      .map(s => ({ ...s, avgPoints: s.matchesPlayed ? Number((s.totalPoints / s.matchesPlayed).toFixed(1)) : 0 }))
-      .sort((a, b) => 
-        b.totalPoints - a.totalPoints || 
-        b.wins - a.wins || 
-        b.pointDifferential - a.pointDifferential
-      );
-  }, [tournament]);
-
-  const isPerfect = tournament && tournament.mode !== 'event' && [8, 12, 16].includes(tournament.players.length);
+  const isPerfect = tournament && tournament.mode !== 'event' && !isFixed && [8, 12, 16].includes(tournament.players.length);
 
   // Active players for event mode
   const activePlayers = players.filter(p => p.isActive !== false);
+  const activePairs = currentPairs.filter(pair => pair.every(id => activePlayers.some(p => p.id === id)));
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
   // Keyboard navigation for rounds
@@ -757,13 +799,50 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Fixed pairs */}
+              {isFixed && (
+                <div className="mb-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h3 className="text-sm md:text-base font-black text-slate-700 flex items-center gap-2">
+                      <Link2 className={`w-4 h-4 ${tc.primaryText}`} /> {t('pairs.title', { n: currentPairs.length })}
+                    </h3>
+                    {canEditPairs && (
+                      <span className={`text-xs font-bold ${pairingWith ? tc.primaryText : 'text-slate-400'}`}>
+                        {pairingWith ? t('pairs.selected', { name: players.find(p => p.id === pairingWith)?.name ?? '' }) : t('pairs.hint')}
+                      </span>
+                    )}
+                  </div>
+                  {currentPairs.length === 0 ? (
+                    <div className="py-4 text-center text-sm text-slate-300 font-bold italic border-2 border-dashed border-slate-100 rounded-2xl">{t('pairs.none')}</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {currentPairs.map(pair => {
+                        const [a, b] = pair.map(id => players.find(p => p.id === id));
+                        return (
+                          <div key={pairKey(pair)} className={`flex items-center justify-between gap-2 rounded-2xl border-2 ${tc.primaryBorder} ${tc.primaryLight} px-4 py-3`}>
+                            <span className="font-black text-slate-800 truncate">{a?.name} & {b?.name}</span>
+                            {canEditPairs && !pairHasPlayed(pair) && (
+                              <button onClick={() => unpair(pair)} title={t('pairs.unpair')} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-white shrink-0">
+                                <Unlink className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Player list */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1">
                 {players.length === 0 ? (
                   <div className="col-span-1 md:col-span-2 py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
                 ) : players.map((p, idx) => (
                   <div key={p.id} className={`flex items-center justify-between bg-white border-2 rounded-2xl md:rounded-[2rem] px-5 md:px-8 py-4 md:py-5 shadow-sm transition-all group ${
-                    tournament?.mode === 'event' && p.isActive === false
+                    pairingWith === p.id
+                      ? `${tc.primaryBorder} ring-2 ${isEvent ? 'ring-purple-400' : 'ring-indigo-400'}`
+                      : tournament?.mode === 'event' && p.isActive === false
                       ? 'border-slate-100 opacity-50'
                       : 'border-slate-50 hover:border-slate-200'
                   }`}>
@@ -777,10 +856,24 @@ const App: React.FC = () => {
                               {t(`skill.${p.skillLevel}`)}
                             </span>
                           )}
+                          {isFixed && partnerOf(p.id) && (
+                            <span className="text-[10px] font-bold text-slate-400 truncate">
+                              {t('pairs.partnerOf', { name: players.find(x => x.id === partnerOf(p.id))?.name ?? '' })}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
+                      {isFixed && canEditPairs && !partnerOf(p.id) && (
+                        <button
+                          onClick={() => selectForPair(p.id)}
+                          title={t('pairs.pairWith')}
+                          className={`p-2 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : `text-slate-300 hover:${tc.primaryText} hover:bg-slate-50`}`}
+                        >
+                          <Link2 className="w-5 h-5" />
+                        </button>
+                      )}
                       {tournament?.mode === 'event' ? (
                         <button
                           onClick={() => togglePlayerActive(p.id)}
@@ -833,11 +926,34 @@ const App: React.FC = () => {
                         {t('setup.event')}
                       </button>
                     </div>
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.pairing')}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['rotating', 'fixed'] as const).map(mode => {
+                        const Icon = mode === 'rotating' ? Shuffle : Link2;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => { setPairMode(mode); setPairingWith(null); }}
+                            className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
+                              pairMode === mode
+                                ? (isEvent ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300' : 'bg-white/10 border-2 border-white/20 text-white')
+                                : 'border-2 border-transparent text-slate-500 hover:border-white/10'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5 mx-auto mb-1" />
+                            {t(mode === 'rotating' ? 'setup.pairsRotating' : 'setup.pairsFixed')}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 
                 <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest">{t('setup.tournamentInfo')}</h3>
                 <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className="text-3xl md:text-4xl font-black">{players.length}</span></div>
+                {isFixed && (
+                  <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className="text-3xl md:text-4xl font-black">{currentPairs.length}</span></div>
+                )}
                 
                 {isEvent ? (
                   <>
@@ -868,7 +984,10 @@ const App: React.FC = () => {
                     )}
                   </>
                 ) : (
-                  <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800"><span className="text-slate-400 font-bold">{t('common.rounds')}</span><span className="text-3xl md:text-4xl font-black">{players.length > 0 ? (players.length % 2 === 0 ? players.length - 1 : players.length) : 0}</span></div>
+                  <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800"><span className="text-slate-400 font-bold">{t('common.rounds')}</span><span className="text-3xl md:text-4xl font-black">{(() => {
+                  const n = isFixed ? currentPairs.length : players.length;
+                  return n > 1 ? (n % 2 === 0 ? n - 1 : n) : 0;
+                })()}</span></div>
                 )}
                 
                 {/* Court Names Configuration */}
@@ -968,12 +1087,14 @@ const App: React.FC = () => {
                     {tournament.rounds.length === 0 ? t('rounds.generateFirst') : t('rounds.generateNext')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
-                    {t('rounds.eventSummary', { active: activePlayers.length, courts: tournament.numCourts ?? eventNumCourts })}
+                    {isFixed
+                      ? t('rounds.eventSummaryPairs', { active: activePairs.length, courts: tournament.numCourts ?? eventNumCourts })
+                      : t('rounds.eventSummary', { active: activePlayers.length, courts: tournament.numCourts ?? eventNumCourts })}
                   </p>
                 </div>
                 <button 
                   onClick={addRound}
-                  disabled={activePlayers.length < 4}
+                  disabled={isFixed ? activePairs.length < 2 : activePlayers.length < 4}
                   className={`${tc.primary} ${tc.primaryHover} disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2`}
                 >
                   <Play className="w-5 h-5" fill="currentColor" /> {t('rounds.generateRound', { n: tournament.rounds.length + 1 })}
@@ -1223,37 +1344,39 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="border-t-2 border-yellow-300 pt-5">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-500 text-center mb-4">
-                      {t('champ.individualRankingsByPoints')}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 md:gap-3">
-                      {allFinalists.map((entry, idx) => (
-                        <div key={entry.id} className="bg-white/60 rounded-xl p-3 text-center">
-                          <div className="text-lg md:text-2xl">{placeLabels[idx]}</div>
-                          <div className="font-black text-sm md:text-base italic truncate mt-1">
-                            {entry.name}
+                  {!isFixed && (
+                    <div className="border-t-2 border-yellow-300 pt-5">
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-500 text-center mb-4">
+                        {t('champ.individualRankingsByPoints')}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 md:gap-3">
+                        {allFinalists.map((entry, idx) => (
+                          <div key={entry.id} className="bg-white/60 rounded-xl p-3 text-center">
+                            <div className="text-lg md:text-2xl">{placeLabels[idx]}</div>
+                            <div className="font-black text-sm md:text-base italic truncate mt-1">
+                              {entry.name}
+                            </div>
+                            <div className="text-xs text-slate-500 font-bold">
+                              {entry.stats?.totalPoints || 0} {t('common.pts')}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500 font-bold">
-                            {entry.stats?.totalPoints || 0} {t('common.pts')}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })()}
             
             {/* Championship Round Button - classic mode only */}
-            {tournament?.mode !== 'event' && leaderboard.length >= 4 && !tournament?.rounds.some(r => r.matches.some(m => m.id.includes('championship'))) && (
+            {tournament?.mode !== 'event' && leaderboard.length >= minForFinals && !tournament?.rounds.some(r => r.matches.some(m => m.id.includes('championship'))) && (
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
                     <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('champ.round')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
-                    {t('champ.format')}
+                    {t(isFixed ? 'champ.formatPairs' : 'champ.format')}
                   </p>
                 </div>
                 <button 
@@ -1310,9 +1433,11 @@ const App: React.FC = () => {
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
                           <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
-                          <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                            {t(`skill.${skill}`)}
-                          </span>
+                          {!isFixed && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
+                              {t(`skill.${skill}`)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -1330,8 +1455,8 @@ const App: React.FC = () => {
                   <thead>
                     <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                       <th className="px-12 py-8">{t('lb.rank')}</th>
-                      <th className="px-12 py-8">{t('lb.athlete')}</th>
-                      <th className="px-8 py-8 text-center">{t('common.skill')}</th>
+                      <th className="px-12 py-8">{t(isFixed ? 'lb.pair' : 'lb.athlete')}</th>
+                      {!isFixed && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
                       <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
                     </tr>
@@ -1361,17 +1486,19 @@ const App: React.FC = () => {
                             </div>
                             <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
-                          <td className="px-8 py-10 text-center">
-                            {(() => {
-                              const player = tournament?.players.find(p => p.id === entry.playerId);
-                              const skill = player?.skillLevel || 'medium';
-                              return (
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                                  {t(`skill.${skill}`)}
-                                </span>
-                              );
-                            })()}
-                          </td>
+                          {!isFixed && (
+                            <td className="px-8 py-10 text-center">
+                              {(() => {
+                                const player = tournament?.players.find(p => p.id === entry.playerId);
+                                const skill = player?.skillLevel || 'medium';
+                                return (
+                                  <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
+                                    {t(`skill.${skill}`)}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                          )}
                           <td className="px-12 py-10 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 font-black text-base">
                               <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>

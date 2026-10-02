@@ -16,6 +16,7 @@ import {
   Eye
 } from 'lucide-react';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { computeLeaderboard } from './utils/leaderboard.ts';
 
 interface SharedTournamentData {
   id: string;
@@ -68,38 +69,7 @@ const GameViewer: React.FC = () => {
 
   const tournament = data?.tournament;
 
-  const leaderboard = useMemo<LeaderboardEntry[]>(() => {
-    if (!tournament) return [];
-    const stats: Record<string, LeaderboardEntry> = {};
-    tournament.players.forEach(p => stats[p.id] = {
-      playerId: p.id, playerName: p.name, totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
-    });
-
-    tournament.rounds.forEach(r => r.matches.forEach(m => {
-      if (!m.isCompleted || m.scoreA === null || m.scoreB === null) return;
-      const processTeam = (pIds: [string, string], s: number, os: number) => {
-        pIds.forEach(id => {
-          if (!stats[id]) return;
-          stats[id].totalPoints += s;
-          stats[id].pointDifferential += (s - os);
-          stats[id].matchesPlayed++;
-          if (s > os) stats[id].wins++;
-          else if (s < os) stats[id].losses++;
-          else stats[id].ties++;
-        });
-      };
-      processTeam(m.teamA, m.scoreA, m.scoreB);
-      processTeam(m.teamB, m.scoreB, m.scoreA);
-    }));
-
-    return Object.values(stats)
-      .map(s => ({ ...s, avgPoints: s.matchesPlayed ? Number((s.totalPoints / s.matchesPlayed).toFixed(1)) : 0 }))
-      .sort((a, b) => 
-        b.totalPoints - a.totalPoints || 
-        b.wins - a.wins || 
-        b.pointDifferential - a.pointDifferential
-      );
-  }, [tournament]);
+  const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
   const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
@@ -344,7 +314,7 @@ const GameViewer: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="border-t-2 border-yellow-300 pt-4">
+                  {tournament.pairMode !== 'fixed' && <div className="border-t-2 border-yellow-300 pt-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center mb-3">{t('champ.individualRankings')}</div>
                     <div className="grid grid-cols-4 gap-2">
                       {allFinalists.map((entry, idx) => (
@@ -355,7 +325,7 @@ const GameViewer: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </div>}
                 </div>
               );
             })()}
@@ -372,7 +342,7 @@ const GameViewer: React.FC = () => {
                   <thead>
                     <tr className="bg-slate-50/30 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                       <th className="px-4 py-3">#</th>
-                      <th className="px-4 py-3">{t('common.player')}</th>
+                      <th className="px-4 py-3">{t(tournament.pairMode === 'fixed' ? 'lb.pair' : 'common.player')}</th>
                       <th className="px-4 py-3 text-center">{t('viewer.wlt')}</th>
                       <th className="px-4 py-3 text-right">{t('common.pts')}</th>
                     </tr>

@@ -64,7 +64,7 @@ const WHIST_SEEDS: Record<number, number[][]> = {
  * 1. Try to minimize players staying on the same court as last round
  * 2. When tied (common with balanced schedules), use round parity to alternate
  */
-const optimizeCourtAssignments = (
+export const optimizeCourtAssignments = (
   matches: Match[],
   playerCourtHistory: Map<string, number[]>
 ): Match[] => {
@@ -164,7 +164,7 @@ const updateCourtHistory = (
 };
 
 /** Skill as a number: low=1, medium=2 (default), high=3 */
-const skillValue = (p: Player): number => {
+export const skillValue = (p: Player): number => {
   if (p.skillLevel === 'high') return 3;
   if (p.skillLevel === 'low') return 1;
   return 2;
@@ -639,7 +639,7 @@ export const generateAdditionalRound = (
 /**
  * Fisher-Yates shuffle — proper uniform randomization.
  */
-const shuffle = <T>(arr: T[]): T[] => {
+export const shuffle = <T>(arr: T[]): T[] => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

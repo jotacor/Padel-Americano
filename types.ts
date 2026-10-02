@@ -33,7 +33,12 @@ export interface Tournament {
   courtNames?: string[];
   mode?: 'classic' | 'event';
   numCourts?: number;
+  pairMode?: PairMode;
+  pairs?: Pair[]; // fixed pairs (player IDs), only when pairMode === 'fixed'
 }
+
+export type PairMode = 'rotating' | 'fixed';
+export type Pair = [string, string];
 
 export interface LeaderboardEntry {
   playerId: string;
