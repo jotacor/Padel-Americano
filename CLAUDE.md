@@ -137,11 +137,12 @@ npm run preview # Preview production build
 
 ## Conventions
 
+- Run `npm run typecheck` before committing (app + Functions; must be error-free)
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
-- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. No `@types/react` → `t()` calls are NOT type-checked; verify new keys exist in `en` and `es`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
+- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
 - AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
 - PIN stored internally for cloud sync but not displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
