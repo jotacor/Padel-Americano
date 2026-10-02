@@ -17,6 +17,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Emparejamiento por clasificación** — Opción de Liga: cada ronda vuelve a elegir parejas y rivales según los resultados, sin dejar de jugar contra todos
 - ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
 - ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
+- ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos
 - ✅ **Nombres de pista personalizados** — Pon nombre a las pistas (p. ej., "Pista Central", "Pista A") para llamarlas fácilmente
 - ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
 - ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
@@ -66,7 +67,7 @@ Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_A
 ### Flujo del torneo
 
 1. **Configuración** — Añade jugadores con un nivel (mínimo 4; 8/12/16 para un equilibrio Whist "perfecto"), elige un modo y la modalidad de parejas
-2. **Configurar pistas** — Renombra las pistas según tu club (Tab para pasar entre campos)
+2. **Configurar pistas** — Elige cuántas pistas tienes y renómbralas según tu club (Tab para pasar entre campos)
 3. **Empezar** — *Aleatorio* crea todas las rondas de entrada; *Liga* las genera de una en una
 4. **Jugar** — Navega por las rondas e introduce los resultados tras cada partido
 5. **Ampliar** — Añade más rondas con el botón "+" si hay tiempo
@@ -77,14 +78,14 @@ Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_A
 
 | | **Aleatorio** (por defecto) | **Aleatorio + "Priorizar nivel inicial"** | **Liga** |
 |---|---|---|---|
-| **Rondas** | Todas generadas al inicio (N−1, o N si es impar) | Todas generadas al inicio (mismo número) | Una a una ("Generar ronda N") |
+| **Rondas** | Todas generadas al inicio (N−1, o N si es impar; más si hay menos pistas) | Todas generadas al inicio (mismo número) | Una a una ("Generar ronda N") |
 | **Parejas** | Rotación Whist / Berger: cada uno forma pareja con todos una vez | Elegidas en cada ronda para equilibrar el nivel | Elegidas en cada ronda para equilibrar el nivel |
 | **Nivel** | Solo decide quién ocupa cada hueco del calendario. Sin efecto con 8/12/16 (toda asignación está igual de equilibrada); ayuda con otros tamaños | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible | Nivel inicial y/o clasificación, ver [Emparejamiento en Liga](#emparejamiento-en-liga) |
 | **Repeticiones** | Ninguna: sin parejas repetidas, rivales repartidos de forma uniforme | Algunas parejas se repiten, otras nunca coinciden (8 jugadores: ~7 de 28 parejas) | Se evitan en lo posible (penalizadas, no prohibidas) |
 | **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel inicial" |
 | **Plantilla** | Bloqueada al empezar | Bloqueada al empezar | Añade jugadores y alterna activo/descanso entre rondas |
 | **Quién juega** | Fijado por el calendario (los descansos rotan) | Primero quienes han jugado menos partidos | Primero quienes han jugado menos partidos, solo jugadores activos |
-| **Pistas** | Jugadores ÷ 4 | Jugadores ÷ 4 | Tú eliges (4 por defecto); los jugadores sobrantes descansan |
+| **Pistas** | Tú eliges (por defecto jugadores ÷ 4). Con menos pistas → el mismo calendario repartido en más rondas (se mantienen todas las garantías de parejas/rivales), los jugadores descansan por turnos | Igual que Aleatorio | Tú eliges (4 por defecto), modificable entre rondas; los jugadores sobrantes descansan |
 | **Rondas extra (+)** | Rotación justa evitando repeticiones, rivales igualados por nivel | Mismo algoritmo que Liga | Botón de siguiente ronda |
 | **Finales** | 1.º+3.º vs 2.º+4.º | 1.º+3.º vs 2.º+4.º | — |
 | **Ideal para** | Grupo cerrado con tiempo para el calendario completo | Grupo de nivel mixto donde importan más los partidos igualados que conocer a todos | Sesiones abiertas donde la gente llega/se va, número de rondas desconocido |
@@ -104,7 +105,7 @@ Dos opciones en la configuración de Liga, combinables:
 
 - **Fuerza según la clasificación** = percentil de puntos ganados por punto jugado (no puntos totales, para no penalizar descansos ni llegadas tardías), en la misma escala 1–3 que el nivel.
 - **Ambas activadas**: al principio cuenta el nivel inicial y los resultados van pesando más según se juega (los resultados pesan n/(n+2) tras n partidos). **Solo clasificación**: todos empiezan iguales. **Ninguna**: solo rotación.
-- Simulado con 12–24 jugadores: parejas rotativas con ambas opciones → ~8–15% menos diferencia de nivel por partido que solo nivel, menos parejas repetidas, cobertura de rivales igual o mejor. Con parejas fijas la mejora es menor y la cobertura puede quedarse atrás (12 parejas, 14 rondas: ~90% de los cruces jugados frente al 100% sin la opción).
+- Simulado (ambas opciones vs solo nivel, 12–30 jugadores, 2–5 pistas, 10 rondas): parejas rotativas → 6–18% menos diferencia de nivel por partido cuando cada jugador juega ≥8 partidos (sin diferencia con pocos partidos), menos parejas repetidas, cobertura de rivales igual o mejor. Parejas fijas → ~5–15% menos diferencia, cobertura a ≤6 puntos de solo nivel.
 
 **Parejas fijas** (opcional en ambos modos, *Parejas: Fijas*): tú formas las parejas y solo rotan los rivales.
 

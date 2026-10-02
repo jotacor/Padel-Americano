@@ -495,10 +495,11 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
 export const generateAdditionalRound = (
   players: Player[],
   existingRounds: Round[],
-  roundIndex: number
+  roundIndex: number,
+  courts?: number // chosen courts; default/maximum players ÷ 4
 ): Round => {
   const numPlayers = players.length;
-  const numCourts = Math.floor(numPlayers / 4);
+  const numCourts = Math.min(courts ?? Infinity, Math.floor(numPlayers / 4));
   const playersPerRound = numCourts * 4;
   const playerById = new Map(players.map(p => [p.id, p]));
   
@@ -919,6 +920,42 @@ export const generateSkillBalancedSchedule = (players: Player[]): Round[] => {
 };
 
 /**
+ * Fit a full schedule into fewer courts (the club has fewer than players ÷ 4): same matches,
+ * same order, packed greedily into rounds of at most `numCourts` matches with no player twice.
+ * Keeps every partner/opponent guarantee of the schedule; players rest in turn.
+ */
+export const packRounds = (rounds: Round[], numCourts: number, playerIds: string[]): Round[] => {
+  if (rounds.every(r => r.matches.length <= numCourts)) return rounds;
+  const queue = rounds.flatMap(r => r.matches);
+  const packed: Round[] = [];
+  const courtHistory = new Map<string, number[]>(playerIds.map(id => [id, []]));
+  const played = new Map<string, number>(playerIds.map(id => [id, 0]));
+  const playersOf = (m: Match) => [...m.teamA, ...m.teamB];
+  while (queue.length) {
+    const roundIndex = packed.length;
+    const busy = new Set<string>();
+    const picked: Match[] = [];
+    // Matches of whoever has played least go first (fair rests); schedule order breaks ties
+    const order = queue.map((m, i) => ({ i, load: playersOf(m).reduce((sum, id) => sum + played.get(id)!, 0) }))
+      .sort((a, b) => a.load - b.load || a.i - b.i);
+    const taken = new Set<number>();
+    for (const { i } of order) {
+      if (picked.length >= numCourts) break;
+      const ids = playersOf(queue[i]);
+      if (ids.some(id => busy.has(id))) continue;
+      ids.forEach(id => { busy.add(id); played.set(id, played.get(id)! + 1); });
+      taken.add(i);
+      picked.push({ ...queue[i], roundIndex, courtIndex: picked.length, id: `r${roundIndex}-c${picked.length}` });
+    }
+    for (let i = queue.length - 1; i >= 0; i--) if (taken.has(i)) queue.splice(i, 1);
+    const matches = optimizeCourtAssignments(picked, courtHistory);
+    updateCourtHistory(matches, courtHistory);
+    packed.push({ index: roundIndex, matches, byes: playerIds.filter(id => !busy.has(id)) });
+  }
+  return packed;
+};
+
+/**
  * Generate a championship round.
  * 1st + 3rd place vs 2nd + 4th place on Court 1
  * Remaining players fill other courts with balanced matchups.
@@ -927,10 +964,11 @@ export const generateChampionshipRound = (
   players: Player[],
   leaderboard: { playerId: string }[],
   existingRounds: Round[],
-  roundIndex: number
+  roundIndex: number,
+  courts?: number // chosen courts; default/maximum players ÷ 4
 ): Round => {
   const numPlayers = players.length;
-  const numCourts = Math.floor(numPlayers / 4);
+  const numCourts = Math.min(courts ?? Infinity, Math.floor(numPlayers / 4));
   
   // Build court history for optimization
   const courtHistory: Map<string, number[]> = new Map();

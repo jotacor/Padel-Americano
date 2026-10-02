@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
-import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule } from './utils/scheduler.ts';
+import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
@@ -32,6 +32,7 @@ import {
   Sparkles,
   UserPlus,
   UserMinus,
+  Minus,
   Monitor,
   Shuffle,
   Link2,
@@ -55,6 +56,8 @@ const SKILL_COLORS = {
   high: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500', card: 'bg-rose-50 border-rose-200 hover:border-rose-300' },
 };
 
+const MAX_COURTS = 10;
+
 const App: React.FC = () => {
   const { t, lang, locale, courtName } = useI18n();
   const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
@@ -69,6 +72,8 @@ const App: React.FC = () => {
   // League ("event") mode
   const [eventMode, setEventMode] = useState(false);
   const [eventNumCourts, setEventNumCourts] = useState(4);
+  // Random: courts the club gives us; null = all that fit (players ÷ 4)
+  const [classicCourts, setClassicCourts] = useState<number | null>(null);
 
   // Pairs: rotating (Americano) or fixed (manager picks partners)
   const [pairMode, setPairMode] = useState<PairMode>('rotating');
@@ -117,7 +122,10 @@ const App: React.FC = () => {
   };
 
   // Calculate number of courts based on mode
-  const numCourts = isEvent ? eventNumCourts : Math.floor(players.length / 4);
+  const maxClassicCourts = Math.floor((tournament?.players ?? players).length / 4);
+  const numCourts = isEvent ? eventNumCourts
+    : tournament ? (tournament.numCourts ?? maxClassicCourts)
+    : Math.min(classicCourts ?? maxClassicCourts, maxClassicCourts);
 
   // Initialize court names when court count changes
   useEffect(() => {
@@ -150,6 +158,8 @@ const App: React.FC = () => {
     if (savedCourtNames) setCourtNames(JSON.parse(savedCourtNames));
     if (savedEventMode === 'true') setEventMode(true);
     if (savedEventCourts) setEventNumCourts(parseInt(savedEventCourts) || 4);
+    const savedClassicCourts = parseInt(localStorage.getItem('padel_classic_courts') ?? '');
+    if (savedClassicCourts > 0) setClassicCourts(savedClassicCourts);
     if (savedTournament) {
       try {
         const parsed = JSON.parse(savedTournament);
@@ -192,6 +202,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('padel_event_courts', eventNumCourts.toString());
   }, [eventNumCourts]);
+
+  useEffect(() => {
+    if (classicCourts) localStorage.setItem('padel_classic_courts', String(classicCourts));
+    else localStorage.removeItem('padel_classic_courts');
+  }, [classicCourts]);
 
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
@@ -473,9 +488,11 @@ const App: React.FC = () => {
       });
     } else {
       const balanced = !fixed && prioritizeSkill;
-      const rounds = fixed
+      const fullSchedule = fixed
         ? generateFixedPairsSchedule(tournamentPairs)
         : balanced ? generateSkillBalancedSchedule(tournamentPlayers) : generateAmericanoSchedule(tournamentPlayers);
+      // Fewer courts than players ÷ 4: same matches spread over more rounds
+      const rounds = packRounds(fullSchedule, numCourts, tournamentPlayers.map(p => p.id));
       setTournament({
         id: crypto.randomUUID(),
         name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
@@ -484,6 +501,7 @@ const App: React.FC = () => {
         isStarted: true,
         courtNames: [...courtNames],
         mode: 'classic',
+        numCourts,
         ...pairFields,
         ...(balanced && { prioritizeSkill: true }),
       });
@@ -558,12 +576,14 @@ const App: React.FC = () => {
       setPrioritizeSkill(false);
       setLeagueSkill(true);
       setLeagueRanking(false);
+      setClassicCourts(null);
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
       localStorage.removeItem('padel_court_names');
       localStorage.removeItem('padel_share_state');
       localStorage.removeItem('padel_event_mode');
       localStorage.removeItem('padel_event_courts');
+      localStorage.removeItem('padel_classic_courts');
       localStorage.removeItem('padel_pair_mode');
       localStorage.removeItem('padel_pairs');
       localStorage.removeItem('padel_prioritize_skill');
@@ -622,7 +642,10 @@ const App: React.FC = () => {
     setPlayers(imported.players);
     setCourtNames(imported.courtNames ?? []);
     setEventMode(imported.mode === 'event');
-    if (imported.numCourts) setEventNumCourts(imported.numCourts);
+    if (imported.numCourts) {
+      if (imported.mode === 'event') setEventNumCourts(imported.numCourts);
+      else setClassicCourts(imported.numCourts);
+    }
     setPairMode(imported.pairMode ?? 'rotating');
     setPairs(imported.pairs ?? []);
     if (imported.mode === 'event') {
@@ -668,15 +691,12 @@ const App: React.FC = () => {
         courtNames: [...courtNames],
       });
     } else {
+      const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
       const newRound = fixed
-        ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, Math.floor(tournament.players.length / 4))
+        ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, nc)
         : tournament.prioritizeSkill
-        ? generateEventRound(tournament.players, tournament.players, tournament.rounds, newRoundIndex, Math.floor(tournament.players.length / 4))
-        : generateAdditionalRound(
-          tournament.players,
-          tournament.rounds,
-          newRoundIndex
-        );
+        ? generateEventRound(tournament.players, tournament.players, tournament.rounds, newRoundIndex, nc)
+        : generateAdditionalRound(tournament.players, tournament.rounds, newRoundIndex, nc);
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound]
@@ -692,13 +712,14 @@ const App: React.FC = () => {
       ? generateFixedPairsChampionship(
         leaderboard.map(e => pairOfEntry(tournament, e)).filter((p): p is Pair => !!p),
         newRoundIndex,
-        Math.floor(tournament.players.length / 4)
+        tournament.numCourts ?? Math.floor(tournament.players.length / 4)
       )
       : generateChampionshipRound(
         tournament.players,
         leaderboard,
         tournament.rounds,
-        newRoundIndex
+        newRoundIndex,
+        tournament.numCourts
       );
     setTournament({
       ...tournament,
@@ -768,6 +789,37 @@ const App: React.FC = () => {
   // Active players for event mode
   const activePlayers = players.filter(p => p.isActive !== false);
   const activePairs = currentPairs.filter(pair => pair.every(id => activePlayers.some(p => p.id === id)));
+  // Courts: the club decides, not the player count
+  const setLeagueCourts = (n: number) => {
+    setEventNumCourts(n);
+    if (tournament?.mode === 'event') setTournament({ ...tournament, numCourts: n });
+  };
+  const playable = isEvent ? (isFixed ? activePairs.length * 2 : activePlayers.length) : (tournament?.players ?? players).length;
+  const usedCourts = Math.min(numCourts, Math.floor(playable / 4));
+  const courtsHint = !playable ? null
+    : numCourts > usedCourts ? t('setup.courtsUnused', { n: numCourts - usedCourts })
+    : playable > usedCourts * 4 ? t('setup.restingPerRound', { n: playable - usedCourts * 4 })
+    : null;
+  // Random before start: full schedule (N−1 rounds, N if odd; pairs for fixed) spread over the chosen courts
+  const estimatedClassicRounds = (() => {
+    const n = isFixed ? currentPairs.length : players.length;
+    const fullRounds = n > 1 ? (n % 2 === 0 ? n - 1 : n) : 0;
+    const perRound = isFixed ? Math.floor(n / 2) : Math.floor(n / 4);
+    return numCourts && perRound > numCourts ? Math.ceil(fullRounds * perRound / numCourts) : fullRounds;
+  })();
+  const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => (
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={t('setup.fewerCourts')}
+        className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+        <Minus className="w-4 h-4" strokeWidth={3} />
+      </button>
+      <span className="w-10 text-center text-3xl md:text-4xl font-black tabular-nums">{value}</span>
+      <button type="button" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label={t('setup.moreCourts')}
+        className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+        <Plus className="w-4 h-4" strokeWidth={3} />
+      </button>
+    </div>
+  );
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
   // Keyboard navigation for rounds
@@ -1067,40 +1119,30 @@ const App: React.FC = () => {
                   <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className="text-3xl md:text-4xl font-black">{currentPairs.length}</span></div>
                 )}
                 
-                {isEvent ? (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-bold">{t('setup.active')}</span>
-                      <span className="text-3xl md:text-4xl font-black text-emerald-400">{activePlayers.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800">
-                      <span className="text-slate-400 font-bold">{t('common.courts')}</span>
-                      {!tournament ? (
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={eventNumCourts}
-                          onChange={(e) => setEventNumCourts(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-20 text-right text-3xl md:text-4xl font-black bg-transparent border-b-2 border-slate-700 focus:border-purple-500 outline-none"
-                        />
-                      ) : (
-                        <span className="text-3xl md:text-4xl font-black">{tournament.numCourts || eventNumCourts}</span>
-                      )}
-                    </div>
-                    {tournament && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-bold">{t('common.rounds')}</span>
-                        <span className="text-3xl md:text-4xl font-black">{tournament.rounds.length}</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800"><span className="text-slate-400 font-bold">{t('common.rounds')}</span><span className="text-3xl md:text-4xl font-black">{(() => {
-                  const n = isFixed ? currentPairs.length : players.length;
-                  return n > 1 ? (n % 2 === 0 ? n - 1 : n) : 0;
-                })()}</span></div>
+                {isEvent && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-bold">{t('setup.active')}</span>
+                    <span className="text-3xl md:text-4xl font-black text-emerald-400">{activePlayers.length}</span>
+                  </div>
                 )}
+                <div className="space-y-2 pb-6 md:pb-8 border-b border-slate-800">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-bold">{t('common.courts')}</span>
+                    {/* League: changeable any time (next rounds); Random: until the schedule is generated */}
+                    {isEvent
+                      ? renderStepper(numCourts, 1, MAX_COURTS, setLeagueCourts)
+                      : !tournament
+                      ? renderStepper(numCourts, maxClassicCourts ? 1 : 0, maxClassicCourts, v => setClassicCourts(v >= maxClassicCourts ? null : v))
+                      : <span className="text-3xl md:text-4xl font-black">{numCourts}</span>}
+                  </div>
+                  {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
+                  {(tournament || !isEvent) && (
+                    <div className="flex justify-between items-center pt-4">
+                      <span className="text-slate-400 font-bold">{t('common.rounds')}</span>
+                      <span className="text-3xl md:text-4xl font-black">{tournament ? tournament.rounds.length : estimatedClassicRounds}</span>
+                    </div>
+                  )}
+                </div>
                 
                 {/* Court Names Configuration */}
                 {numCourts > 0 && (!tournament || tournament.mode === 'event') && (

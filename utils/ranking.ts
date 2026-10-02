@@ -76,7 +76,7 @@ export const MATCH_WEIGHTS = {
   recentOpponent: 3,
   partner: 8,       // repeated partner (rotating pairs)
   recentPartner: 15,
-  pairOpponent: 10, // fixed pairs: one rival per match (vs 4 per match rotating) → push harder
+  pairOpponent: 24, // fixed pairs: one rival per match (vs 4 rotating) → push harder; 24 = sim compromise balance vs coverage
 };
 
 const key = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;

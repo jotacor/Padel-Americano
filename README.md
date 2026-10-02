@@ -17,6 +17,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Standings-based Matchmaking** — League option: every round re-matches partners and rivals from the results so far, while everyone still plays everyone
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
+- ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
 - ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts
 - ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
 - ✅ **Winner Highlighting** — Completed matches show winning team in green
@@ -66,7 +67,7 @@ Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_K
 ### Tournament Flow
 
 1. **Setup** — Add players with a skill level (4+ required; 8/12/16 for "perfect" Whist balance), pick a mode and pair modality
-2. **Configure Courts** — Rename courts for your venue (Tab between inputs)
+2. **Configure Courts** — Pick how many courts you have and rename them for your venue (Tab between inputs)
 3. **Start** — *Random* creates all rounds up front; *League* generates them one at a time
 4. **Play** — Navigate through rounds, enter scores after each match
 5. **Extend** — Add more rounds with "+" button if time permits
@@ -77,14 +78,14 @@ Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_K
 
 | | **Random** (default) | **Random + "Prioritize initial skill"** | **League** |
 |---|---|---|---|
-| **Rounds** | All generated at start (N−1, or N if odd) | All generated at start (same count) | One at a time ("Generate round N") |
+| **Rounds** | All generated at start (N−1, or N if odd; more with fewer courts) | All generated at start (same count) | One at a time ("Generate round N") |
 | **Partners** | Whist / Berger rotation: everyone partners everyone once | Chosen each round to balance skill | Chosen each round to balance skill |
 | **Skill level** | Only decides who takes which slot of the schedule. No effect with 8/12/16 (every assignment is equally balanced); helps other sizes | Main criterion: groups of 4 and team splits as even as possible | Initial skill and/or standings, see [League matchmaking](#league-matchmaking) |
 | **Repeats** | None: no repeated partners, opponents spread evenly | Some partners repeat, others never meet (8 players: ~7 of 28 pairs) | Avoided where possible (penalized, not forbidden) |
 | **Match balance** (8 players, mixed skills) | Avg skill gap per match ≈ 1.36 | ≈ 0.64 | Similar to "Prioritize initial skill" |
 | **Roster** | Locked once started | Locked once started | Add players and toggle active/resting between rounds |
 | **Who plays** | Fixed by the schedule (byes rotate) | Fewest matches played first | Fewest matches played first, active players only |
-| **Courts** | Players ÷ 4 | Players ÷ 4 | You choose (default 4); extra players rest |
+| **Courts** | You choose (default players ÷ 4). Fewer courts → the same schedule spread over more rounds (all partner/opponent guarantees kept), players rest in turn | Same as Random | You choose (default 4), changeable between rounds; extra players rest |
 | **Extra rounds (+)** | Fair rotation avoiding repeats, skill-even opponents | Same algorithm as League | Next round button |
 | **Finals** | 1st+3rd vs 2nd+4th | 1st+3rd vs 2nd+4th | — |
 | **Best for** | Closed group with time for the full schedule | Mixed-level group where even matches matter more than meeting everyone | Open sessions where people arrive/leave, unknown number of rounds |
@@ -104,7 +105,7 @@ Two options in League setup, combinable:
 
 - **Strength from standings** = percentile of points won per point played (not total points, so byes and late arrivals aren't penalized), on the same 1–3 scale as skill.
 - **Both on**: the initial level counts at first and results take over as matches are played (results weigh n/(n+2) after n matches). **Standings only**: everyone starts equal. **Neither**: rotation only.
-- Simulated with 12–24 players: rotating pairs with both options → ~8–15% smaller skill gap per match than skill only, fewer repeated partners, equal or better opponent coverage. With fixed pairs the gain is smaller and coverage can lag (12 pairs, 14 rounds: ~90% of matchups played vs 100% without).
+- Simulated (both options vs skill only, 12–30 players, 2–5 courts, 10 rounds): rotating pairs → 6–18% smaller skill gap per match when players get ≥8 matches (no difference with few matches each), fewer repeated partners, equal or better opponent coverage. Fixed pairs → ~5–15% smaller gap, opponent coverage within ~6 points of skill only.
 
 **Fixed pairs** (optional in both modes, *Pairs: Fixed*): you pair players yourself and only opponents rotate.
 
