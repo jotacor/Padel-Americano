@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
-import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
+import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useNicknamesAvailable } from './utils/nicknames.ts';
@@ -70,6 +70,8 @@ const App: React.FC = () => {
   const [pairMode, setPairMode] = useState<PairMode>('rotating');
   const [pairs, setPairs] = useState<Pair[]>([]);
   const [pairingWith, setPairingWith] = useState<string | null>(null);
+  // Random + rotating: trade perfect Whist rotation for skill-even matches
+  const [prioritizeSkill, setPrioritizeSkill] = useState(false);
   
   // Sharing state
   const [shareState, setShareState] = useState<ShareState>({
@@ -131,6 +133,7 @@ const App: React.FC = () => {
     const savedEventMode = localStorage.getItem('padel_event_mode');
     const savedEventCourts = localStorage.getItem('padel_event_courts');
     const savedPairMode = localStorage.getItem('padel_pair_mode');
+    if (localStorage.getItem('padel_prioritize_skill') === 'true') setPrioritizeSkill(true);
     const savedPairs = localStorage.getItem('padel_pairs');
     if (savedPairMode === 'fixed') setPairMode('fixed');
     if (savedPairs) setPairs(JSON.parse(savedPairs));
@@ -183,8 +186,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
+    localStorage.setItem('padel_prioritize_skill', String(prioritizeSkill));
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
-  }, [pairMode, pairs]);
+  }, [pairMode, pairs, prioritizeSkill]);
 
   // Load share state from localStorage
   useEffect(() => {
@@ -455,7 +459,10 @@ const App: React.FC = () => {
         ...pairFields,
       });
     } else {
-      const rounds = fixed ? generateFixedPairsSchedule(tournamentPairs) : generateAmericanoSchedule(tournamentPlayers);
+      const balanced = !fixed && prioritizeSkill;
+      const rounds = fixed
+        ? generateFixedPairsSchedule(tournamentPairs)
+        : balanced ? generateSkillBalancedSchedule(tournamentPlayers) : generateAmericanoSchedule(tournamentPlayers);
       setTournament({
         id: crypto.randomUUID(),
         name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
@@ -465,6 +472,7 @@ const App: React.FC = () => {
         courtNames: [...courtNames],
         mode: 'classic',
         ...pairFields,
+        ...(balanced && { prioritizeSkill: true }),
       });
     }
     setPairingWith(null);
@@ -534,6 +542,7 @@ const App: React.FC = () => {
       setEventMode(false);
       setPairMode('rotating');
       setPairs([]);
+      setPrioritizeSkill(false);
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
       localStorage.removeItem('padel_court_names');
@@ -542,6 +551,7 @@ const App: React.FC = () => {
       localStorage.removeItem('padel_event_courts');
       localStorage.removeItem('padel_pair_mode');
       localStorage.removeItem('padel_pairs');
+      localStorage.removeItem('padel_prioritize_skill');
       setActiveTab('setup');
     }
   };
@@ -576,6 +586,8 @@ const App: React.FC = () => {
     } else {
       const newRound = fixed
         ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, Math.floor(tournament.players.length / 4))
+        : tournament.prioritizeSkill
+        ? generateEventRound(tournament.players, tournament.players, tournament.rounds, newRoundIndex, Math.floor(tournament.players.length / 4))
         : generateAdditionalRound(
           tournament.players,
           tournament.rounds,
@@ -650,7 +662,7 @@ const App: React.FC = () => {
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
-  const isPerfect = tournament && tournament.mode !== 'event' && !isFixed && [8, 12, 16].includes(tournament.players.length);
+  const isPerfect = tournament && tournament.mode !== 'event' && !isFixed && !tournament.prioritizeSkill && [8, 12, 16].includes(tournament.players.length);
 
   // Active players for event mode
   const activePlayers = players.filter(p => p.isActive !== false);
@@ -946,6 +958,18 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
+                    {!eventMode && pairMode === 'rotating' && (
+                      <label className="flex items-start gap-3 cursor-pointer group mt-4">
+                        <div className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all ${prioritizeSkill ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
+                          {prioritizeSkill && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                        </div>
+                        <input type="checkbox" checked={prioritizeSkill} onChange={(e) => setPrioritizeSkill(e.target.checked)} className="sr-only" />
+                        <span>
+                          <span className="block text-slate-300 font-bold text-sm">{t('setup.prioritizeSkill')}</span>
+                          <span className="block text-slate-500 text-xs font-medium mt-0.5">{t('setup.prioritizeSkillHint')}</span>
+                        </span>
+                      </label>
+                    )}
                   </div>
                 )}
                 

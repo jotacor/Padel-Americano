@@ -35,6 +35,7 @@ export interface Tournament {
   numCourts?: number;
   pairMode?: PairMode;
   pairs?: Pair[]; // fixed pairs (player IDs), only when pairMode === 'fixed'
+  prioritizeSkill?: boolean; // Random + rotating: skill-balanced rounds instead of Whist rotation
 }
 
 export type PairMode = 'rotating' | 'fixed';

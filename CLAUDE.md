@@ -59,6 +59,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - All rounds pre-generated using Whist tournament logic
 - Player roster locked after tournament starts
 - Perfect schedules for 8, 12, 16 players
+- "Prioritize skill" toggle (rotating only, `tournament.prioritizeSkill`): `generateSkillBalancedSchedule` builds every round with the League algorithm instead of Whist → much more even matches (8p: avg diff 1.36 → ~0.65) but some partnerships repeat/never happen; extra rounds also use `generateEventRound`
 - `skillLevel` optional: `generateAmericanoSchedule` builds the Whist/Berger schedule on abstract slots, then `assignSlotsBySkill` picks the player→slot mapping minimizing Σ(match skill diff)². Partner/opponent guarantees are kept. For perfect Whist (8/12/16) every mapping gives the same total (each pair partners 1×, opposes 2×), so skill only helps other sizes
 
 **League / Liga** (`mode: 'event'`):
@@ -109,7 +110,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
-- `padel_pair_mode`, `padel_pairs` - Pair modality and fixed pairs during setup
+- `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
 
 ### Cloud Sharing
