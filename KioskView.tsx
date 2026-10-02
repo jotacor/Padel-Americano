@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, Player } from './types';
+import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   UserPlus, 
   UserMinus, 
@@ -35,6 +36,8 @@ const KioskView: React.FC = () => {
   const [newSkill, setNewSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTotogian, setNewTotogian] = useState(false);
   const [wantNickname, setWantNickname] = useState(true);
+  const nicknamesAvailable = useNicknamesAvailable();
+  const generateNickname = wantNickname && nicknamesAvailable;
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchTournament = async () => {
@@ -95,7 +98,7 @@ const KioskView: React.FC = () => {
     
     try {
       let nickname: string | undefined;
-      if (wantNickname) {
+      if (generateNickname) {
         try {
           const nicknameResp = await fetch('/api/nicknames', {
             method: 'POST',
@@ -245,14 +248,18 @@ const KioskView: React.FC = () => {
                 <input type="checkbox" checked={newTotogian} onChange={(e) => setNewTotogian(e.target.checked)} className="sr-only" />
                 <span className="text-xs font-bold text-purple-400">Totogian</span>
               </label>
-              <div className="w-px h-6 bg-purple-700 mx-1" />
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${wantNickname ? 'bg-amber-500 border-amber-500' : 'border-purple-600'}`}>
-                  {wantNickname && <Sparkles className="w-3 h-3 text-white" strokeWidth={3} />}
-                </div>
-                <input type="checkbox" checked={wantNickname} onChange={(e) => setWantNickname(e.target.checked)} className="sr-only" />
-                <span className="text-xs font-bold text-purple-400">AI Nickname</span>
-              </label>
+              {nicknamesAvailable && (
+                <>
+                  <div className="w-px h-6 bg-purple-700 mx-1" />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${wantNickname ? 'bg-amber-500 border-amber-500' : 'border-purple-600'}`}>
+                      {wantNickname && <Sparkles className="w-3 h-3 text-white" strokeWidth={3} />}
+                    </div>
+                    <input type="checkbox" checked={wantNickname} onChange={(e) => setWantNickname(e.target.checked)} className="sr-only" />
+                    <span className="text-xs font-bold text-purple-400">AI Nickname</span>
+                  </label>
+                </>
+              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -261,7 +268,7 @@ const KioskView: React.FC = () => {
                 className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {isAdding && wantNickname ? 'Generating nickname...' : 'Add to Tournament'}
+                {isAdding && generateNickname ? 'Generating nickname...' : 'Add to Tournament'}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}

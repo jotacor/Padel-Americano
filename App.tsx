@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
+import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   Users, 
   Trophy, 
@@ -83,6 +84,7 @@ const App: React.FC = () => {
   // Nickname generation
   const [generateNicknames, setGenerateNicknames] = useState(false);
   const [isGeneratingNicknames, setIsGeneratingNicknames] = useState(false);
+  const nicknamesAvailable = useNicknamesAvailable();
 
   const isEvent = eventMode || tournament?.mode === 'event';
   const themeColor = isEvent ? 'purple' : 'indigo';
@@ -455,7 +457,7 @@ const App: React.FC = () => {
     }
     
     // Generate nicknames if checkbox is checked
-    if (generateNicknames) {
+    if (generateNicknames && nicknamesAvailable) {
       setIsGeneratingNicknames(true);
       try {
         const response = await fetch('/api/nicknames', {
@@ -1055,7 +1057,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <div className="space-y-4">
-                {!tournament && players.length >= 4 && (
+                {!tournament && players.length >= 4 && nicknamesAvailable && (
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${generateNicknames ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
                       {generateNicknames && <Check className="w-4 h-4 text-white" strokeWidth={3} />}

@@ -43,7 +43,8 @@
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id].ts` | GET/PUT/DELETE - shared tournament CRUD |
 | `functions/api/game/[id]/players.ts` | PATCH - kiosk player toggle/add (no PIN) |
-| `functions/api/nicknames.ts` | POST - AI nickname generation |
+| `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
+| `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
 
 ## Architecture
@@ -145,5 +146,5 @@ npm run preview # Preview production build
 
 ## Environment Variables (Cloudflare Pages)
 
-- `ANTHROPIC_API_KEY` - For AI nickname generation (set in both Production and Preview)
+- `ANTHROPIC_API_KEY` - For AI nickname generation (set in both Production and Preview). If unset, nickname options are hidden in the UI
 - KV Namespace binding: `TOURNAMENTS`
