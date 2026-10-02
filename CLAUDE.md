@@ -46,6 +46,7 @@
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile` (validates), `bumpExportMeta`, `exportFilename`. Lazy-loaded by App |
+| `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
 
