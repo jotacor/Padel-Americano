@@ -135,6 +135,8 @@ npm run build  # Production build
 npm run preview # Preview production build
 ```
 
+**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`, `ANTHROPIC_API_KEY` passed as binding. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines.
+
 ## Conventions
 
 - Championship detection uses `match.id.includes('championship')`

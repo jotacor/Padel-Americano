@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+dist
+.wrangler
+.vscode
+.idea
+.DS_Store
+*.log
+.env*
+.dev.vars*
+Dockerfile
+.dockerignore
