@@ -2,8 +2,6 @@
 
 A modern web app for running **Padel Americano** tournaments — the social format where players rotate partners each round so everyone plays with and against different people.
 
-**Live at [padelme.io](https://padelme.io)**
-
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
