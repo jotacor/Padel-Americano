@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, Player } from './types';
+import { cleanName, isNameTaken } from './utils/playerNames.ts';
+import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   UserPlus, 
   UserMinus, 
@@ -37,7 +39,10 @@ const KioskView: React.FC = () => {
   const [newSkill, setNewSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTotogian, setNewTotogian] = useState(false);
   const [wantNickname, setWantNickname] = useState(true);
+  const nicknamesAvailable = useNicknamesAvailable();
+  const generateNickname = wantNickname && nicknamesAvailable;
   const [isAdding, setIsAdding] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const fetchTournament = async () => {
     try {
@@ -92,21 +97,27 @@ const KioskView: React.FC = () => {
   };
 
   const addNewPlayer = async () => {
-    if (!newName.trim() || isAdding) return;
+    const name = cleanName(newName);
+    if (!name || isAdding) return;
+    // Check before generating a nickname; the API re-checks against the latest roster
+    if (tournament && isNameTaken(name, tournament.players)) {
+      setNameError(t('players.duplicateName', { name }));
+      return;
+    }
     setIsAdding(true);
     
     try {
       let nickname: string | undefined;
-      if (wantNickname) {
+      if (generateNickname) {
         try {
           const nicknameResp = await fetch('/api/nicknames', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: [newName.trim()], lang }),
+            body: JSON.stringify({ names: [name], lang }),
           });
           if (nicknameResp.ok) {
             const nicknameData = await nicknameResp.json();
-            nickname = nicknameData.nicknames?.[newName.trim()];
+            nickname = nicknameData.nicknames?.[name];
           }
         } catch {
           // Proceed without nickname if generation fails
@@ -120,7 +131,7 @@ const KioskView: React.FC = () => {
           action: 'add',
           player: {
             id: crypto.randomUUID(),
-            name: newName.trim(),
+            name,
             nickname,
             skillLevel: newSkill,
             isTotogian: newTotogian,
@@ -132,8 +143,11 @@ const KioskView: React.FC = () => {
         const data = await response.json();
         setTournament(data.tournament);
         setNewName('');
+        setNameError(null);
         setNewTotogian(false);
         setShowAddForm(false);
+      } else if (response.status === 409) {
+        setNameError(t('players.duplicateName', { name }));
       }
     } catch (err) {
       console.error('Add player failed:', err);
@@ -221,12 +235,17 @@ const KioskView: React.FC = () => {
             <input
               type="text"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e) => { setNewName(e.target.value); setNameError(null); }}
               onKeyDown={(e) => e.key === 'Enter' && addNewPlayer()}
               placeholder={t('common.playerNamePlaceholder')}
               autoFocus
-              className="w-full bg-purple-950 border-2 border-purple-700 rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none focus:border-purple-400"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'kiosk-name-error' : undefined}
+              className={`w-full bg-purple-950 border-2 ${nameError ? 'border-rose-400' : 'border-purple-700'} rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none ${nameError ? 'focus:border-rose-300' : 'focus:border-purple-400'}`}
             />
+            {nameError && (
+              <p id="kiosk-name-error" role="alert" className="px-2 text-sm font-bold text-rose-300">{nameError}</p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-purple-500 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
               {(['low', 'medium', 'high'] as const).map(level => (
@@ -250,14 +269,18 @@ const KioskView: React.FC = () => {
                 <input type="checkbox" checked={newTotogian} onChange={(e) => setNewTotogian(e.target.checked)} className="sr-only" />
                 <span className="text-xs font-bold text-purple-400">{t('common.totogian')}</span>
               </label>
-              <div className="w-px h-6 bg-purple-700 mx-1" />
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${wantNickname ? 'bg-amber-500 border-amber-500' : 'border-purple-600'}`}>
-                  {wantNickname && <Sparkles className="w-3 h-3 text-white" strokeWidth={3} />}
-                </div>
-                <input type="checkbox" checked={wantNickname} onChange={(e) => setWantNickname(e.target.checked)} className="sr-only" />
-                <span className="text-xs font-bold text-purple-400">{t('kiosk.aiNickname')}</span>
-              </label>
+              {nicknamesAvailable && (
+                <>
+                  <div className="w-px h-6 bg-purple-700 mx-1" />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${wantNickname ? 'bg-amber-500 border-amber-500' : 'border-purple-600'}`}>
+                      {wantNickname && <Sparkles className="w-3 h-3 text-white" strokeWidth={3} />}
+                    </div>
+                    <input type="checkbox" checked={wantNickname} onChange={(e) => setWantNickname(e.target.checked)} className="sr-only" />
+                    <span className="text-xs font-bold text-purple-400">{t('kiosk.aiNickname')}</span>
+                  </label>
+                </>
+              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -266,7 +289,7 @@ const KioskView: React.FC = () => {
                 className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {isAdding && wantNickname ? t('kiosk.generatingNickname') : t('kiosk.addToTournament')}
+                {isAdding && generateNickname ? t('kiosk.generatingNickname') : t('kiosk.addToTournament')}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}

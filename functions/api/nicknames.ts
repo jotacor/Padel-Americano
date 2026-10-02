@@ -16,6 +16,10 @@ interface NicknameResponse {
   nicknames: Record<string, string>;
 }
 
+// GET /api/nicknames - Whether nickname generation is available (lets the UI hide the option)
+export const onRequestGet: PagesFunction<Env> = async ({ env }) =>
+  Response.json({ enabled: Boolean(env.ANTHROPIC_API_KEY) });
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 

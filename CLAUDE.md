@@ -43,8 +43,10 @@
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id].ts` | GET/PUT/DELETE - shared tournament CRUD |
 | `functions/api/game/[id]/players.ts` | PATCH - kiosk player toggle/add (no PIN) |
-| `functions/api/nicknames.ts` | POST - AI nickname generation |
+| `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
+| `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
+| `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
 
@@ -142,6 +144,7 @@ npm run preview # Preview production build
 
 - Championship detection uses `match.id.includes('championship')`
 - Event mode detected via `tournament.mode === 'event'`
+- Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
 - Kiosk/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
 - AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
@@ -150,5 +153,5 @@ npm run preview # Preview production build
 
 ## Environment Variables (Cloudflare Pages)
 
-- `ANTHROPIC_API_KEY` - For AI nickname generation (set in both Production and Preview)
+- `ANTHROPIC_API_KEY` - For AI nickname generation (set in both Production and Preview). If unset, nickname options are hidden in the UI
 - KV Namespace binding: `TOURNAMENTS`

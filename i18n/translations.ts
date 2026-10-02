@@ -37,6 +37,7 @@ const en = {
   'common.losses': '{n}L',
   'common.ties': '{n}T',
   'common.language': 'Language',
+  'players.duplicateName': '"{name}" is already in the tournament.',
 
   // Skill levels
   'skill.low': 'Low',
@@ -206,6 +207,7 @@ const es: Translations = {
   'common.losses': '{n}P',
   'common.ties': '{n}E',
   'common.language': 'Idioma',
+  'players.duplicateName': '"{name}" ya está en el torneo.',
 
   // Skill levels
   'skill.low': 'Bajo',

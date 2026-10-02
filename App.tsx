@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { cleanName, isNameTaken } from './utils/playerNames.ts';
+import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   Users, 
   Trophy, 
@@ -51,6 +53,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [newPlayerTotogian, setNewPlayerTotogian] = useState(false);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -85,6 +88,7 @@ const App: React.FC = () => {
   // Nickname generation
   const [generateNicknames, setGenerateNicknames] = useState(false);
   const [isGeneratingNicknames, setIsGeneratingNicknames] = useState(false);
+  const nicknamesAvailable = useNicknamesAvailable();
 
   const isEvent = eventMode || tournament?.mode === 'event';
   const themeColor = isEvent ? 'purple' : 'indigo';
@@ -395,10 +399,16 @@ const App: React.FC = () => {
   };
 
   const addPlayer = () => {
-    if (!newPlayerName.trim()) return;
+    const name = cleanName(newPlayerName);
+    if (!name) return;
+    // Event mode: tournament.players may hold kiosk-added players not yet merged locally
+    if (isNameTaken(name, [...players, ...(tournament?.players ?? [])])) {
+      setNameError(t('players.duplicateName', { name }));
+      return;
+    }
     const newPlayer: Player = {
       id: crypto.randomUUID(),
-      name: newPlayerName.trim(),
+      name,
       ...(isEvent && {
         skillLevel: newPlayerSkill,
         isTotogian: newPlayerTotogian,
@@ -416,6 +426,7 @@ const App: React.FC = () => {
     }
     
     setNewPlayerName('');
+    setNameError(null);
     setNewPlayerTotogian(false);
   };
 
@@ -462,7 +473,7 @@ const App: React.FC = () => {
     }
     
     // Generate nicknames if checkbox is checked
-    if (generateNicknames) {
+    if (generateNicknames && nicknamesAvailable) {
       setIsGeneratingNicknames(true);
       try {
         const response = await fetch('/api/nicknames', {
@@ -863,9 +874,12 @@ const App: React.FC = () => {
               {/* Player input */}
               <div className="flex flex-col gap-3 mb-6">
                 <div className="flex gap-2 md:gap-4">
-                  <input type="text" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} placeholder={t('common.playerNamePlaceholder')} disabled={!!tournament && tournament.mode !== 'event'} className={`flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl md:rounded-3xl px-4 md:px-8 py-4 md:py-5 focus:outline-none ${tc.focusBorder} font-bold text-base md:text-lg disabled:opacity-50`} />
+                  <input type="text" value={newPlayerName} onChange={(e) => { setNewPlayerName(e.target.value); setNameError(null); }} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} placeholder={t('common.playerNamePlaceholder')} disabled={!!tournament && tournament.mode !== 'event'} aria-invalid={!!nameError} aria-describedby={nameError ? 'player-name-error' : undefined} className={`flex-1 min-w-0 bg-slate-50 border-2 ${nameError ? 'border-rose-300' : 'border-slate-100'} rounded-2xl md:rounded-3xl px-4 md:px-8 py-4 md:py-5 focus:outline-none ${nameError ? 'focus:border-rose-400' : tc.focusBorder} font-bold text-base md:text-lg disabled:opacity-50`} />
                   <button onClick={addPlayer} disabled={!!tournament && tournament.mode !== 'event'} className={`${tc.primary} text-white px-6 md:px-8 rounded-2xl md:rounded-3xl shadow-lg transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}><Plus className="w-6 h-6 md:w-8 md:h-8" strokeWidth={3} /></button>
                 </div>
+                {nameError && (
+                  <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
+                )}
                 
                 {/* Skill level + Totogian selectors for event mode */}
                 {isEvent && (
@@ -1058,7 +1072,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <div className="space-y-4">
-                {!tournament && players.length >= 4 && (
+                {!tournament && players.length >= 4 && nicknamesAvailable && (
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${generateNicknames ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
                       {generateNicknames && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
