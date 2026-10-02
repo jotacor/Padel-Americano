@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App.tsx';
 import GameViewer from './GameViewer.tsx';
-import KioskView from './KioskView.tsx';
 import LeaderboardDisplay from './LeaderboardDisplay.tsx';
 import { I18nProvider } from './i18n/I18nContext.tsx';
 
@@ -19,7 +18,6 @@ if (!rootElement) {
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/game/:id" element={<GameViewer />} />
-            <Route path="/kiosk/:id" element={<KioskView />} />
             <Route path="/display/:id" element={<LeaderboardDisplay />} />
           </Routes>
         </BrowserRouter>

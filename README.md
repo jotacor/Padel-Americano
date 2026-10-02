@@ -12,6 +12,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ## Features
 
 ### Core Tournament
+- ✅ **Two Modes** — *Random* (all rounds pre-generated, Whist logic) and *League* (rounds one at a time, skill-balanced, players can join/sit out between rounds)
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
 - ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts

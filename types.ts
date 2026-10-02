@@ -3,7 +3,6 @@ export interface Player {
   id: string;
   name: string;
   nickname?: string;
-  isTotogian?: boolean;
   skillLevel?: 'low' | 'medium' | 'high';
   isActive?: boolean;
 }
@@ -40,7 +39,6 @@ export interface LeaderboardEntry {
   playerId: string;
   playerName: string;
   playerNickname?: string;
-  isTotogian?: boolean;
   totalPoints: number;
   matchesPlayed: number;
   avgPoints: number;
