@@ -43,6 +43,8 @@
 | `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
 | `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
+| `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
+| `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
@@ -66,6 +68,11 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - `isActive` toggle for round-by-round player pool management
 - Optional leaderboard display view (`/display/:id`) for a TV/screen
 - Purple accent theme (`bg-purple-600`, `bg-purple-950`)
+
+**Pair modality** (both modes): `tournament.pairMode` = `'rotating'` (default, Americano) or `'fixed'` (manager pairs players in setup; `tournament.pairs: [id, id][]`).
+- Random + fixed: full round robin between pairs (`generateFixedPairsSchedule`)
+- League + fixed: `generateFixedPairsRound` — fewest-played pairs first, minimize repeat opponents + skill gap; a pair plays only if both are active (toggling one toggles both); new pairs can be formed mid-league
+- Leaderboard entries per pair (`playerId = pairKey`); finals = 1st vs 2nd pair
 
 ### Scheduling Logic (`utils/scheduler.ts`)
 
@@ -102,6 +109,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
+- `padel_pair_mode`, `padel_pairs` - Pair modality and fixed pairs during setup
 - `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
 
 ### Cloud Sharing
@@ -132,7 +140,7 @@ npm run preview # Preview production build
 - League mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
-- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
+- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. No `@types/react` → `t()` calls are NOT type-checked; verify new keys exist in `en` and `es`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
 - AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
 - PIN stored internally for cloud sync but not displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal

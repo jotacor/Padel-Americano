@@ -10,6 +10,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { computeLeaderboard } from './utils/leaderboard.ts';
 
 const SKILL_COLORS = {
   low: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
@@ -51,37 +52,11 @@ const LeaderboardDisplay: React.FC = () => {
     return () => clearInterval(interval);
   }, [id]);
 
-  const leaderboard = useMemo<LeaderboardEntry[]>(() => {
-    if (!tournament) return [];
-    const stats: Record<string, LeaderboardEntry> = {};
-    tournament.players.forEach(p => stats[p.id] = {
-      playerId: p.id, playerName: p.name, playerNickname: p.nickname,
-      totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
-    });
+  const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
-    tournament.rounds.forEach(r => r.matches.forEach(m => {
-      if (!m.isCompleted || m.scoreA === null || m.scoreB === null) return;
-      const processTeam = (pIds: [string, string], s: number, os: number) => {
-        pIds.forEach(pid => {
-          if (!stats[pid]) return;
-          stats[pid].totalPoints += s;
-          stats[pid].pointDifferential += (s - os);
-          stats[pid].matchesPlayed++;
-          if (s > os) stats[pid].wins++;
-          else if (s < os) stats[pid].losses++;
-          else stats[pid].ties++;
-        });
-      };
-      processTeam(m.teamA, m.scoreA, m.scoreB);
-      processTeam(m.teamB, m.scoreB, m.scoreA);
-    }));
-
-    return Object.values(stats)
-      .map(s => ({ ...s, avgPoints: s.matchesPlayed ? Number((s.totalPoints / s.matchesPlayed).toFixed(1)) : 0 }))
-      .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || b.pointDifferential - a.pointDifferential);
-  }, [tournament]);
-
-  const isEvent = tournament?.mode === 'event';
+  const isFixed = tournament?.pairMode === 'fixed';
+  // Skill per entry only makes sense per player
+  const isEvent = tournament?.mode === 'event' && !isFixed;
 
   if (loading) {
     return (
@@ -136,7 +111,7 @@ const LeaderboardDisplay: React.FC = () => {
             </h2>
             <div className="flex items-center gap-2">
               <Users className="w-3 h-3 md:w-4 md:h-4 text-purple-500" />
-              <span className="text-purple-400 text-xs md:text-sm font-bold">{t('display.playersCount', { n: leaderboard.length })}</span>
+              <span className="text-purple-400 text-xs md:text-sm font-bold">{t(isFixed ? 'display.pairsCount' : 'display.playersCount', { n: leaderboard.length })}</span>
             </div>
           </div>
 
@@ -198,7 +173,7 @@ const LeaderboardDisplay: React.FC = () => {
             <thead>
               <tr className="text-[9px] font-black text-purple-500 uppercase tracking-widest border-b border-purple-800/30">
                 <th className="px-6 py-3 w-16">#</th>
-                <th className="px-6 py-3">{t('common.player')}</th>
+                <th className="px-6 py-3">{t(isFixed ? 'lb.pair' : 'common.player')}</th>
                 {isEvent && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
                 <th className="px-6 py-3 text-center">{t('display.record')}</th>
                 <th className="px-6 py-3 text-center">{t('display.games')}</th>
