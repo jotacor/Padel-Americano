@@ -198,7 +198,7 @@ Open [http://localhost:8788](http://localhost:8788).
 | `-e ANTHROPIC_API_KEY` | Optional — enables AI nicknames |
 | `-e PORT` | Internal port (default `8788`) |
 
-**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every PR to `main` builds the image; every push to `main` also pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub. Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
+**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
 
 Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-americano --log-level debug`). Put it behind a reverse proxy for HTTPS (needed for clipboard copy on non-localhost hosts).
 
