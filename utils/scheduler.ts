@@ -163,7 +163,78 @@ const updateCourtHistory = (
   }
 };
 
+/** Skill as a number: low=1, medium=2 (default), high=3 */
+const skillValue = (p: Player): number => {
+  if (p.skillLevel === 'high') return 3;
+  if (p.skillLevel === 'low') return 1;
+  return 2;
+};
+
+/**
+ * Random mode schedule. The Whist/Berger structure fixes who partners whom by slot,
+ * and every slot partners every other slot once — so any player→slot assignment keeps
+ * those guarantees. We pick the assignment that makes each match as skill-even as possible.
+ */
 export const generateAmericanoSchedule = (players: Player[]): Round[] => {
+  const slots: Player[] = players.map((_, i) => ({ id: String(i), name: '' }));
+  const template = buildSlotSchedule(slots);
+  const order = assignSlotsBySkill(template, players);
+  const id = (slotId: string) => order[Number(slotId)].id;
+  return template.map(round => ({
+    ...round,
+    matches: round.matches.map(m => ({
+      ...m,
+      teamA: [id(m.teamA[0]), id(m.teamA[1])],
+      teamB: [id(m.teamB[0]), id(m.teamB[1])],
+    })),
+    byes: round.byes.map(id),
+  }));
+};
+
+/**
+ * Local search over player→slot assignments minimizing Σ (teamA skill − teamB skill)².
+ * Returns players ordered by slot. Keeps the given order when skills don't matter.
+ */
+const assignSlotsBySkill = (template: Round[], players: Player[]): Player[] => {
+  const skills = players.map(skillValue);
+  if (skills.every(v => v === skills[0])) return players;
+
+  const matches = template.flatMap(r => r.matches.map(m => [...m.teamA, ...m.teamB].map(Number)));
+  const cost = (order: number[]) => {
+    let c = 0;
+    for (const [a1, a2, b1, b2] of matches) {
+      const d = skills[order[a1]] + skills[order[a2]] - skills[order[b1]] - skills[order[b2]];
+      c += d * d;
+    }
+    return c;
+  };
+
+  const n = players.length;
+  let best = players.map((_, i) => i);
+  let bestCost = cost(best);
+  const RESTARTS = 8;
+  for (let attempt = 0; attempt < RESTARTS && bestCost > 0; attempt++) {
+    const order = attempt === 0 ? [...best] : shuffle(best);
+    let current = cost(order);
+    // First-improvement swaps until no swap helps
+    for (let improved = true; improved && current > 0; ) {
+      improved = false;
+      for (let i = 0; i < n - 1; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (skills[order[i]] === skills[order[j]]) continue;
+          [order[i], order[j]] = [order[j], order[i]];
+          const c = cost(order);
+          if (c < current) { current = c; improved = true; }
+          else [order[i], order[j]] = [order[j], order[i]];
+        }
+      }
+    }
+    if (current < bestCost) { bestCost = current; best = order; }
+  }
+  return best.map(i => players[i]);
+};
+
+const buildSlotSchedule = (players: Player[]): Round[] => {
   const numPlayers = players.length;
   if (numPlayers < 4) return [];
 
@@ -429,6 +500,7 @@ export const generateAdditionalRound = (
   const numPlayers = players.length;
   const numCourts = Math.floor(numPlayers / 4);
   const playersPerRound = numCourts * 4;
+  const playerById = new Map(players.map(p => [p.id, p]));
   
   // Count matches played by each player
   const matchCount: Record<string, number> = {};
@@ -529,6 +601,9 @@ export const generateAdditionalRound = (
           if (opponentHistory[a]?.has(b)) score += 1;
         });
       });
+      // Prefer skill-even matches
+      const teamSkill = (team: [string, string]) => team.reduce((sum, pid) => sum + skillValue(playerById.get(pid)!), 0);
+      score += Math.abs(teamSkill(teams[teamAIdx]) - teamSkill(teams[i])) * 2;
       
       if (score < bestScore) {
         bestScore = score;
@@ -639,12 +714,6 @@ export const generateEventRound = (
     });
   });
   
-  const skillValue = (p: Player): number => {
-    if (p.skillLevel === 'high') return 3;
-    if (p.skillLevel === 'low') return 1;
-    return 2;
-  };
-
   // Select players: fewest matches first, Fisher-Yates shuffle within same count
   const byCount = new Map<number, Player[]>();
   activePlayers.forEach(p => {

@@ -306,10 +306,8 @@ const App: React.FC = () => {
     const newPlayer: Player = {
       id: crypto.randomUUID(),
       name,
-      ...(isEvent && {
-        skillLevel: newPlayerSkill,
-        isActive: true,
-      }),
+      skillLevel: newPlayerSkill,
+      ...(isEvent && { isActive: true }),
     };
     setPlayers(prev => [...prev, newPlayer]);
     
@@ -740,25 +738,23 @@ const App: React.FC = () => {
                   <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
                 )}
                 
-                {/* Skill level selector (league mode) */}
-                {isEvent && (
-                  <div className="flex flex-wrap items-center gap-3 px-1">
-                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
-                    {(['low', 'medium', 'high'] as const).map(level => (
-                      <button
-                        key={level}
-                        onClick={() => setNewPlayerSkill(level)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${
-                          newPlayerSkill === level
-                            ? `${SKILL_COLORS[level].bg} ${SKILL_COLORS[level].text} border-2 ${SKILL_COLORS[level].border}`
-                            : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:border-slate-200'
-                        }`}
-                      >
-                        {t(`skill.${level}`)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Skill level selector (balances matches in both modes) */}
+                <div className="flex flex-wrap items-center gap-3 px-1">
+                  <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
+                  {(['low', 'medium', 'high'] as const).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setNewPlayerSkill(level)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${
+                        newPlayerSkill === level
+                          ? `${SKILL_COLORS[level].bg} ${SKILL_COLORS[level].text} border-2 ${SKILL_COLORS[level].border}`
+                          : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:border-slate-200'
+                      }`}
+                    >
+                      {t(`skill.${level}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Player list */}
@@ -775,15 +771,13 @@ const App: React.FC = () => {
                       <span className="text-slate-300 font-black text-lg md:text-xl shrink-0">{idx+1}</span>
                       <div className="min-w-0">
                         <PlayerName name={p.name} nickname={p.nickname} baseClass="font-black text-slate-800 text-lg md:text-xl" inline />
-                        {isEvent && (
-                          <div className="flex items-center gap-2 mt-1">
-                            {p.skillLevel && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${SKILL_COLORS[p.skillLevel].bg} ${SKILL_COLORS[p.skillLevel].text}`}>
-                                {t(`skill.${p.skillLevel}`)}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          {p.skillLevel && (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${SKILL_COLORS[p.skillLevel].bg} ${SKILL_COLORS[p.skillLevel].text}`}>
+                              {t(`skill.${p.skillLevel}`)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1316,11 +1310,9 @@ const App: React.FC = () => {
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
                           <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
-                          {isEvent && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {t(`skill.${skill}`)}
-                            </span>
-                          )}
+                          <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
+                            {t(`skill.${skill}`)}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -1339,7 +1331,7 @@ const App: React.FC = () => {
                     <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                       <th className="px-12 py-8">{t('lb.rank')}</th>
                       <th className="px-12 py-8">{t('lb.athlete')}</th>
-                      {isEvent && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
+                      <th className="px-8 py-8 text-center">{t('common.skill')}</th>
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
                       <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
                     </tr>
@@ -1369,19 +1361,17 @@ const App: React.FC = () => {
                             </div>
                             <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
-                          {isEvent && (
-                            <td className="px-8 py-10 text-center">
-                              {(() => {
-                                const player = tournament?.players.find(p => p.id === entry.playerId);
-                                const skill = player?.skillLevel || 'medium';
-                                return (
-                                  <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                                    {t(`skill.${skill}`)}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                          )}
+                          <td className="px-8 py-10 text-center">
+                            {(() => {
+                              const player = tournament?.players.find(p => p.id === entry.playerId);
+                              const skill = player?.skillLevel || 'medium';
+                              return (
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
+                                  {t(`skill.${skill}`)}
+                                </span>
+                              );
+                            })()}
+                          </td>
                           <td className="px-12 py-10 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 font-black text-base">
                               <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
