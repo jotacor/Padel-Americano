@@ -14,6 +14,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ### Core Tournament
 - ✅ **Fixed Pairs** — Optional in both modes: pick partners yourself, only opponents rotate
 - ✅ **Two Modes** — *Random* (all rounds pre-generated, Whist logic) and *League* (rounds one at a time, skill-balanced, players can join/sit out between rounds)
+- ✅ **Standings-based Matchmaking** — League option: every round re-matches partners and rivals from the results so far, while everyone still plays everyone
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
 - ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts
@@ -74,13 +75,13 @@ Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_K
 
 ### Tournament Modes
 
-| | **Random** (default) | **Random + "Prioritize skill"** | **League** |
+| | **Random** (default) | **Random + "Prioritize initial skill"** | **League** |
 |---|---|---|---|
 | **Rounds** | All generated at start (N−1, or N if odd) | All generated at start (same count) | One at a time ("Generate round N") |
 | **Partners** | Whist / Berger rotation: everyone partners everyone once | Chosen each round to balance skill | Chosen each round to balance skill |
-| **Skill level** | Only decides who takes which slot of the schedule. No effect with 8/12/16 (every assignment is equally balanced); helps other sizes | Main criterion: groups of 4 and team splits as even as possible | Main criterion: groups of 4 and team splits as even as possible |
+| **Skill level** | Only decides who takes which slot of the schedule. No effect with 8/12/16 (every assignment is equally balanced); helps other sizes | Main criterion: groups of 4 and team splits as even as possible | Initial skill and/or standings, see [League matchmaking](#league-matchmaking) |
 | **Repeats** | None: no repeated partners, opponents spread evenly | Some partners repeat, others never meet (8 players: ~7 of 28 pairs) | Avoided where possible (penalized, not forbidden) |
-| **Match balance** (8 players, mixed skills) | Avg skill gap per match ≈ 1.36 | ≈ 0.64 | Similar to "Prioritize skill" |
+| **Match balance** (8 players, mixed skills) | Avg skill gap per match ≈ 1.36 | ≈ 0.64 | Similar to "Prioritize initial skill" |
 | **Roster** | Locked once started | Locked once started | Add players and toggle active/resting between rounds |
 | **Who plays** | Fixed by the schedule (byes rotate) | Fewest matches played first | Fewest matches played first, active players only |
 | **Courts** | Players ÷ 4 | Players ÷ 4 | You choose (default 4); extra players rest |
@@ -90,11 +91,26 @@ Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_K
 
 Skill levels count as Low = 1, Medium = 2, High = 3 (a team's skill is the sum of both players).
 
+#### League matchmaking
+
+Two options in League setup, combinable:
+
+| | **Prioritize initial skill** (on by default) | **Prioritize standings** |
+|---|---|---|
+| **Based on** | Level set for each player (Low/Medium/High) | Results so far, re-evaluated before every round |
+| **Groups of 4** | Mixed levels, teams as even as possible | Similar strength (top with top, Mexicano-style), teams as even as possible |
+| **Repeats** | Repeated partners/opponents avoided where possible | Allowed against similar-level rivals, but the cost grows (squared) the further a rival is ahead of your least-played one, plus a penalty for the last two rounds → everyone still plays everyone |
+| **Fixed pairs** | Rivals with a similar pair level | Rivals by standings: similar pairs meet more often |
+
+- **Strength from standings** = percentile of points won per point played (not total points, so byes and late arrivals aren't penalized), on the same 1–3 scale as skill.
+- **Both on**: the initial level counts at first and results take over as matches are played (results weigh n/(n+2) after n matches). **Standings only**: everyone starts equal. **Neither**: rotation only.
+- Simulated with 12–24 players: rotating pairs with both options → ~8–15% smaller skill gap per match than skill only, fewer repeated partners, equal or better opponent coverage. With fixed pairs the gain is smaller and coverage can lag (12 pairs, 14 rounds: ~90% of matchups played vs 100% without).
+
 **Fixed pairs** (optional in both modes, *Pairs: Fixed*): you pair players yourself and only opponents rotate.
 
 | | **Random + Fixed pairs** | **League + Fixed pairs** |
 |---|---|---|
-| **Schedule** | Full round robin: every pair meets every other pair once | One round at a time: fewest-played pairs first, avoid repeat opponents, balance pair skill |
+| **Schedule** | Full round robin: every pair meets every other pair once | One round at a time: fewest-played pairs first, avoid repeat opponents, balance pair skill (or standings, see above) |
 | **Requirements** | Every player must have a partner | Unpaired players wait; new pairs can be formed mid-league |
 | **Resting** | One pair rests per round if the number of pairs is odd | A pair rests together (toggling one partner toggles both) |
 | **Standings / Finals** | Per pair; finals 1st vs 2nd pair (3rd vs 4th on the next court) | Per pair |

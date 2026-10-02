@@ -159,6 +159,7 @@ const toTournament = (v: unknown, meta: ExportMeta): Tournament => {
     pairMode: (pairMode ?? undefined) as Tournament['pairMode'],
     pairs: opt(v.pairs, (ps, p) => arr(ps, p).map((x, i) => pairOf(x, `${p}[${i}]`, ids)), 'tournament.pairs'),
     prioritizeSkill: opt(v.prioritizeSkill, bool, 'tournament.prioritizeSkill'),
+    prioritizeRanking: opt(v.prioritizeRanking, bool, 'tournament.prioritizeRanking'),
     exportMeta: meta.revision > 0 ? meta : undefined,
   });
 };

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
+import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
 import { 
   Users, 
   Trophy, 
@@ -74,6 +76,9 @@ const App: React.FC = () => {
   const [pairingWith, setPairingWith] = useState<string | null>(null);
   // Random + rotating: trade perfect Whist rotation for skill-even matches
   const [prioritizeSkill, setPrioritizeSkill] = useState(false);
+  // League matchmaking: declared skill (default, legacy behavior) and/or current standings
+  const [leagueSkill, setLeagueSkill] = useState(true);
+  const [leagueRanking, setLeagueRanking] = useState(false);
   
   // Sharing state
   const [shareState, setShareState] = useState<ShareState>({
@@ -136,6 +141,8 @@ const App: React.FC = () => {
     const savedEventCourts = localStorage.getItem('padel_event_courts');
     const savedPairMode = localStorage.getItem('padel_pair_mode');
     if (localStorage.getItem('padel_prioritize_skill') === 'true') setPrioritizeSkill(true);
+    if (localStorage.getItem('padel_league_prioritize_skill') === 'false') setLeagueSkill(false);
+    if (localStorage.getItem('padel_prioritize_ranking') === 'true') setLeagueRanking(true);
     const savedPairs = localStorage.getItem('padel_pairs');
     if (savedPairMode === 'fixed') setPairMode('fixed');
     if (savedPairs) setPairs(JSON.parse(savedPairs));
@@ -189,8 +196,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
     localStorage.setItem('padel_prioritize_skill', String(prioritizeSkill));
+    localStorage.setItem('padel_league_prioritize_skill', String(leagueSkill));
+    localStorage.setItem('padel_prioritize_ranking', String(leagueRanking));
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
-  }, [pairMode, pairs, prioritizeSkill]);
+  }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking]);
 
   // Load share state from localStorage
   useEffect(() => {
@@ -459,6 +468,8 @@ const App: React.FC = () => {
         mode: 'event',
         numCourts: eventNumCourts,
         ...pairFields,
+        prioritizeSkill: leagueSkill,
+        ...(leagueRanking && { prioritizeRanking: true }),
       });
     } else {
       const balanced = !fixed && prioritizeSkill;
@@ -545,6 +556,8 @@ const App: React.FC = () => {
       setPairMode('rotating');
       setPairs([]);
       setPrioritizeSkill(false);
+      setLeagueSkill(true);
+      setLeagueRanking(false);
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
       localStorage.removeItem('padel_court_names');
@@ -554,6 +567,8 @@ const App: React.FC = () => {
       localStorage.removeItem('padel_pair_mode');
       localStorage.removeItem('padel_pairs');
       localStorage.removeItem('padel_prioritize_skill');
+      localStorage.removeItem('padel_league_prioritize_skill');
+      localStorage.removeItem('padel_prioritize_ranking');
       setActiveTab('setup');
     }
   };
@@ -610,7 +625,13 @@ const App: React.FC = () => {
     if (imported.numCourts) setEventNumCourts(imported.numCourts);
     setPairMode(imported.pairMode ?? 'rotating');
     setPairs(imported.pairs ?? []);
-    setPrioritizeSkill(!!imported.prioritizeSkill);
+    if (imported.mode === 'event') {
+      const mm = leagueMatchmaking(imported);
+      setLeagueSkill(mm.skill);
+      setLeagueRanking(mm.ranking);
+    } else {
+      setPrioritizeSkill(!!imported.prioritizeSkill);
+    }
     setPairingWith(null);
     // Resume at the first round with unfinished matches
     const firstOpen = imported.rounds.findIndex(r => r.matches.some(m => !m.isCompleted));
@@ -632,15 +653,15 @@ const App: React.FC = () => {
         return alert(t(fixed ? 'alert.minActivePairs' : 'alert.minActivePlayers'));
       }
       const nc = tournament.numCourts || Math.floor(activePlayers.length / 4);
+      // Strengths re-evaluated every round from the results so far (when ranking is prioritized)
+      const mm = leagueMatchmaking(tournament);
+      const strengths = playerStrengths(tournament.players, tournament.rounds, mm);
+      const strength = (id: string) => strengths.get(id) ?? 2;
       const newRound = fixed
-        ? generateFixedPairsRound(activePairs, tournament.players, tournament.rounds, newRoundIndex, nc)
-        : generateEventRound(
-        activePlayers,
-        tournament.players,
-        tournament.rounds,
-        newRoundIndex,
-        nc
-      );
+        ? generateFixedPairsRound(activePairs, tournament.players, tournament.rounds, newRoundIndex, nc, { strength, ranked: mm.ranking })
+        : mm.ranking
+        ? generateRankedRound(activePlayers, tournament.players, tournament.rounds, newRoundIndex, nc, strength)
+        : generateEventRound(activePlayers, tournament.players, tournament.rounds, newRoundIndex, nc, p => strength(p.id));
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound],
@@ -700,6 +721,19 @@ const App: React.FC = () => {
     setTournament({ ...tournament, rounds: newRounds });
   };
 
+  const renderOption = (checked: boolean, onChange: (v: boolean) => void, label: TranslationKey, hint: TranslationKey) => (
+    <label className="flex items-start gap-3 cursor-pointer group mt-4">
+      <div className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all ${checked ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
+        {checked && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+      </div>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only" />
+      <span>
+        <span className="block text-slate-300 font-bold text-sm">{t(label)}</span>
+        <span className="block text-slate-500 text-xs font-medium mt-0.5">{t(hint)}</span>
+      </span>
+    </label>
+  );
+
   const PlayerName = ({ name, nickname, baseClass, inline = false }: { name: string, nickname?: string, baseClass: string, inline?: boolean }) => {
     if (inline) {
       return (
@@ -725,6 +759,10 @@ const App: React.FC = () => {
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
+  const matchmaking = tournament ? leagueMatchmaking(tournament) : null;
+  const matchmakingKey: TranslationKey = !matchmaking ? 'matchmaking.skill'
+    : matchmaking.skill && matchmaking.ranking ? 'matchmaking.both' : matchmaking.ranking ? 'matchmaking.ranking'
+    : matchmaking.skill ? 'matchmaking.skill' : 'matchmaking.rotation';
   const isPerfect = tournament && tournament.mode !== 'event' && !isFixed && !tournament.prioritizeSkill && [8, 12, 16].includes(tournament.players.length);
 
   // Active players for event mode
@@ -1013,17 +1051,12 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    {!eventMode && pairMode === 'rotating' && (
-                      <label className="flex items-start gap-3 cursor-pointer group mt-4">
-                        <div className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all ${prioritizeSkill ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
-                          {prioritizeSkill && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                        </div>
-                        <input type="checkbox" checked={prioritizeSkill} onChange={(e) => setPrioritizeSkill(e.target.checked)} className="sr-only" />
-                        <span>
-                          <span className="block text-slate-300 font-bold text-sm">{t('setup.prioritizeSkill')}</span>
-                          <span className="block text-slate-500 text-xs font-medium mt-0.5">{t('setup.prioritizeSkillHint')}</span>
-                        </span>
-                      </label>
+                    {!eventMode && pairMode === 'rotating' && renderOption(prioritizeSkill, setPrioritizeSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillHint')}
+                    {eventMode && (
+                      <>
+                        {renderOption(leagueSkill, setLeagueSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
+                        {renderOption(leagueRanking, setLeagueRanking, 'setup.prioritizeRanking', pairMode === 'fixed' ? 'setup.prioritizeRankingFixedHint' : 'setup.prioritizeRankingHint')}
+                      </>
                     )}
                   </div>
                 )}
@@ -1189,8 +1222,8 @@ const App: React.FC = () => {
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
                     {isFixed
-                      ? t('rounds.eventSummaryPairs', { active: activePairs.length, courts: tournament.numCourts ?? eventNumCourts })
-                      : t('rounds.eventSummary', { active: activePlayers.length, courts: tournament.numCourts ?? eventNumCourts })}
+                      ? t('rounds.eventSummaryPairs', { active: activePairs.length, courts: tournament.numCourts ?? eventNumCourts, matchmaking: t(matchmakingKey) })
+                      : t('rounds.eventSummary', { active: activePlayers.length, courts: tournament.numCourts ?? eventNumCourts, matchmaking: t(matchmakingKey) })}
                   </p>
                 </div>
                 <button 

@@ -1,5 +1,6 @@
 import { Player, Match, Round, Pair } from '../types.ts';
 import { optimizeCourtAssignments, shuffle, skillValue } from './scheduler.ts';
+import { MATCH_WEIGHTS, repeatCost } from './ranking.ts';
 
 // Scheduling for fixed pairs: partners never change, only opponents rotate.
 
@@ -47,6 +48,11 @@ export const generateFixedPairsSchedule = (pairs: Pair[]): Round[] => {
   return rounds;
 };
 
+export interface FixedPairsRoundOptions {
+  strength?: (playerId: string) => number; // default: skillValue
+  ranked?: boolean; // "prioritize standings": similar-strength rivals, repeats allowed (see repeatCost)
+}
+
 /**
  * One round between fixed pairs (League rounds, extra Random rounds).
  * Pairs with fewest matches play first; then picks the pairing of pairs that minimizes
@@ -57,17 +63,21 @@ export const generateFixedPairsRound = (
   players: Player[],
   existingRounds: Round[],
   roundIndex: number,
-  numCourts: number
+  numCourts: number,
+  { strength, ranked = false }: FixedPairsRoundOptions = {}
 ): Round => {
   const byId = new Map(players.map(p => [p.id, p]));
-  const skill = (pair: Pair) => pair.reduce((sum, id) => sum + skillValue(byId.get(id) ?? ({} as Player)), 0);
+  const strengthOf = strength ?? ((id: string) => skillValue(byId.get(id) ?? ({} as Player)));
+  const skill = (pair: Pair) => pair.reduce((sum, id) => sum + strengthOf(id), 0);
 
   const played = new Map<string, number>();
   const met = new Map<string, number>();
+  const lastMet = new Map<string, number>();
   const meetKey = (a: Pair, b: Pair) => [pairKey(a), pairKey(b)].sort().join('#');
   existingRounds.forEach(r => r.matches.forEach(m => {
     [m.teamA, m.teamB].forEach(t => played.set(pairKey(t), (played.get(pairKey(t)) || 0) + 1));
     met.set(meetKey(m.teamA, m.teamB), (met.get(meetKey(m.teamA, m.teamB)) || 0) + 1);
+    lastMet.set(meetKey(m.teamA, m.teamB), r.index);
   }));
 
   // Fewest matches first, random order within the same count
@@ -80,7 +90,15 @@ export const generateFixedPairsRound = (
   const take = Math.min(numCourts * 2, Math.floor(prioritized.length / 2) * 2);
   const selected = prioritized.slice(0, take);
 
-  const cost = (a: Pair, b: Pair) => (met.get(meetKey(a, b)) || 0) * 10 + Math.abs(skill(a) - skill(b)) * 3;
+  const minMet = new Map(selected.map(p => [pairKey(p), Math.min(
+    ...activePairs.filter(o => pairKey(o) !== pairKey(p)).map(o => met.get(meetKey(p, o)) || 0)
+  )]));
+  const W = MATCH_WEIGHTS;
+  const cost = ranked
+    ? (a: Pair, b: Pair) => W.balance * (skill(a) - skill(b)) ** 2 + repeatCost(
+      met.get(meetKey(a, b)) || 0, minMet.get(pairKey(a))!, minMet.get(pairKey(b))!,
+      roundIndex - (lastMet.get(meetKey(a, b)) ?? -Infinity), W.pairOpponent, W.recentOpponent)
+    : (a: Pair, b: Pair) => (met.get(meetKey(a, b)) || 0) * 10 + Math.abs(skill(a) - skill(b)) * 3;
 
   let best: [Pair, Pair][] = [];
   let bestCost = Infinity;

@@ -14,6 +14,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 ### Torneo base
 - ✅ **Parejas fijas** — Opcional en ambos modos: tú eliges las parejas, solo rotan los rivales
 - ✅ **Dos modos** — *Aleatorio* (todas las rondas generadas de antemano, lógica Whist) y *Liga* (rondas de una en una, equilibradas por nivel, los jugadores pueden entrar/descansar entre rondas)
+- ✅ **Emparejamiento por clasificación** — Opción de Liga: cada ronda vuelve a elegir parejas y rivales según los resultados, sin dejar de jugar contra todos
 - ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
 - ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
 - ✅ **Nombres de pista personalizados** — Pon nombre a las pistas (p. ej., "Pista Central", "Pista A") para llamarlas fácilmente
@@ -74,13 +75,13 @@ Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_A
 
 ### Modos de torneo
 
-| | **Aleatorio** (por defecto) | **Aleatorio + "Priorizar nivel"** | **Liga** |
+| | **Aleatorio** (por defecto) | **Aleatorio + "Priorizar nivel inicial"** | **Liga** |
 |---|---|---|---|
 | **Rondas** | Todas generadas al inicio (N−1, o N si es impar) | Todas generadas al inicio (mismo número) | Una a una ("Generar ronda N") |
 | **Parejas** | Rotación Whist / Berger: cada uno forma pareja con todos una vez | Elegidas en cada ronda para equilibrar el nivel | Elegidas en cada ronda para equilibrar el nivel |
-| **Nivel** | Solo decide quién ocupa cada hueco del calendario. Sin efecto con 8/12/16 (toda asignación está igual de equilibrada); ayuda con otros tamaños | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible |
+| **Nivel** | Solo decide quién ocupa cada hueco del calendario. Sin efecto con 8/12/16 (toda asignación está igual de equilibrada); ayuda con otros tamaños | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible | Nivel inicial y/o clasificación, ver [Emparejamiento en Liga](#emparejamiento-en-liga) |
 | **Repeticiones** | Ninguna: sin parejas repetidas, rivales repartidos de forma uniforme | Algunas parejas se repiten, otras nunca coinciden (8 jugadores: ~7 de 28 parejas) | Se evitan en lo posible (penalizadas, no prohibidas) |
-| **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel" |
+| **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel inicial" |
 | **Plantilla** | Bloqueada al empezar | Bloqueada al empezar | Añade jugadores y alterna activo/descanso entre rondas |
 | **Quién juega** | Fijado por el calendario (los descansos rotan) | Primero quienes han jugado menos partidos | Primero quienes han jugado menos partidos, solo jugadores activos |
 | **Pistas** | Jugadores ÷ 4 | Jugadores ÷ 4 | Tú eliges (4 por defecto); los jugadores sobrantes descansan |
@@ -90,11 +91,26 @@ Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_A
 
 Los niveles cuentan como Bajo = 1, Medio = 2, Alto = 3 (el nivel de un equipo es la suma de ambos jugadores).
 
+#### Emparejamiento en Liga
+
+Dos opciones en la configuración de Liga, combinables:
+
+| | **Priorizar nivel inicial** (activada por defecto) | **Priorizar clasificación** |
+|---|---|---|
+| **Se basa en** | Nivel marcado a cada jugador (Bajo/Medio/Alto) | Resultados hasta el momento, recalculados antes de cada ronda |
+| **Grupos de 4** | Niveles mezclados, equipos lo más igualados posible | Fuerza parecida (los de arriba con los de arriba, estilo Mexicano), equipos lo más igualados posible |
+| **Repeticiones** | Se evitan parejas/rivales repetidos en lo posible | Se permiten contra rivales de nivel parecido, pero el coste crece (al cuadrado) cuanto más se adelanta un rival respecto al que menos has enfrentado, más una penalización en las dos últimas rondas → todos siguen jugando contra todos |
+| **Parejas fijas** | Rivales con nivel de pareja parecido | Rivales por clasificación: las parejas parecidas coinciden más |
+
+- **Fuerza según la clasificación** = percentil de puntos ganados por punto jugado (no puntos totales, para no penalizar descansos ni llegadas tardías), en la misma escala 1–3 que el nivel.
+- **Ambas activadas**: al principio cuenta el nivel inicial y los resultados van pesando más según se juega (los resultados pesan n/(n+2) tras n partidos). **Solo clasificación**: todos empiezan iguales. **Ninguna**: solo rotación.
+- Simulado con 12–24 jugadores: parejas rotativas con ambas opciones → ~8–15% menos diferencia de nivel por partido que solo nivel, menos parejas repetidas, cobertura de rivales igual o mejor. Con parejas fijas la mejora es menor y la cobertura puede quedarse atrás (12 parejas, 14 rondas: ~90% de los cruces jugados frente al 100% sin la opción).
+
 **Parejas fijas** (opcional en ambos modos, *Parejas: Fijas*): tú formas las parejas y solo rotan los rivales.
 
 | | **Aleatorio + Parejas fijas** | **Liga + Parejas fijas** |
 |---|---|---|
-| **Calendario** | Todos contra todos: cada pareja se enfrenta a cada otra pareja una vez | Una ronda cada vez: primero las parejas que menos han jugado, evitando rivales repetidos y equilibrando el nivel de las parejas |
+| **Calendario** | Todos contra todos: cada pareja se enfrenta a cada otra pareja una vez | Una ronda cada vez: primero las parejas que menos han jugado, evitando rivales repetidos y equilibrando el nivel de las parejas (o la clasificación, ver arriba) |
 | **Requisitos** | Todos los jugadores deben tener pareja | Los jugadores sin pareja esperan; se pueden formar parejas nuevas durante la liga |
 | **Descanso** | Una pareja descansa por ronda si el número de parejas es impar | Una pareja descansa junta (alternar a un miembro alterna a ambos) |
 | **Clasificación / Finales** | Por pareja; final 1.ª vs 2.ª pareja (3.ª vs 4.ª en la pista siguiente) | Por pareja |

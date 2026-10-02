@@ -664,7 +664,8 @@ export const generateEventRound = (
   allPlayers: Player[],
   existingRounds: Round[],
   roundIndex: number,
-  numCourts: number
+  numCourts: number,
+  strength: (p: Player) => number = skillValue // League options may replace the declared skill
 ): Round => {
   const playersPerRound = numCourts * 4;
   
@@ -741,7 +742,7 @@ export const generateEventRound = (
       if (group.length !== 4) continue;
       
       // Skill: check if balanced splits are possible (min skill diff across 3 splits)
-      const skills = group.map(skillValue);
+      const skills = group.map(strength);
       const minSkillDiff = Math.min(
         Math.abs((skills[0] + skills[1]) - (skills[2] + skills[3])),
         Math.abs((skills[0] + skills[2]) - (skills[1] + skills[3])),
@@ -780,7 +781,7 @@ export const generateEventRound = (
     for (let court = 0; court < numCourts && remaining.length >= 4; court++) {
       // Pick first player
       const p1 = remaining.splice(0, 1)[0];
-      const p1Skill = skillValue(p1);
+      const p1Skill = strength(p1);
       
       // For a balanced group, target total skill ~8 (2 avg per player)
       // Pick 3 more players to minimize skill deviation from target
@@ -794,7 +795,7 @@ export const generateEventRound = (
       for (let i = 0; i < limit; i++) {
         for (let j = i + 1; j < limit; j++) {
           for (let k = j + 1; k < limit; k++) {
-            const trioSkill = skillValue(remaining[i]) + skillValue(remaining[j]) + skillValue(remaining[k]);
+            const trioSkill = strength(remaining[i]) + strength(remaining[j]) + strength(remaining[k]);
             const skillDev = Math.abs(trioSkill - targetRemaining);
             // Also add group history penalty
             const group = [p1, remaining[i], remaining[j], remaining[k]];
@@ -852,8 +853,8 @@ export const generateEventRound = (
     let bestSplitScore = Infinity;
     
     for (const split of splits) {
-      const teamASkill = skillValue(group[split[0]]) + skillValue(group[split[1]]);
-      const teamBSkill = skillValue(group[split[2]]) + skillValue(group[split[3]]);
+      const teamASkill = strength(group[split[0]]) + strength(group[split[1]]);
+      const teamBSkill = strength(group[split[2]]) + strength(group[split[3]]);
       const skillDiff = Math.abs(teamASkill - teamBSkill);
       
       let partnerPenalty = 0;
