@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
+import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   Users, 
@@ -47,9 +49,11 @@ const SKILL_COLORS = {
 };
 
 const App: React.FC = () => {
+  const { t, lang, locale, courtName } = useI18n();
   const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [newPlayerTotogian, setNewPlayerTotogian] = useState(false);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -113,7 +117,7 @@ const App: React.FC = () => {
       
       const newNames = [...prev];
       while (newNames.length < numCourts) {
-        newNames.push(`Court ${newNames.length + 1}`);
+        newNames.push(t('common.court', { n: newNames.length + 1 }));
       }
       return newNames.slice(0, numCourts);
     });
@@ -142,6 +146,11 @@ const App: React.FC = () => {
       }
     }
   }, []);
+
+  // Keep default court names ("Court 1" ↔ "Pista 1") in the selected language; custom names untouched
+  useEffect(() => {
+    setCourtNames(prev => prev.map((name, idx) => courtName(name, idx)));
+  }, [lang]);
 
   useEffect(() => {
     localStorage.setItem('padel_players', JSON.stringify(players));
@@ -350,7 +359,7 @@ const App: React.FC = () => {
       setShowShareModal(true);
     } catch (error) {
       console.error('Failed to start sharing:', error);
-      alert('Failed to create shared game. Please try again.');
+      alert(t('alert.shareFailed'));
       setShareState(prev => ({ ...prev, isSyncing: false }));
     }
   };
@@ -358,7 +367,7 @@ const App: React.FC = () => {
   const stopSharing = async () => {
     if (!shareState.shareId || !shareState.pin) return;
     
-    if (!window.confirm('Stop sharing this tournament? Others will no longer be able to view it.')) return;
+    if (!window.confirm(t('confirm.stopSharing'))) return;
     
     try {
       await fetch(`/api/game/${shareState.shareId}`, {
@@ -390,10 +399,16 @@ const App: React.FC = () => {
   };
 
   const addPlayer = () => {
-    if (!newPlayerName.trim()) return;
+    const name = cleanName(newPlayerName);
+    if (!name) return;
+    // Event mode: tournament.players may hold kiosk-added players not yet merged locally
+    if (isNameTaken(name, [...players, ...(tournament?.players ?? [])])) {
+      setNameError(t('players.duplicateName', { name }));
+      return;
+    }
     const newPlayer: Player = {
       id: crypto.randomUUID(),
-      name: newPlayerName.trim(),
+      name,
       ...(isEvent && {
         skillLevel: newPlayerSkill,
         isTotogian: newPlayerTotogian,
@@ -411,6 +426,7 @@ const App: React.FC = () => {
     }
     
     setNewPlayerName('');
+    setNameError(null);
     setNewPlayerTotogian(false);
   };
 
@@ -446,7 +462,7 @@ const App: React.FC = () => {
   };
 
   const startTournament = async () => {
-    if (players.length < 4) return alert("You need at least 4 players.");
+    if (players.length < 4) return alert(t('alert.minPlayers'));
     
     let tournamentPlayers = [...players];
     
@@ -463,7 +479,7 @@ const App: React.FC = () => {
         const response = await fetch('/api/nicknames', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ names: players.map(p => p.name) }),
+          body: JSON.stringify({ names: players.map(p => p.name), lang }),
         });
         
         if (response.ok) {
@@ -478,11 +494,11 @@ const App: React.FC = () => {
         } else {
           const errorText = await response.text();
           console.error('Failed to generate nicknames:', response.status, errorText);
-          alert('Failed to generate nicknames. Proceeding without them.');
+          alert(t('alert.nicknamesFailed'));
         }
       } catch (error) {
         console.error('Error generating nicknames:', error);
-        alert('Error connecting to nickname service. Proceeding without nicknames.');
+        alert(t('alert.nicknamesError'));
       } finally {
         setIsGeneratingNicknames(false);
       }
@@ -492,7 +508,7 @@ const App: React.FC = () => {
       // Event mode: start with no rounds, generate on demand
       setTournament({
         id: crypto.randomUUID(),
-        name: `Totogi Padel Invitational - ${new Date().toLocaleDateString()}`,
+        name: t('tournament.eventName', { date: new Date().toLocaleDateString(locale) }),
         players: tournamentPlayers,
         rounds: [],
         isStarted: true,
@@ -504,7 +520,7 @@ const App: React.FC = () => {
       const rounds = generateAmericanoSchedule(tournamentPlayers);
       setTournament({
         id: crypto.randomUUID(),
-        name: `Americano - ${new Date().toLocaleDateString()}`,
+        name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
         players: tournamentPlayers,
         rounds,
         isStarted: true,
@@ -524,15 +540,10 @@ const App: React.FC = () => {
     });
   };
 
-  const getCourtName = (courtIndex: number): string => {
-    if (tournament?.courtNames?.[courtIndex]) {
-      return tournament.courtNames[courtIndex];
-    }
-    return `Court ${courtIndex + 1}`;
-  };
+  const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
   const resetTournament = async () => {
-    if (window.confirm("End tournament? Scores will be lost.")) {
+    if (window.confirm(t('confirm.endTournament'))) {
       if (shareState.isSharing && shareState.shareId && shareState.pin) {
         try {
           await fetch(`/api/game/${shareState.shareId}`, {
@@ -558,7 +569,7 @@ const App: React.FC = () => {
   };
 
   const clearAllData = async () => {
-    if (window.confirm("Clear ALL data? This will remove all players and tournament data.")) {
+    if (window.confirm(t('confirm.clearAll'))) {
       if (shareState.isSharing && shareState.shareId && shareState.pin) {
         try {
           await fetch(`/api/game/${shareState.shareId}`, {
@@ -598,7 +609,7 @@ const App: React.FC = () => {
     if (tournament.mode === 'event') {
       const activePlayers = tournament.players.filter(p => p.isActive !== false);
       if (activePlayers.length < 4) {
-        return alert("Need at least 4 active players to generate a round.");
+        return alert(t('alert.minActivePlayers'));
       }
       const nc = tournament.numCourts || Math.floor(activePlayers.length / 4);
       const newRound = generateEventRound(
@@ -754,9 +765,9 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#fcfdfe] pb-24 md:pb-6 md:pl-24 font-inter antialiased">
       <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:bottom-0 md:w-24 bg-white/90 backdrop-blur-md border-t md:border-t-0 md:border-r border-slate-200 z-50 flex md:flex-col justify-around md:justify-center items-center py-2 md:py-4 md:space-y-12">
         {[
-          { tab: 'setup', icon: Settings, label: 'Setup' },
-          { tab: 'rounds', icon: Layout, label: 'Matches', disabled: !tournament },
-          { tab: 'leaderboard', icon: Trophy, label: 'Scores', disabled: !tournament }
+          { tab: 'setup', icon: Settings, label: t('nav.setup') },
+          { tab: 'rounds', icon: Layout, label: t('nav.matches'), disabled: !tournament },
+          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament }
         ].map(item => (
           <button 
             key={item.tab}
@@ -795,17 +806,18 @@ const App: React.FC = () => {
                     AMERICANO<span className={tc.primaryText}>PADEL</span>
                   </h1>
                 </div>
-                <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">Professional Whist Logic</p>
+                <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{t('header.tagline')}</p>
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3 self-center md:self-auto">
+          <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
+          <LanguageSwitcher />
           {isPerfect && (
               <div className="flex items-center gap-3 bg-emerald-50 text-emerald-700 px-4 py-2 md:px-6 md:py-3 rounded-2xl md:rounded-[1.5rem] border border-emerald-100 shadow-sm">
               <ShieldCheck className="w-5 h-5 text-emerald-500" />
               <div className="flex flex-col">
-                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1">Whist Tournament</span>
-                <span className="text-xs md:text-sm font-bold leading-none">Perfect Balance Active</span>
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1">{t('header.whistTournament')}</span>
+                <span className="text-xs md:text-sm font-bold leading-none">{t('header.perfectBalance')}</span>
               </div>
             </div>
           )}
@@ -826,7 +838,7 @@ const App: React.FC = () => {
                 ) : (
                   <Share2 className="w-4 h-4" />
                 )}
-                <span className="text-sm">{shareState.isSharing ? 'Sharing' : 'Share'}</span>
+                <span className="text-sm">{shareState.isSharing ? t('header.sharing') : t('header.share')}</span>
               </button>
             )}
           </div>
@@ -840,10 +852,10 @@ const App: React.FC = () => {
                 <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6">
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 md:p-8 text-center max-w-md">
                     <ShieldCheck className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-black text-slate-800 mb-2">Tournament In Progress</h3>
-                    <p className="text-slate-600 text-sm mb-4">Players are locked while a tournament is active. End the current tournament to modify the roster.</p>
+                    <h3 className="text-xl font-black text-slate-800 mb-2">{t('setup.inProgressTitle')}</h3>
+                    <p className="text-slate-600 text-sm mb-4">{t('setup.inProgressBody')}</p>
                     <button onClick={resetTournament} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-xl font-bold transition-all">
-                      End Tournament
+                      {t('setup.endTournament')}
                     </button>
                   </div>
                 </div>
@@ -853,23 +865,26 @@ const App: React.FC = () => {
               {tournament?.mode === 'event' && (
                 <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                  <span className="text-purple-700 font-bold text-sm">Event Mode Active — Add or toggle players between rounds</span>
+                  <span className="text-purple-700 font-bold text-sm">{t('setup.eventModeActive')}</span>
                 </div>
               )}
 
-              <h2 className="text-xl md:text-2xl font-black text-slate-800 mb-6 md:mb-8 flex items-center gap-3"><Users className={`w-5 h-5 md:w-6 md:h-6 ${tc.primaryText}`} /> Players</h2>
+              <h2 className="text-xl md:text-2xl font-black text-slate-800 mb-6 md:mb-8 flex items-center gap-3"><Users className={`w-5 h-5 md:w-6 md:h-6 ${tc.primaryText}`} /> {t('setup.players')}</h2>
               
               {/* Player input */}
               <div className="flex flex-col gap-3 mb-6">
                 <div className="flex gap-2 md:gap-4">
-                  <input type="text" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} placeholder="Player name..." disabled={!!tournament && tournament.mode !== 'event'} className={`flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl md:rounded-3xl px-4 md:px-8 py-4 md:py-5 focus:outline-none ${tc.focusBorder} font-bold text-base md:text-lg disabled:opacity-50`} />
+                  <input type="text" value={newPlayerName} onChange={(e) => { setNewPlayerName(e.target.value); setNameError(null); }} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} placeholder={t('common.playerNamePlaceholder')} disabled={!!tournament && tournament.mode !== 'event'} aria-invalid={!!nameError} aria-describedby={nameError ? 'player-name-error' : undefined} className={`flex-1 min-w-0 bg-slate-50 border-2 ${nameError ? 'border-rose-300' : 'border-slate-100'} rounded-2xl md:rounded-3xl px-4 md:px-8 py-4 md:py-5 focus:outline-none ${nameError ? 'focus:border-rose-400' : tc.focusBorder} font-bold text-base md:text-lg disabled:opacity-50`} />
                   <button onClick={addPlayer} disabled={!!tournament && tournament.mode !== 'event'} className={`${tc.primary} text-white px-6 md:px-8 rounded-2xl md:rounded-3xl shadow-lg transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}><Plus className="w-6 h-6 md:w-8 md:h-8" strokeWidth={3} /></button>
                 </div>
+                {nameError && (
+                  <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
+                )}
                 
                 {/* Skill level + Totogian selectors for event mode */}
                 {isEvent && (
                   <div className="flex flex-wrap items-center gap-3 px-1">
-                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Skill:</span>
+                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
                     {(['low', 'medium', 'high'] as const).map(level => (
                       <button
                         key={level}
@@ -880,7 +895,7 @@ const App: React.FC = () => {
                             : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:border-slate-200'
                         }`}
                       >
-                        {level}
+                        {t(`skill.${level}`)}
                       </button>
                     ))}
                     <div className="w-px h-6 bg-slate-200 mx-1" />
@@ -889,7 +904,7 @@ const App: React.FC = () => {
                         {newPlayerTotogian && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                       </div>
                       <input type="checkbox" checked={newPlayerTotogian} onChange={(e) => setNewPlayerTotogian(e.target.checked)} className="sr-only" />
-                      <span className="text-xs font-bold text-slate-500">Totogian</span>
+                      <span className="text-xs font-bold text-slate-500">{t('common.totogian')}</span>
                     </label>
                   </div>
                 )}
@@ -898,7 +913,7 @@ const App: React.FC = () => {
               {/* Player list */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1">
                 {players.length === 0 ? (
-                  <div className="col-span-1 md:col-span-2 py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">No players added yet.</div>
+                  <div className="col-span-1 md:col-span-2 py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
                 ) : players.map((p, idx) => (
                   <div key={p.id} className={`flex items-center justify-between bg-white border-2 rounded-2xl md:rounded-[2rem] px-5 md:px-8 py-4 md:py-5 shadow-sm transition-all group ${
                     tournament?.mode === 'event' && p.isActive === false
@@ -913,7 +928,7 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-2 mt-1">
                             {p.skillLevel && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${SKILL_COLORS[p.skillLevel].bg} ${SKILL_COLORS[p.skillLevel].text}`}>
-                                {p.skillLevel}
+                                {t(`skill.${p.skillLevel}`)}
                               </span>
                             )}
                             {p.isTotogian && (
@@ -934,7 +949,7 @@ const App: React.FC = () => {
                               ? 'text-emerald-500 hover:bg-emerald-50'
                               : 'text-slate-300 hover:bg-slate-50'
                           }`}
-                          title={p.isActive !== false ? 'Active — click to sit out' : 'Sitting out — click to activate'}
+                          title={p.isActive !== false ? t('setup.activeTitle') : t('setup.sittingOutTitle')}
                         >
                           {p.isActive !== false ? <UserPlus className="w-5 h-5" /> : <UserMinus className="w-5 h-5" />}
                         </button>
@@ -953,7 +968,7 @@ const App: React.FC = () => {
                 {/* Mode selector - only before tournament starts */}
                 {!tournament && (
                   <div>
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-3">Tournament Mode</h3>
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-3">{t('setup.tournamentMode')}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => setEventMode(false)}
@@ -964,7 +979,7 @@ const App: React.FC = () => {
                         }`}
                       >
                         <Zap className="w-5 h-5 mx-auto mb-1" />
-                        Classic
+                        {t('setup.classic')}
                       </button>
                       <button
                         onClick={() => setEventMode(true)}
@@ -975,23 +990,23 @@ const App: React.FC = () => {
                         }`}
                       >
                         <Trophy className="w-5 h-5 mx-auto mb-1" />
-                        Event
+                        {t('setup.event')}
                       </button>
                     </div>
                   </div>
                 )}
                 
-                <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest">Tournament Info</h3>
-                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">Athletes</span><span className="text-3xl md:text-4xl font-black">{players.length}</span></div>
+                <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest">{t('setup.tournamentInfo')}</h3>
+                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className="text-3xl md:text-4xl font-black">{players.length}</span></div>
                 
                 {isEvent ? (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-bold">Active</span>
+                      <span className="text-slate-400 font-bold">{t('setup.active')}</span>
                       <span className="text-3xl md:text-4xl font-black text-emerald-400">{activePlayers.length}</span>
                     </div>
                     <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800">
-                      <span className="text-slate-400 font-bold">Courts</span>
+                      <span className="text-slate-400 font-bold">{t('common.courts')}</span>
                       {!tournament ? (
                         <input
                           type="number"
@@ -1007,19 +1022,19 @@ const App: React.FC = () => {
                     </div>
                     {tournament && (
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-bold">Rounds</span>
+                        <span className="text-slate-400 font-bold">{t('common.rounds')}</span>
                         <span className="text-3xl md:text-4xl font-black">{tournament.rounds.length}</span>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800"><span className="text-slate-400 font-bold">Rounds</span><span className="text-3xl md:text-4xl font-black">{players.length > 0 ? (players.length % 2 === 0 ? players.length - 1 : players.length) : 0}</span></div>
+                  <div className="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800"><span className="text-slate-400 font-bold">{t('common.rounds')}</span><span className="text-3xl md:text-4xl font-black">{players.length > 0 ? (players.length % 2 === 0 ? players.length - 1 : players.length) : 0}</span></div>
                 )}
                 
                 {/* Court Names Configuration */}
                 {numCourts > 0 && (!tournament || tournament.mode === 'event') && (
                   <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">Court Names</h3>
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('setup.courtNames')}</h3>
                     <div className="space-y-2">
                       {courtNames.map((name, idx) => (
                         <div key={idx} className="flex items-center gap-2">
@@ -1037,7 +1052,7 @@ const App: React.FC = () => {
                                 }
                               }
                             }}
-                            placeholder={`Court ${idx + 1}`}
+                            placeholder={t('common.court', { n: idx + 1 })}
                             className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none ${isEvent ? 'focus:border-purple-500' : 'focus:border-indigo-500'} placeholder:text-slate-600`}
                           />
                         </div>
@@ -1047,10 +1062,10 @@ const App: React.FC = () => {
                 )}
                 {tournament?.courtNames && tournament.courtNames.length > 0 && tournament.mode !== 'event' && (
                   <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">Courts</h3>
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('common.courts')}</h3>
                     <div className="space-y-1 text-sm text-slate-400">
                       {tournament.courtNames.map((name, idx) => (
-                        <div key={idx}>{name}</div>
+                        <div key={idx}>{courtName(name, idx)}</div>
                       ))}
                     </div>
                   </div>
@@ -1070,7 +1085,7 @@ const App: React.FC = () => {
                     />
                     <span className="text-slate-400 font-bold text-sm flex items-center gap-2">
                       <Sparkles className={`w-4 h-4 ${isEvent ? 'text-purple-400' : 'text-indigo-400'}`} />
-                      Generate AI Nicknames
+                      {t('setup.generateNicknames')}
                     </span>
                   </label>
                 )}
@@ -1079,22 +1094,22 @@ const App: React.FC = () => {
                     {isGeneratingNicknames ? (
                       <>
                         <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                        GENERATING...
+                        {t('setup.generating')}
                       </>
                     ) : (
                       <>
                         <Play className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
-                        {eventMode ? 'START EVENT' : 'GENERATE'}
+                        {eventMode ? t('setup.startEvent') : t('setup.generate')}
                       </>
                     )}
                   </button>
                 ) : (
-                  <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> GO TO MATCHES</button>
+                  <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> {t('setup.goToMatches')}</button>
                 )}
-                {tournament && <button onClick={resetTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> End Tournament</button>}
+                {tournament && <button onClick={resetTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
                 {(players.length > 0 && !tournament) && (
                   <button onClick={clearAllData} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
-                    <Trash2 className="w-3 h-3" /> Clear All Data
+                    <Trash2 className="w-3 h-3" /> {t('setup.clearAll')}
                   </button>
                 )}
               </div>
@@ -1110,10 +1125,10 @@ const App: React.FC = () => {
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
                     <Zap className={`w-5 h-5 ${isEvent ? 'text-purple-500' : 'text-indigo-500'}`} />
-                    {tournament.rounds.length === 0 ? 'Generate First Round' : 'Generate Next Round'}
+                    {tournament.rounds.length === 0 ? t('rounds.generateFirst') : t('rounds.generateNext')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
-                    {activePlayers.length} active players • {tournament.numCourts} courts • Skill-balanced matchmaking
+                    {t('rounds.eventSummary', { active: activePlayers.length, courts: tournament.numCourts ?? eventNumCourts })}
                   </p>
                 </div>
                 <button 
@@ -1121,7 +1136,7 @@ const App: React.FC = () => {
                   disabled={activePlayers.length < 4}
                   className={`${tc.primary} ${tc.primaryHover} disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2`}
                 >
-                  <Play className="w-5 h-5" fill="currentColor" /> Generate Round {tournament.rounds.length + 1}
+                  <Play className="w-5 h-5" fill="currentColor" /> {t('rounds.generateRound', { n: tournament.rounds.length + 1 })}
                 </button>
               </div>
             )}
@@ -1133,10 +1148,10 @@ const App: React.FC = () => {
                   <div className="text-center">
                     {tournament.rounds[currentRoundIndex]?.matches.some(m => m.id.includes('championship')) ? (
                       <div className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-4 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest inline-flex items-center gap-1 mb-2">
-                        <Trophy className="w-3 h-3 md:w-4 md:h-4" /> Championship Round
+                        <Trophy className="w-3 h-3 md:w-4 md:h-4" /> {t('champ.round')}
                       </div>
                     ) : (
-                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-slate-400 block mb-1">Round</span>
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-slate-400 block mb-1">{t('common.round')}</span>
                     )}
                     <div className="text-4xl md:text-7xl font-black text-slate-900 flex items-center justify-center gap-2">
                       {currentRoundIndex + 1}<span className="text-slate-300 text-base md:text-2xl font-bold">/ {tournament.rounds.length}</span>
@@ -1144,7 +1159,7 @@ const App: React.FC = () => {
                         <button 
                           onClick={addRound} 
                           className={`ml-2 p-2 md:p-3 rounded-xl ${tc.primaryLight} hover:opacity-80 ${tc.primaryText} transition-all`}
-                          title="Add another round"
+                          title={t('rounds.addRound')}
                         >
                           <Plus className="w-5 h-5 md:w-6 md:h-6" strokeWidth={3} />
                         </button>
@@ -1171,23 +1186,23 @@ const App: React.FC = () => {
                         <div className={`px-6 md:px-12 py-3 md:py-5 border-b flex justify-between items-center font-black text-[9px] md:text-[10px] uppercase tracking-widest ${match.id.includes('championship') ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' : 'bg-slate-50/50 border-slate-100 text-slate-400'}`}>
                           <span className="flex items-center gap-2">
                             {match.id.includes('championship') && <Trophy className="w-4 h-4 text-yellow-500" />}
-                            {match.id.includes('championship') ? 'Finals' : getCourtName(match.courtIndex)}
+                            {match.id.includes('championship') ? t('common.finals') : getCourtName(match.courtIndex)}
                           </span>
-                          {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={12}/> Done</span>}
+                          {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={12}/> {t('common.done')}</span>}
                         </div>
                         <div className="p-6 md:p-14 flex flex-col md:grid md:grid-cols-7 items-center gap-6 md:gap-8">
                           <div className="w-full md:col-span-2 text-center md:text-right space-y-3 md:space-y-4 pr-1">
-                            <PlayerName name={p1a?.name || 'Unknown'} nickname={p1a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
-                            <PlayerName name={p2a?.name || 'Unknown'} nickname={p2a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p1a?.name || t('common.unknown')} nickname={p1a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p2a?.name || t('common.unknown')} nickname={p2a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                           <div className="w-full md:col-span-3 flex items-center justify-center gap-4 md:gap-6">
                             <input type="number" value={match.scoreA ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'A', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamAWon ? winnerInputClass : ''}`} placeholder="0" />
-                            <span className="text-slate-200 font-black italic text-sm md:text-xl shrink-0">VS</span>
+                            <span className="text-slate-200 font-black italic text-sm md:text-xl shrink-0">{t('common.vs')}</span>
                             <input type="number" value={match.scoreB ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'B', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamBWon ? winnerInputClass : ''}`} placeholder="0" />
                           </div>
                           <div className="w-full md:col-span-2 text-center md:text-left space-y-3 md:space-y-4 pl-1">
-                            <PlayerName name={p1b?.name || 'Unknown'} nickname={p1b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
-                            <PlayerName name={p2b?.name || 'Unknown'} nickname={p2b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p1b?.name || t('common.unknown')} nickname={p1b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p2b?.name || t('common.unknown')} nickname={p2b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                         </div>
                       </div>
@@ -1196,7 +1211,7 @@ const App: React.FC = () => {
                 </div>
                 {tournament.rounds[currentRoundIndex]?.byes.length > 0 && (
                   <div className="bg-amber-50/50 rounded-3xl p-6 md:p-10 border border-amber-100">
-                    <h3 className="text-amber-700 font-black text-[10px] md:text-[12px] uppercase tracking-widest mb-4 md:mb-6 flex items-center gap-2"><Info className="w-4 h-4 md:w-5 md:h-5"/> Currently Resting</h3>
+                    <h3 className="text-amber-700 font-black text-[10px] md:text-[12px] uppercase tracking-widest mb-4 md:mb-6 flex items-center gap-2"><Info className="w-4 h-4 md:w-5 md:h-5"/> {t('rounds.currentlyResting')}</h3>
                     <div className="flex flex-wrap gap-2 md:gap-3">
                       {tournament.rounds[currentRoundIndex].byes.map(id => {
                         const player = getPlayer(id);
@@ -1215,9 +1230,9 @@ const App: React.FC = () => {
                 <div className={`${tc.primary} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6`}>
                   <Play className="w-8 h-8 text-white" fill="currentColor" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-3">Ready to Play</h3>
+                <h3 className="text-2xl font-black text-slate-800 mb-3">{t('rounds.readyTitle')}</h3>
                 <p className="text-slate-500 max-w-md mx-auto">
-                  Generate the first round when your players are checked in. You can add or remove players between rounds.
+                  {t('rounds.readyBody')}
                 </p>
               </div>
             )}
@@ -1230,7 +1245,7 @@ const App: React.FC = () => {
             <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 md:p-8" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                  <Share2 className={`w-5 h-5 ${tc.primaryText}`} /> Share Tournament
+                  <Share2 className={`w-5 h-5 ${tc.primaryText}`} /> {t('share.title')}
                 </h2>
                 <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <X className="w-5 h-5 text-slate-400" />
@@ -1241,7 +1256,7 @@ const App: React.FC = () => {
                 {/* Viewer Link */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                    <Monitor className="w-3 h-3" /> Viewer Link
+                    <Monitor className="w-3 h-3" /> {t('share.viewerLink')}
                   </label>
                   <div className="flex gap-2">
                     <input 
@@ -1263,7 +1278,7 @@ const App: React.FC = () => {
                 {tournament?.mode === 'event' && (
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                      <Tablet className="w-3 h-3" /> Kiosk (Player Check-in)
+                      <Tablet className="w-3 h-3" /> {t('share.kioskLink')}
                     </label>
                     <div className="flex gap-2">
                       <input 
@@ -1286,7 +1301,7 @@ const App: React.FC = () => {
                 {tournament?.mode === 'event' && (
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                      <Trophy className="w-3 h-3" /> Leaderboard Display
+                      <Trophy className="w-3 h-3" /> {t('share.displayLink')}
                     </label>
                     <div className="flex gap-2">
                       <input 
@@ -1305,19 +1320,19 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <p className="text-[10px] text-slate-400">Anyone with these links can view. Only you can modify scores and generate rounds.</p>
+                <p className="text-[10px] text-slate-400">{t('share.disclaimer')}</p>
                 
                 {/* Status */}
                 <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${shareState.isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
                     <span className="text-sm font-bold text-slate-600">
-                      {shareState.isSyncing ? 'Syncing...' : 'Live & Synced'}
+                      {shareState.isSyncing ? t('share.syncing') : t('share.synced')}
                     </span>
                   </div>
                   {shareState.lastSynced && (
                     <span className="text-[10px] text-slate-400">
-                      Last: {shareState.lastSynced.toLocaleTimeString()}
+                      {t('share.last', { time: shareState.lastSynced.toLocaleTimeString(locale) })}
                     </span>
                   )}
                 </div>
@@ -1326,7 +1341,7 @@ const App: React.FC = () => {
                   onClick={stopSharing}
                   className="w-full py-3 text-rose-500 hover:bg-rose-50 rounded-xl font-bold text-sm transition-colors"
                 >
-                  Stop Sharing
+                  {t('share.stop')}
                 </button>
               </div>
             </div>
@@ -1356,25 +1371,25 @@ const App: React.FC = () => {
               const getChampPlayer = (id: string) => tournament?.players.find(p => p.id === id);
               const getPlayerNameStr = (id: string) => {
                 const p = getChampPlayer(id);
-                return p ? (p.nickname ? `${p.name} "${p.nickname}"` : p.name) : 'Unknown';
+                return p ? (p.nickname ? `${p.name} "${p.nickname}"` : p.name) : t('common.unknown');
               };
               
               const allFinalists = [...winningTeam, ...runnerUpTeam]
                 .map(id => ({ id, name: getPlayerNameStr(id), stats: getPlayerStats(id) }))
                 .sort((a, b) => (b.stats?.totalPoints || 0) - (a.stats?.totalPoints || 0));
               
-              const placeLabels = ['🥇', '🥈', '🥉', '4th'];
+              const placeLabels = ['🥇', '🥈', '🥉', t('champ.fourth')];
               
               return (
                 <div className="bg-gradient-to-r from-yellow-100 via-amber-50 to-yellow-100 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border-2 border-yellow-300 shadow-lg">
                   <h3 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 justify-center mb-6">
-                    <Trophy className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" /> Championship Results
+                    <Trophy className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" /> {t('champ.results')}
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl p-5 text-white text-center shadow-lg">
                       <div className="text-3xl mb-2">🏆</div>
-                      <div className="text-xs font-black uppercase tracking-widest opacity-80 mb-2">Champions</div>
+                      <div className="text-xs font-black uppercase tracking-widest opacity-80 mb-2">{t('champ.champions')}</div>
                       <div className="font-black text-xl md:text-2xl italic">
                         {getPlayerNameStr(winningTeam[0])} & {getPlayerNameStr(winningTeam[1])}
                       </div>
@@ -1383,7 +1398,7 @@ const App: React.FC = () => {
                     
                     <div className="bg-gradient-to-br from-slate-300 to-slate-400 rounded-2xl p-5 text-slate-700 text-center shadow-lg">
                       <div className="text-3xl mb-2">🥈</div>
-                      <div className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Runner Up</div>
+                      <div className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">{t('champ.runnerUp')}</div>
                       <div className="font-black text-xl md:text-2xl italic">
                         {getPlayerNameStr(runnerUpTeam[0])} & {getPlayerNameStr(runnerUpTeam[1])}
                       </div>
@@ -1393,7 +1408,7 @@ const App: React.FC = () => {
                   
                   <div className="border-t-2 border-yellow-300 pt-5">
                     <div className="text-xs font-black uppercase tracking-widest text-slate-500 text-center mb-4">
-                      Individual Rankings (by tournament points)
+                      {t('champ.individualRankingsByPoints')}
                     </div>
                     <div className="grid grid-cols-4 gap-2 md:gap-3">
                       {allFinalists.map((entry, idx) => (
@@ -1403,7 +1418,7 @@ const App: React.FC = () => {
                             {entry.name}
                           </div>
                           <div className="text-xs text-slate-500 font-bold">
-                            {entry.stats?.totalPoints || 0} pts
+                            {entry.stats?.totalPoints || 0} {t('common.pts')}
                           </div>
                         </div>
                       ))}
@@ -1418,24 +1433,24 @@ const App: React.FC = () => {
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                    <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> Championship Round
+                    <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('champ.round')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
-                    1st + 3rd place vs 2nd + 4th place
+                    {t('champ.format')}
                   </p>
                 </div>
                 <button 
                   onClick={addChampionshipRound}
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2"
                 >
-                  <Zap className="w-5 h-5" /> Create Finals
+                  <Zap className="w-5 h-5" /> {t('champ.create')}
                 </button>
               </div>
             )}
             
             <div className="bg-white rounded-3xl md:rounded-[4rem] shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> Standings</h2>
+                <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
                 <div className="flex items-center gap-3">
                   {isEvent && (
                     <button
@@ -1447,10 +1462,10 @@ const App: React.FC = () => {
                       }`}
                     >
                       <Filter className="w-3 h-3" />
-                      {hideTotogians ? 'Prize View' : 'All Players'}
+                      {hideTotogians ? t('lb.prizeView') : t('lb.allPlayers')}
                     </button>
                   )}
-                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">Sorted by Pts → Wins → Diff</span>
+                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
                 </div>
               </div>
 
@@ -1490,23 +1505,23 @@ const App: React.FC = () => {
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="font-bold text-[10px]">
-                            <span className="text-emerald-500">{entry.wins}W</span>
+                            <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
                             <span className="text-slate-300">-</span>
-                            <span className="text-rose-400">{entry.losses}L</span>
+                            <span className="text-rose-400">{t('common.losses', { n: entry.losses })}</span>
                             <span className="text-slate-300">-</span>
-                            <span className="text-slate-400">{entry.ties}T</span>
+                            <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
-                          <span className="text-[9px] text-slate-400 font-bold">{entry.avgPoints} avg</span>
+                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
                           {isEvent && (
                             <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {skill}
+                              {t(`skill.${skill}`)}
                             </span>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-black text-2xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
-                        <div className="text-[8px] text-slate-400 font-bold uppercase">pts</div>
+                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t('common.pts')}</div>
                       </div>
                     </div>
                   );
@@ -1518,11 +1533,11 @@ const App: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                      <th className="px-12 py-8">Rank</th>
-                      <th className="px-12 py-8">Athlete</th>
-                      {isEvent && <th className="px-8 py-8 text-center">Skill</th>}
-                      <th className="px-12 py-8 text-center">Record (W-L-T)</th>
-                      <th className="px-12 py-8 text-right">Total Points</th>
+                      <th className="px-12 py-8">{t('lb.rank')}</th>
+                      <th className="px-12 py-8">{t('lb.athlete')}</th>
+                      {isEvent && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
+                      <th className="px-12 py-8 text-center">{t('lb.record')}</th>
+                      <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1554,7 +1569,7 @@ const App: React.FC = () => {
                                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-500 whitespace-nowrap">Totogi</span>
                               )}
                             </div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">Avg {entry.avgPoints} / Match</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
                           {isEvent && (
                             <td className="px-8 py-10 text-center">
@@ -1563,7 +1578,7 @@ const App: React.FC = () => {
                                 const skill = player?.skillLevel || 'medium';
                                 return (
                                   <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                                    {skill}
+                                    {t(`skill.${skill}`)}
                                   </span>
                                 );
                               })()}
@@ -1571,11 +1586,11 @@ const App: React.FC = () => {
                           )}
                           <td className="px-12 py-10 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 font-black text-base">
-                              <span className="text-emerald-500">{entry.wins}W</span>
+                              <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
                               <span className="text-slate-200">-</span>
-                              <span className="text-rose-400">{entry.losses}L</span>
+                              <span className="text-rose-400">{t('common.losses', { n: entry.losses })}</span>
                               <span className="text-slate-200">-</span>
-                              <span className="text-slate-400">{entry.ties}T</span>
+                              <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                             </div>
                           </td>
                           <td className="px-12 py-10 text-right">

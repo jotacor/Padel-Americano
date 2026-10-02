@@ -37,6 +37,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ### User Experience
 - ✅ **Mobile-First** — Responsive design works great on phones at the courts
 - ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
+- ✅ **Multi-language** — English & Spanish (EN/ES switcher on every view, auto-detects browser language)
 - ✅ **Offline Ready** — All data persists in localStorage, no account needed
 - ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
 

@@ -1,5 +1,6 @@
 import type { SharedTournament, ErrorResponse } from '../../../types';
 import { TTL_SECONDS } from '../../../types';
+import { cleanName, isNameTaken } from '../../../../utils/playerNames';
 
 interface Env {
   TOURNAMENTS: KVNamespace;
@@ -40,15 +41,16 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
       }
       player.isActive = player.isActive === false ? true : false;
     } else if (body.action === 'add' && body.player) {
-      const existing = sharedTournament.tournament.players.find(
-        p => p.name.toLowerCase() === body.player!.name.toLowerCase()
-      );
-      if (existing) {
+      const name = cleanName(body.player.name || '');
+      if (!name) {
+        return Response.json({ error: 'Player name is required' } as ErrorResponse, { status: 400 });
+      }
+      if (isNameTaken(name, sharedTournament.tournament.players)) {
         return Response.json({ error: 'Player with this name already exists' } as ErrorResponse, { status: 409 });
       }
       sharedTournament.tournament.players.push({
         id: body.player.id,
-        name: body.player.name,
+        name,
         nickname: body.player.nickname,
         skillLevel: body.player.skillLevel,
         isTotogian: body.player.isTotogian,

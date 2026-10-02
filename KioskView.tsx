@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, Player } from './types';
+import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { 
   UserPlus, 
@@ -14,6 +15,7 @@ import {
   Trophy,
   Sparkles
 } from 'lucide-react';
+import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 
 const SKILL_COLORS = {
   low: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
@@ -25,6 +27,7 @@ const POLL_INTERVAL = 3000;
 
 const KioskView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { t, lang } = useI18n();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,19 +42,20 @@ const KioskView: React.FC = () => {
   const nicknamesAvailable = useNicknamesAvailable();
   const generateNickname = wantNickname && nicknamesAvailable;
   const [isAdding, setIsAdding] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const fetchTournament = async () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        setError(response.status === 404 ? 'Tournament not found' : 'Failed to load');
+        setError(response.status === 404 ? t('common.tournamentNotFound') : t('common.failedToLoad'));
         return;
       }
       const data = await response.json();
       setTournament(data.tournament);
       setError(null);
     } catch {
-      setError('Connection error');
+      setError(t('common.connectionError'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +97,13 @@ const KioskView: React.FC = () => {
   };
 
   const addNewPlayer = async () => {
-    if (!newName.trim() || isAdding) return;
+    const name = cleanName(newName);
+    if (!name || isAdding) return;
+    // Check before generating a nickname; the API re-checks against the latest roster
+    if (tournament && isNameTaken(name, tournament.players)) {
+      setNameError(t('players.duplicateName', { name }));
+      return;
+    }
     setIsAdding(true);
     
     try {
@@ -103,11 +113,11 @@ const KioskView: React.FC = () => {
           const nicknameResp = await fetch('/api/nicknames', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: [newName.trim()] }),
+            body: JSON.stringify({ names: [name], lang }),
           });
           if (nicknameResp.ok) {
             const nicknameData = await nicknameResp.json();
-            nickname = nicknameData.nicknames?.[newName.trim()];
+            nickname = nicknameData.nicknames?.[name];
           }
         } catch {
           // Proceed without nickname if generation fails
@@ -121,7 +131,7 @@ const KioskView: React.FC = () => {
           action: 'add',
           player: {
             id: crypto.randomUUID(),
-            name: newName.trim(),
+            name,
             nickname,
             skillLevel: newSkill,
             isTotogian: newTotogian,
@@ -133,8 +143,11 @@ const KioskView: React.FC = () => {
         const data = await response.json();
         setTournament(data.tournament);
         setNewName('');
+        setNameError(null);
         setNewTotogian(false);
         setShowAddForm(false);
+      } else if (response.status === 409) {
+        setNameError(t('players.duplicateName', { name }));
       }
     } catch (err) {
       console.error('Add player failed:', err);
@@ -156,8 +169,8 @@ const KioskView: React.FC = () => {
       <div className="min-h-screen bg-purple-950 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 text-center max-w-md">
           <Info className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-slate-800 mb-2">{error || 'Not Found'}</h1>
-          <p className="text-slate-500">This tournament may have expired.</p>
+          <h1 className="text-2xl font-black text-slate-800 mb-2">{error || t('common.notFound')}</h1>
+          <p className="text-slate-500">{t('common.mayHaveExpired')}</p>
         </div>
       </div>
     );
@@ -175,15 +188,18 @@ const KioskView: React.FC = () => {
           <div className="flex items-center gap-3">
             <img src="/totogi-padel-logo.png" alt="Totogi" className="w-10 h-10 rounded-lg" />
             <div>
-              <h1 className="text-lg font-black text-white tracking-tight italic">PLAYER CHECK-IN</h1>
-              <p className="text-purple-400 text-[10px] font-bold uppercase tracking-wider">Tap to join or sit out</p>
+              <h1 className="text-lg font-black text-white tracking-tight italic">{t('kiosk.title')}</h1>
+              <p className="text-purple-400 text-[10px] font-bold uppercase tracking-wider">{t('kiosk.subtitle')}</p>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+          <LanguageSwitcher variant="dark" />
           <div className="text-right">
-            <div className="text-purple-400 text-[10px] font-bold uppercase tracking-wider">Round</div>
+            <div className="text-purple-400 text-[10px] font-bold uppercase tracking-wider">{t('common.round')}</div>
             <div className="text-2xl font-black text-white">
               {currentRound > 0 ? currentRound : '—'}
             </div>
+          </div>
           </div>
         </div>
       </header>
@@ -194,12 +210,12 @@ const KioskView: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-purple-400" />
-              <span className="text-purple-300 text-sm font-bold">{activePlayers.length} active</span>
+              <span className="text-purple-300 text-sm font-bold">{t('kiosk.activeCount', { n: activePlayers.length })}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${allComplete || currentRound === 0 ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
               <span className="text-purple-400 text-sm font-bold">
-                {currentRound === 0 ? 'Waiting to start' : allComplete ? 'Round complete' : 'Playing...'}
+                {currentRound === 0 ? t('kiosk.waiting') : allComplete ? t('kiosk.roundComplete') : t('kiosk.playing')}
               </span>
             </div>
           </div>
@@ -207,7 +223,7 @@ const KioskView: React.FC = () => {
             onClick={() => setShowAddForm(!showAddForm)}
             className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4" /> Add Player
+            <Plus className="w-4 h-4" /> {t('kiosk.addPlayer')}
           </button>
         </div>
       </div>
@@ -219,14 +235,19 @@ const KioskView: React.FC = () => {
             <input
               type="text"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e) => { setNewName(e.target.value); setNameError(null); }}
               onKeyDown={(e) => e.key === 'Enter' && addNewPlayer()}
-              placeholder="Player name..."
+              placeholder={t('common.playerNamePlaceholder')}
               autoFocus
-              className="w-full bg-purple-950 border-2 border-purple-700 rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none focus:border-purple-400"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'kiosk-name-error' : undefined}
+              className={`w-full bg-purple-950 border-2 ${nameError ? 'border-rose-400' : 'border-purple-700'} rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none ${nameError ? 'focus:border-rose-300' : 'focus:border-purple-400'}`}
             />
+            {nameError && (
+              <p id="kiosk-name-error" role="alert" className="px-2 text-sm font-bold text-rose-300">{nameError}</p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-purple-500 text-xs font-bold uppercase tracking-wider">Skill:</span>
+              <span className="text-purple-500 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
               {(['low', 'medium', 'high'] as const).map(level => (
                 <button
                   key={level}
@@ -237,7 +258,7 @@ const KioskView: React.FC = () => {
                       : 'bg-purple-900 text-purple-500 border-2 border-transparent'
                   }`}
                 >
-                  {level}
+                  {t(`skill.${level}`)}
                 </button>
               ))}
               <div className="w-px h-6 bg-purple-700 mx-1" />
@@ -246,7 +267,7 @@ const KioskView: React.FC = () => {
                   {newTotogian && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                 </div>
                 <input type="checkbox" checked={newTotogian} onChange={(e) => setNewTotogian(e.target.checked)} className="sr-only" />
-                <span className="text-xs font-bold text-purple-400">Totogian</span>
+                <span className="text-xs font-bold text-purple-400">{t('common.totogian')}</span>
               </label>
               {nicknamesAvailable && (
                 <>
@@ -256,7 +277,7 @@ const KioskView: React.FC = () => {
                       {wantNickname && <Sparkles className="w-3 h-3 text-white" strokeWidth={3} />}
                     </div>
                     <input type="checkbox" checked={wantNickname} onChange={(e) => setWantNickname(e.target.checked)} className="sr-only" />
-                    <span className="text-xs font-bold text-purple-400">AI Nickname</span>
+                    <span className="text-xs font-bold text-purple-400">{t('kiosk.aiNickname')}</span>
                   </label>
                 </>
               )}
@@ -268,13 +289,13 @@ const KioskView: React.FC = () => {
                 className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {isAdding && generateNickname ? 'Generating nickname...' : 'Add to Tournament'}
+                {isAdding && generateNickname ? t('kiosk.generatingNickname') : t('kiosk.addToTournament')}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
                 className="px-4 py-3 rounded-xl text-purple-500 hover:bg-purple-900 font-bold transition-all"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -285,7 +306,7 @@ const KioskView: React.FC = () => {
       <main className="max-w-2xl mx-auto px-4 py-6">
         {/* Active players */}
         <h3 className="text-purple-400 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Zap className="w-3 h-3" /> Active for Next Round ({activePlayers.length})
+          <Zap className="w-3 h-3" /> {t('kiosk.activeNextRound', { n: activePlayers.length })}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
           {activePlayers.map(player => (
@@ -312,7 +333,7 @@ const KioskView: React.FC = () => {
               <div className="flex items-center gap-2 mt-1.5">
                 {player.skillLevel && (
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${SKILL_COLORS[player.skillLevel].bg} ${SKILL_COLORS[player.skillLevel].text}`}>
-                    {player.skillLevel}
+                    {t(`skill.${player.skillLevel}`)}
                   </span>
                 )}
                 {player.isTotogian && (
@@ -329,7 +350,7 @@ const KioskView: React.FC = () => {
         {inactivePlayers.length > 0 && (
           <>
             <h3 className="text-purple-600 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2">
-              <UserMinus className="w-3 h-3" /> Sitting Out ({inactivePlayers.length})
+              <UserMinus className="w-3 h-3" /> {t('kiosk.sittingOut', { n: inactivePlayers.length })}
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {inactivePlayers.map(player => (
@@ -356,7 +377,7 @@ const KioskView: React.FC = () => {
                   <div className="flex items-center gap-2 mt-1.5">
                     {player.skillLevel && (
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase opacity-60 ${SKILL_COLORS[player.skillLevel].bg} ${SKILL_COLORS[player.skillLevel].text}`}>
-                        {player.skillLevel}
+                        {t(`skill.${player.skillLevel}`)}
                       </span>
                     )}
                   </div>
@@ -372,10 +393,10 @@ const KioskView: React.FC = () => {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <span className="text-purple-400 text-xs font-bold">Live sync every 3s</span>
+            <span className="text-purple-400 text-xs font-bold">{t('kiosk.liveSync')}</span>
           </div>
           <span className="text-purple-600 text-xs font-bold">
-            {tournament.numCourts} courts • Games to 16
+            {t('kiosk.footer', { n: tournament.numCourts ?? '—' })}
           </span>
         </div>
       </div>

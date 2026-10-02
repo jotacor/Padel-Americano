@@ -4,7 +4,13 @@ interface Env {
 
 interface NicknameRequest {
   names: string[];
+  lang?: 'en' | 'es';
 }
+
+const FALLBACK_NICKNAMES = {
+  en: ['The Ace', 'Power Shot', 'Net Ninja', 'Smash King', 'The Wall', 'Quick Draw', 'Spin Master', 'Rally King'],
+  es: ['El As', 'Cañonazo', 'Ninja de la Red', 'Rey del Smash', 'El Muro', 'Rayo Veloz', 'Mago del Efecto', 'Rey del Peloteo'],
+};
 
 interface NicknameResponse {
   nicknames: Record<string, string>;
@@ -29,6 +35,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const namesList = body.names.join(', ');
+    const lang = body.lang === 'es' ? 'es' : 'en';
+    const languageRule = lang === 'es'
+      ? '- Write the nicknames in Spanish (Spain), using natural padel slang'
+      : '- Write the nicknames in English';
     
     const prompt = `Generate creative, fun padel/tennis-themed nicknames for these players: ${namesList}
 
@@ -37,6 +47,7 @@ Requirements:
 - Be playful and sports-themed (power, speed, precision, etc.)
 - Make them sound cool and memorable
 - Each player gets a unique nickname
+${languageRule}
 
 Return ONLY a JSON object mapping each name to their nickname, like:
 {"Pete": "Thunder Smash", "John": "The Wall"}
@@ -91,7 +102,7 @@ No other text, just the JSON.`;
       // Fallback: generate simple nicknames
       nicknames = {};
       body.names.forEach((name, i) => {
-        const fallbacks = ['The Ace', 'Power Shot', 'Net Ninja', 'Smash King', 'The Wall', 'Quick Draw', 'Spin Master', 'Rally King'];
+        const fallbacks = FALLBACK_NICKNAMES[lang];
         nicknames[name] = fallbacks[i % fallbacks.length];
       });
     }
