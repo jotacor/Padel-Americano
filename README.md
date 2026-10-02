@@ -51,11 +51,13 @@ A modern web app for running **Padel Americano** tournaments — the social form
 # Install dependencies
 npm install
 
-# Start dev server
+# Start dev server (Vite + Pages Functions + local KV)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Sharing, kiosk, display and viewer links all work locally.
+
+Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_KEY=sk-ant-...` and restart `npm run dev`.
 
 ## How It Works
 
@@ -90,10 +92,13 @@ The app uses **Whist Tournament** logic:
 ## Development
 
 ```bash
-npm run dev      # Development server with HMR
+npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C stops both
+npm run dev:vite # Vite only (no /api — sharing/kiosk/nicknames won't work)
 npm run build    # Production build
-npm run preview  # Preview production build locally
+npm run preview  # Preview production build locally (no /api)
 ```
+
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the Pages Functions in `wrangler pages dev` and Vite proxies `/api` to it. KV data persists in `.wrangler/state/` (delete to reset). Secrets go in `.dev.vars`. Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
 
 ## Project Structure
 
@@ -111,6 +116,7 @@ npm run preview  # Preview production build locally
 │   └── types.ts         # API types
 ├── index.tsx            # React entry point + routing
 ├── index.html           # HTML shell + OG meta tags
+├── scripts/dev.mjs      # Local dev: Vite + wrangler pages dev
 ├── wrangler.toml        # Cloudflare config (KV bindings)
 └── CLAUDE.md            # AI agent context file
 ```

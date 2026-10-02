@@ -23,5 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Wrangler local state
+# Wrangler local state / secrets
 .wrangler
+.dev.vars*

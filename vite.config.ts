@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // `npm run dev` runs Pages Functions via wrangler (scripts/dev.mjs); proxy the API to it
+        proxy: {
+          '/api': `http://127.0.0.1:${env.API_PORT || 8788}`,
+        },
       },
       plugins: [react()],
       define: {
