@@ -42,6 +42,7 @@
 | `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
+| `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
@@ -59,15 +60,18 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 **Random / Aleatorio** (`mode: 'classic'`, default):
 - All rounds pre-generated using Whist tournament logic
 - Player roster locked after tournament starts
+- Courts chosen in setup (`classicCourts` state, null = players ÷ 4, saved as `tournament.numCourts`); fewer courts → `packRounds()` spreads the full schedule over more rounds (same matches, fewest-played first) — extra rounds and finals use `tournament.numCourts` too
 - Perfect schedules for 8, 12, 16 players
-- "Prioritize skill" toggle (rotating only, `tournament.prioritizeSkill`): `generateSkillBalancedSchedule` builds every round with the League algorithm instead of Whist → much more even matches (8p: avg diff 1.36 → ~0.65) but some partnerships repeat/never happen; extra rounds also use `generateEventRound`
+- "Prioritize initial skill" toggle (rotating only, `tournament.prioritizeSkill`): `generateSkillBalancedSchedule` builds every round with the League algorithm instead of Whist → much more even matches (8p: avg diff 1.36 → ~0.65) but some partnerships repeat/never happen; extra rounds also use `generateEventRound`
 - `skillLevel` optional: `generateAmericanoSchedule` builds the Whist/Berger schedule on abstract slots, then `assignSlotsBySkill` picks the player→slot mapping minimizing Σ(match skill diff)². Partner/opponent guarantees are kept. For perfect Whist (8/12/16) every mapping gives the same total (each pair partners 1×, opposes 2×), so skill only helps other sizes
 
 **League / Liga** (`mode: 'event'`):
 - Rounds generated one-at-a-time with skill-balanced matchmaking
 - Manager adds players and toggles them active/inactive between rounds (no self-service check-in)
 - `skillLevel` (low/medium/high) drives team balancing
+- Matchmaking options (combinable, stored on tournament, read via `leagueMatchmaking()`): "Prioritize initial skill" (`prioritizeSkill`, **undefined = true** for legacy Leagues) and "Prioritize standings" (`prioritizeRanking`). `utils/ranking.ts`: `playerStrengths()` (percentile of points won/played → 1..3, blended with prior skill by matches played), `generateRankedRound()` (rotating: similar-strength groups of 4 + even split, local search), `repeatCost()` (excess-over-least-met², recency) also used by `generateFixedPairsRound(..., { strength, ranked })`. Neither option → `generateEventRound` with constant strength (rotation only). Weights in `MATCH_WEIGHTS` were tuned by simulation (12–24 players); too high `level`/`balance` freezes groups
 - `isActive` toggle for round-by-round player pool management
+- Courts (`tournament.numCourts`, default 4, max `MAX_COURTS`) changeable between rounds from the setup panel
 - Purple accent theme (`bg-purple-600`, `bg-purple-950`)
 
 **Pair modality** (both modes): `tournament.pairMode` = `'rotating'` (default, Americano) or `'fixed'` (manager pairs players in setup; `tournament.pairs: [id, id][]`).
@@ -110,7 +114,9 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
+- `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
+- `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
 - `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
 
 ### Cloud Sharing
