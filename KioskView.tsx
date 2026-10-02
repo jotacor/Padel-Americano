@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, Player } from './types';
+import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { 
   UserPlus, 
   UserMinus, 
@@ -36,6 +37,7 @@ const KioskView: React.FC = () => {
   const [newTotogian, setNewTotogian] = useState(false);
   const [wantNickname, setWantNickname] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const fetchTournament = async () => {
     try {
@@ -90,7 +92,13 @@ const KioskView: React.FC = () => {
   };
 
   const addNewPlayer = async () => {
-    if (!newName.trim() || isAdding) return;
+    const name = cleanName(newName);
+    if (!name || isAdding) return;
+    // Check before generating a nickname; the API re-checks against the latest roster
+    if (tournament && isNameTaken(name, tournament.players)) {
+      setNameError(`"${name}" is already in the tournament.`);
+      return;
+    }
     setIsAdding(true);
     
     try {
@@ -100,11 +108,11 @@ const KioskView: React.FC = () => {
           const nicknameResp = await fetch('/api/nicknames', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: [newName.trim()] }),
+            body: JSON.stringify({ names: [name] }),
           });
           if (nicknameResp.ok) {
             const nicknameData = await nicknameResp.json();
-            nickname = nicknameData.nicknames?.[newName.trim()];
+            nickname = nicknameData.nicknames?.[name];
           }
         } catch {
           // Proceed without nickname if generation fails
@@ -118,7 +126,7 @@ const KioskView: React.FC = () => {
           action: 'add',
           player: {
             id: crypto.randomUUID(),
-            name: newName.trim(),
+            name,
             nickname,
             skillLevel: newSkill,
             isTotogian: newTotogian,
@@ -130,8 +138,11 @@ const KioskView: React.FC = () => {
         const data = await response.json();
         setTournament(data.tournament);
         setNewName('');
+        setNameError(null);
         setNewTotogian(false);
         setShowAddForm(false);
+      } else if (response.status === 409) {
+        setNameError(`"${name}" is already in the tournament.`);
       }
     } catch (err) {
       console.error('Add player failed:', err);
@@ -216,12 +227,17 @@ const KioskView: React.FC = () => {
             <input
               type="text"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e) => { setNewName(e.target.value); setNameError(null); }}
               onKeyDown={(e) => e.key === 'Enter' && addNewPlayer()}
               placeholder="Player name..."
               autoFocus
-              className="w-full bg-purple-950 border-2 border-purple-700 rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none focus:border-purple-400"
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? 'kiosk-name-error' : undefined}
+              className={`w-full bg-purple-950 border-2 ${nameError ? 'border-rose-400' : 'border-purple-700'} rounded-2xl px-5 py-4 text-white font-bold text-lg placeholder:text-purple-700 focus:outline-none ${nameError ? 'focus:border-rose-300' : 'focus:border-purple-400'}`}
             />
+            {nameError && (
+              <p id="kiosk-name-error" role="alert" className="px-2 text-sm font-bold text-rose-300">{nameError}</p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-purple-500 text-xs font-bold uppercase tracking-wider">Skill:</span>
               {(['low', 'medium', 'high'] as const).map(level => (

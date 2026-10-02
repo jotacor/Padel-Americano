@@ -45,6 +45,7 @@
 | `functions/api/game/[id]/players.ts` | PATCH - kiosk player toggle/add (no PIN) |
 | `functions/api/nicknames.ts` | POST - AI nickname generation |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
+| `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
 
 ## Architecture
 
@@ -139,6 +140,7 @@ npm run preview # Preview production build
 
 - Championship detection uses `match.id.includes('championship')`
 - Event mode detected via `tournament.mode === 'event'`
+- Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
 - Kiosk/display views communicate only through KV (no localStorage)
 - PIN stored internally for cloud sync but not displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
