@@ -46,9 +46,9 @@ interface ShareState {
 }
 
 const SKILL_COLORS = {
-  low: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  medium: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
-  high: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
+  low: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-300' },
+  medium: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500', card: 'bg-amber-50 border-amber-200 hover:border-amber-300' },
+  high: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500', card: 'bg-rose-50 border-rose-200 hover:border-rose-300' },
 };
 
 const App: React.FC = () => {
@@ -846,42 +846,37 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {/* Player list */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1">
+              {/* Player list — card tinted by skill level; grows with the page (no inner scroll) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2 md:gap-3">
                 {players.length === 0 ? (
-                  <div className="col-span-1 md:col-span-2 py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
-                ) : players.map((p, idx) => (
-                  <div key={p.id} className={`flex items-center justify-between bg-white border-2 rounded-2xl md:rounded-[2rem] px-5 md:px-8 py-4 md:py-5 shadow-sm transition-all group ${
-                    pairingWith === p.id
-                      ? `${tc.primaryBorder} ring-2 ${isEvent ? 'ring-purple-400' : 'ring-indigo-400'}`
-                      : tournament?.mode === 'event' && p.isActive === false
-                      ? 'border-slate-100 opacity-50'
-                      : 'border-slate-50 hover:border-slate-200'
-                  }`}>
-                    <span className="flex items-center tracking-tight min-w-0 gap-2">
-                      <span className="text-slate-300 font-black text-lg md:text-xl shrink-0">{idx+1}</span>
-                      <div className="min-w-0">
-                        <PlayerName name={p.name} nickname={p.nickname} baseClass="font-black text-slate-800 text-lg md:text-xl" inline />
-                        <div className="flex items-center gap-2 mt-1">
-                          {p.skillLevel && (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${SKILL_COLORS[p.skillLevel].bg} ${SKILL_COLORS[p.skillLevel].text}`}>
-                              {t(`skill.${p.skillLevel}`)}
-                            </span>
-                          )}
-                          {isFixed && partnerOf(p.id) && (
-                            <span className="text-[10px] font-bold text-slate-400 truncate">
-                              {t('pairs.partnerOf', { name: players.find(x => x.id === partnerOf(p.id))?.name ?? '' })}
-                            </span>
-                          )}
-                        </div>
+                  <div className="col-span-full py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
+                ) : players.map((p, idx) => {
+                  const skill = p.skillLevel ?? 'medium';
+                  const colors = SKILL_COLORS[skill];
+                  const partnerId = isFixed ? partnerOf(p.id) : null;
+                  const inactive = tournament?.mode === 'event' && p.isActive === false;
+                  return (
+                  <div key={p.id} className={`flex items-center gap-3 border-2 rounded-2xl pl-2 pr-2 py-2 transition-all group ${colors.card} ${
+                    pairingWith === p.id ? `ring-2 ring-offset-1 ${isEvent ? 'ring-purple-400' : 'ring-indigo-400'}` : ''
+                  } ${inactive ? 'opacity-40 grayscale' : ''}`}>
+                    <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black text-sm text-white ${colors.dot}`}>{idx + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <PlayerName name={p.name} nickname={p.nickname} baseClass="block truncate font-black text-slate-800 text-base md:text-lg leading-tight" inline />
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${colors.text}`}>{t(`skill.${skill}`)}</span>
+                        {partnerId && (
+                          <span className="text-[10px] font-bold text-slate-500 truncate">
+                            · {t('pairs.partnerOf', { name: players.find(x => x.id === partnerId)?.name ?? '' })}
+                          </span>
+                        )}
                       </div>
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isFixed && canEditPairs && !partnerOf(p.id) && (
+                    </div>
+                    <div className="flex items-center shrink-0">
+                      {isFixed && canEditPairs && !partnerId && (
                         <button
                           onClick={() => selectForPair(p.id)}
                           title={t('pairs.pairWith')}
-                          className={`p-2 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : `text-slate-300 hover:${tc.primaryText} hover:bg-slate-50`}`}
+                          className={`p-2 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : 'text-slate-400 hover:text-slate-700 hover:bg-white/70'}`}
                         >
                           <Link2 className="w-5 h-5" />
                         </button>
@@ -889,21 +884,18 @@ const App: React.FC = () => {
                       {tournament?.mode === 'event' ? (
                         <button
                           onClick={() => togglePlayerActive(p.id)}
-                          className={`p-2 rounded-xl transition-all ${
-                            p.isActive !== false
-                              ? 'text-emerald-500 hover:bg-emerald-50'
-                              : 'text-slate-300 hover:bg-slate-50'
-                          }`}
+                          className={`p-2 rounded-xl transition-all hover:bg-white/70 ${p.isActive !== false ? 'text-emerald-600' : 'text-slate-400'}`}
                           title={p.isActive !== false ? t('setup.activeTitle') : t('setup.sittingOutTitle')}
                         >
                           {p.isActive !== false ? <UserPlus className="w-5 h-5" /> : <UserMinus className="w-5 h-5" />}
                         </button>
                       ) : !tournament ? (
-                        <button onClick={() => removePlayer(p.id)} className="text-slate-200 group-hover:text-rose-500"><Trash2 className="w-5 h-5 md:w-6 md:h-6" /></button>
+                        <button onClick={() => removePlayer(p.id)} title={t('setup.removePlayer')} className="p-2 rounded-xl text-slate-400/70 hover:text-rose-500 hover:bg-white/70 transition-all"><Trash2 className="w-5 h-5" /></button>
                       ) : null}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1073,7 +1065,7 @@ const App: React.FC = () => {
                   </label>
                 )}
                 {!tournament ? (
-                  <button onClick={startTournament} disabled={players.length < 4 || isGeneratingNicknames} className={`w-full ${tc.primary} ${tc.primaryHover} disabled:bg-slate-800 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95`}>
+                  <button onClick={startTournament} disabled={players.length < 4 || isGeneratingNicknames} className={`w-full ${tc.primary} ${tc.primaryHover} disabled:bg-slate-800 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl lg:text-lg xl:text-xl whitespace-nowrap flex items-center justify-center gap-3 transition-all active:scale-95`}>
                     {isGeneratingNicknames ? (
                       <>
                         <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
