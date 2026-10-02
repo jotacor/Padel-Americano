@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
@@ -26,11 +26,9 @@ import {
   Link as LinkIcon,
   X,
   Sparkles,
-  Filter,
   UserPlus,
   UserMinus,
-  Monitor,
-  Tablet
+  Monitor
 } from 'lucide-react';
 
 interface ShareState {
@@ -55,21 +53,13 @@ const App: React.FC = () => {
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
-  const [newPlayerTotogian, setNewPlayerTotogian] = useState(false);
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   const [courtNames, setCourtNames] = useState<string[]>([]);
   
-  // Event mode — default to event on totogi subdomain
-  const isTotogiHost = typeof window !== 'undefined' && window.location.hostname.includes('totogi');
-  const [eventMode, setEventMode] = useState(isTotogiHost);
+  // League ("event") mode
+  const [eventMode, setEventMode] = useState(false);
   const [eventNumCourts, setEventNumCourts] = useState(4);
-  
-  const tournamentRef = useRef(tournament);
-  tournamentRef.current = tournament;
-  
-  // Leaderboard filter
-  const [hideTotogians, setHideTotogians] = useState(false);
   
   // Sharing state
   const [shareState, setShareState] = useState<ShareState>({
@@ -82,7 +72,6 @@ const App: React.FC = () => {
   });
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedKioskUrl, setCopiedKioskUrl] = useState(false);
   const [copiedDisplayUrl, setCopiedDisplayUrl] = useState(false);
   
   // Nickname generation
@@ -214,55 +203,13 @@ const App: React.FC = () => {
     const syncToCloud = async () => {
       setShareState(prev => ({ ...prev, isSyncing: true }));
       try {
-        let tournamentToSync = tournament;
-
-        // In event mode, merge kiosk player changes before writing to avoid overwriting them
-        if (tournament.mode === 'event') {
-          try {
-            const getResp = await fetch(`/api/game/${shareState.shareId}`);
-            if (getResp.ok) {
-              const kvData = await getResp.json();
-              const kvPlayers: Player[] = kvData.tournament?.players || [];
-              const kvById = new Map(kvPlayers.map(p => [p.id, p]));
-              const localIds = new Set(tournament.players.map(p => p.id));
-              
-              let needsUpdate = false;
-              
-              // Merge isActive changes from KV for existing players
-              let mergedPlayers = tournament.players.map(p => {
-                const kvp = kvById.get(p.id);
-                if (kvp && kvp.isActive !== p.isActive) {
-                  needsUpdate = true;
-                  return { ...p, isActive: kvp.isActive };
-                }
-                return p;
-              });
-              
-              // Add new players from kiosk
-              const kioskAdded = kvPlayers.filter(p => !localIds.has(p.id));
-              if (kioskAdded.length > 0) {
-                mergedPlayers = [...mergedPlayers, ...kioskAdded];
-                needsUpdate = true;
-              }
-              
-              if (needsUpdate) {
-                tournamentToSync = { ...tournament, players: mergedPlayers };
-                setPlayers(mergedPlayers);
-                setTournament(prev => prev ? { ...prev, players: mergedPlayers } : prev);
-              }
-            }
-          } catch {
-            // Proceed with local state if merge-read fails
-          }
-        }
-
         const response = await fetch(`/api/game/${shareState.shareId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Tournament-Pin': shareState.pin,
           },
-          body: JSON.stringify({ tournament: tournamentToSync }),
+          body: JSON.stringify({ tournament }),
         });
         
         if (response.ok) {
@@ -280,55 +227,6 @@ const App: React.FC = () => {
     const timer = setTimeout(syncToCloud, 500);
     return () => clearTimeout(timer);
   }, [tournament, shareState.isSharing, shareState.shareId, shareState.pin]);
-
-  // Poll KV for kiosk player changes (event mode only)
-  useEffect(() => {
-    if (!shareState.isSharing || !shareState.shareId || !tournament || tournament.mode !== 'event') return;
-    
-    const pollForPlayerChanges = async () => {
-      const current = tournamentRef.current;
-      if (!current) return;
-      try {
-        const response = await fetch(`/api/game/${shareState.shareId}`);
-        if (!response.ok) return;
-        const data = await response.json();
-        const remotePlayers: Player[] = data.tournament?.players || [];
-        if (remotePlayers.length === 0) return;
-        
-        const localIds = new Set(current.players.map(p => p.id));
-        const localById = new Map(current.players.map(p => [p.id, p]));
-        
-        let needsUpdate = false;
-        const mergedPlayers = [...current.players];
-        
-        for (const rp of remotePlayers) {
-          if (!localIds.has(rp.id)) {
-            mergedPlayers.push(rp);
-            needsUpdate = true;
-          }
-        }
-        
-        const remoteById = new Map(remotePlayers.map(p => [p.id, p]));
-        for (let i = 0; i < mergedPlayers.length; i++) {
-          const remote = remoteById.get(mergedPlayers[i].id);
-          if (remote && remote.isActive !== mergedPlayers[i].isActive) {
-            mergedPlayers[i] = { ...mergedPlayers[i], isActive: remote.isActive };
-            needsUpdate = true;
-          }
-        }
-        
-        if (needsUpdate) {
-          setPlayers(mergedPlayers);
-          setTournament(prev => prev ? { ...prev, players: mergedPlayers } : prev);
-        }
-      } catch {
-        // Silent fail — polling is best-effort
-      }
-    };
-
-    const interval = setInterval(pollForPlayerChanges, 4000);
-    return () => clearInterval(interval);
-  }, [shareState.isSharing, shareState.shareId, tournament?.mode]);
 
   const startSharing = async () => {
     if (!tournament) return;
@@ -401,7 +299,6 @@ const App: React.FC = () => {
   const addPlayer = () => {
     const name = cleanName(newPlayerName);
     if (!name) return;
-    // Event mode: tournament.players may hold kiosk-added players not yet merged locally
     if (isNameTaken(name, [...players, ...(tournament?.players ?? [])])) {
       setNameError(t('players.duplicateName', { name }));
       return;
@@ -411,7 +308,6 @@ const App: React.FC = () => {
       name,
       ...(isEvent && {
         skillLevel: newPlayerSkill,
-        isTotogian: newPlayerTotogian,
         isActive: true,
       }),
     };
@@ -427,7 +323,6 @@ const App: React.FC = () => {
     
     setNewPlayerName('');
     setNameError(null);
-    setNewPlayerTotogian(false);
   };
 
   const removePlayer = (id: string) => {
@@ -450,14 +345,6 @@ const App: React.FC = () => {
           p.id === id ? { ...p, isActive: !p.isActive } : p
         ),
       } : prev);
-    }
-    // Also update KV directly so kiosk stays in sync
-    if (shareState.isSharing && shareState.shareId) {
-      fetch(`/api/game/${shareState.shareId}/players`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: id, action: 'toggle' }),
-      }).catch(() => {});
     }
   };
 
@@ -508,7 +395,7 @@ const App: React.FC = () => {
       // Event mode: start with no rounds, generate on demand
       setTournament({
         id: crypto.randomUUID(),
-        name: t('tournament.eventName', { date: new Date().toLocaleDateString(locale) }),
+        name: t('tournament.leagueName', { date: new Date().toLocaleDateString(locale) }),
         players: tournamentPlayers,
         rounds: [],
         isStarted: true,
@@ -695,7 +582,7 @@ const App: React.FC = () => {
     if (!tournament) return [];
     const stats: Record<string, LeaderboardEntry> = {};
     tournament.players.forEach(p => stats[p.id] = {
-      playerId: p.id, playerName: p.name, playerNickname: p.nickname, isTotogian: p.isTotogian, totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
+      playerId: p.id, playerName: p.name, playerNickname: p.nickname, totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
     });
 
     tournament.rounds.forEach(r => r.matches.forEach(m => {
@@ -723,20 +610,6 @@ const App: React.FC = () => {
         b.pointDifferential - a.pointDifferential
       );
   }, [tournament]);
-
-  // Filtered leaderboard for prize display (non-Totogian)
-  const prizeLeaderboard = useMemo(() => 
-    leaderboard.filter(e => !e.isTotogian),
-  [leaderboard]);
-  
-  const displayLeaderboard = hideTotogians ? prizeLeaderboard : leaderboard;
-
-  // Prize rank (skipping Totogians)
-  const getPrizeRank = (playerId: string): number | null => {
-    if (!isEvent) return null;
-    const idx = prizeLeaderboard.findIndex(e => e.playerId === playerId);
-    return idx >= 0 ? idx : null;
-  };
 
   const isPerfect = tournament && tournament.mode !== 'event' && [8, 12, 16].includes(tournament.players.length);
 
@@ -784,31 +657,17 @@ const App: React.FC = () => {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10">
         <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="flex flex-col items-center md:items-start text-center md:text-left">
-            {isEvent ? (
+            <div className="flex flex-col items-center md:items-start text-center md:text-left">
               <div className="flex items-center gap-3 mb-2">
-                <img src="/totogi-padel-logo.png" alt="Totogi Padel" className="w-12 h-12 md:w-14 md:h-14 rounded-xl" />
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-[900] text-slate-900 tracking-tight italic">
-                    <span className="text-purple-600">TOTOGI</span> PADEL
-                  </h1>
-                  <p className="text-purple-500 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-0.5">
-                    INVITATIONAL
-                  </p>
+                <div className={`${tc.primary} text-white p-2 md:p-2.5 rounded-xl md:rounded-2xl shadow-xl ${tc.shadow}`}>
+                  <Zap className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" />
                 </div>
+                <h1 className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tight italic">
+                  AMERICANO<span className={tc.primaryText}>PADEL</span>
+                </h1>
               </div>
-            ) : (
-              <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`${tc.primary} text-white p-2 md:p-2.5 rounded-xl md:rounded-2xl shadow-xl ${tc.shadow}`}>
-                    <Zap className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" />
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tight italic">
-                    AMERICANO<span className={tc.primaryText}>PADEL</span>
-                  </h1>
-                </div>
-                <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{t('header.tagline')}</p>
-              </div>
-            )}
+              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t('header.tagline')}</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
           <LanguageSwitcher />
@@ -881,7 +740,7 @@ const App: React.FC = () => {
                   <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
                 )}
                 
-                {/* Skill level + Totogian selectors for event mode */}
+                {/* Skill level selector (league mode) */}
                 {isEvent && (
                   <div className="flex flex-wrap items-center gap-3 px-1">
                     <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
@@ -898,14 +757,6 @@ const App: React.FC = () => {
                         {t(`skill.${level}`)}
                       </button>
                     ))}
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${newPlayerTotogian ? 'bg-purple-600 border-purple-600' : 'border-slate-300'}`}>
-                        {newPlayerTotogian && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </div>
-                      <input type="checkbox" checked={newPlayerTotogian} onChange={(e) => setNewPlayerTotogian(e.target.checked)} className="sr-only" />
-                      <span className="text-xs font-bold text-slate-500">{t('common.totogian')}</span>
-                    </label>
                   </div>
                 )}
               </div>
@@ -929,11 +780,6 @@ const App: React.FC = () => {
                             {p.skillLevel && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${SKILL_COLORS[p.skillLevel].bg} ${SKILL_COLORS[p.skillLevel].text}`}>
                                 {t(`skill.${p.skillLevel}`)}
-                              </span>
-                            )}
-                            {p.isTotogian && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-600">
-                                Totogi
                               </span>
                             )}
                           </div>
@@ -1274,29 +1120,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Kiosk Link - only for event mode */}
-                {tournament?.mode === 'event' && (
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                      <Tablet className="w-3 h-3" /> {t('share.kioskLink')}
-                    </label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={`${window.location.origin}/kiosk/${shareState.shareId}`} 
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-700"
-                      />
-                      <button 
-                        onClick={() => copyToClipboard(`${window.location.origin}/kiosk/${shareState.shareId}`, setCopiedKioskUrl)}
-                        className={`px-4 rounded-xl font-bold transition-all ${copiedKioskUrl ? 'bg-emerald-500 text-white' : `${tc.primary} text-white`}`}
-                      >
-                        {copiedKioskUrl ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Display Link - only for event mode */}
                 {tournament?.mode === 'event' && (
                   <div>
@@ -1452,33 +1275,17 @@ const App: React.FC = () => {
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
                 <div className="flex items-center gap-3">
-                  {isEvent && (
-                    <button
-                      onClick={() => setHideTotogians(!hideTotogians)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all ${
-                        hideTotogians
-                          ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                          : 'bg-slate-100 text-slate-500 border border-transparent hover:border-slate-200'
-                      }`}
-                    >
-                      <Filter className="w-3 h-3" />
-                      {hideTotogians ? t('lb.prizeView') : t('lb.allPlayers')}
-                    </button>
-                  )}
                   <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
                 </div>
               </div>
 
               {/* Mobile card layout */}
               <div className="md:hidden divide-y divide-slate-100">
-                {displayLeaderboard.map((entry, idx) => {
-                  const prizeRank = getPrizeRank(entry.playerId);
-                  const overallIdx = leaderboard.findIndex(e => e.playerId === entry.playerId);
-                  const displayRank = hideTotogians ? idx : overallIdx;
+                {leaderboard.map((entry, idx) => {
+                  const displayRank = idx;
                   
                   const getRankStyle = () => {
-                    if (entry.isTotogian) return 'bg-purple-100 text-purple-400';
-                    const rank = isEvent ? prizeRank : displayRank;
+                    const rank = displayRank;
                     if (rank === 0) return 'bg-yellow-400 text-white shadow-lg';
                     if (rank === 1) return 'bg-slate-200 text-slate-600';
                     if (rank === 2) return 'bg-orange-300 text-white';
@@ -1489,16 +1296,13 @@ const App: React.FC = () => {
                   const skill = player?.skillLevel || 'medium';
 
                   return (
-                    <div key={entry.playerId} className={`flex items-center gap-3 px-4 py-4 ${entry.isTotogian ? 'opacity-50' : ''}`}>
+                    <div key={entry.playerId} className="flex items-center gap-3 px-4 py-4">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
                         {displayRank + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="font-black text-slate-900 text-sm italic uppercase truncate">{entry.playerName}</span>
-                          {entry.isTotogian && (
-                            <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-purple-100 text-purple-500 shrink-0">T</span>
-                          )}
                         </div>
                         {entry.playerNickname && (
                           <div className={`${tc.nicknameText} font-semibold text-[10px] truncate`}>"{entry.playerNickname}"</div>
@@ -1541,14 +1345,11 @@ const App: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {displayLeaderboard.map((entry, idx) => {
-                      const prizeRank = getPrizeRank(entry.playerId);
-                      const overallIdx = leaderboard.findIndex(e => e.playerId === entry.playerId);
-                      const displayRank = hideTotogians ? idx : overallIdx;
+                    {leaderboard.map((entry, idx) => {
+                      const displayRank = idx;
                       
                       const getRankStyle = () => {
-                        if (entry.isTotogian) return 'bg-purple-100 text-purple-400';
-                        const rank = isEvent ? prizeRank : displayRank;
+                        const rank = displayRank;
                         if (rank === 0) return 'bg-yellow-400 text-white shadow-lg';
                         if (rank === 1) return 'bg-slate-200 text-slate-600';
                         if (rank === 2) return 'bg-orange-300 text-white';
@@ -1556,7 +1357,7 @@ const App: React.FC = () => {
                       };
                       
                       return (
-                        <tr key={entry.playerId} className={`hover:bg-slate-50/50 transition-colors ${entry.isTotogian ? 'opacity-50' : ''}`}>
+                        <tr key={entry.playerId} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-12 py-10">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl ${getRankStyle()}`}>
                               {displayRank + 1}
@@ -1565,9 +1366,6 @@ const App: React.FC = () => {
                           <td className="px-12 py-10">
                             <div className="flex items-center gap-2">
                               <PlayerName name={entry.playerName} nickname={entry.playerNickname} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
-                              {entry.isTotogian && (
-                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-500 whitespace-nowrap">Totogi</span>
-                              )}
                             </div>
                             <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>

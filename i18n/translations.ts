@@ -32,7 +32,6 @@ const en = {
   'common.playerNamePlaceholder': 'Player name...',
   'common.skillLabel': 'Skill:',
   'common.skill': 'Skill',
-  'common.totogian': 'Totogian',
   'common.wins': '{n}W',
   'common.losses': '{n}L',
   'common.ties': '{n}T',
@@ -60,6 +59,7 @@ const en = {
   'nav.matches': 'Matches',
   'nav.scores': 'Scores',
   'header.tagline': 'Professional Whist Logic',
+  'header.taglineLeague': 'Skill-Balanced Rounds',
   'header.whistTournament': 'Whist Tournament',
   'header.perfectBalance': 'Perfect Balance Active',
   'header.share': 'Share',
@@ -69,14 +69,14 @@ const en = {
   'setup.inProgressTitle': 'Tournament In Progress',
   'setup.inProgressBody': 'Players are locked while a tournament is active. End the current tournament to modify the roster.',
   'setup.endTournament': 'End Tournament',
-  'setup.eventModeActive': 'Event Mode Active — Add or toggle players between rounds',
+  'setup.eventModeActive': 'League Mode Active — Add or toggle players between rounds',
   'setup.players': 'Players',
   'setup.noPlayers': 'No players added yet.',
   'setup.activeTitle': 'Active — click to sit out',
   'setup.sittingOutTitle': 'Sitting out — click to activate',
   'setup.tournamentMode': 'Tournament Mode',
-  'setup.classic': 'Classic',
-  'setup.event': 'Event',
+  'setup.classic': 'Random',
+  'setup.event': 'League',
   'setup.tournamentInfo': 'Tournament Info',
   'setup.athletes': 'Athletes',
   'setup.active': 'Active',
@@ -101,7 +101,6 @@ const en = {
   // App — share modal
   'share.title': 'Share Tournament',
   'share.viewerLink': 'Viewer Link',
-  'share.kioskLink': 'Kiosk (Player Check-in)',
   'share.displayLink': 'Leaderboard Display',
   'share.disclaimer': 'Anyone with these links can view. Only you can modify scores and generate rounds.',
   'share.syncing': 'Syncing...',
@@ -110,8 +109,6 @@ const en = {
   'share.stop': 'Stop Sharing',
 
   // App — leaderboard
-  'lb.prizeView': 'Prize View',
-  'lb.allPlayers': 'All Players',
   'lb.sortedBy': 'Sorted by Pts → Wins → Diff',
   'lb.avg': '{n} avg',
   'lb.avgPerMatch': 'Avg {n} / Match',
@@ -132,7 +129,7 @@ const en = {
 
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
-  'tournament.eventName': 'Totogi Padel Invitational - {date}',
+  'tournament.leagueName': 'League - {date}',
 
   // Game viewer
   'viewer.loading': 'Loading tournament...',
@@ -148,26 +145,9 @@ const en = {
   'viewer.wlt': 'W-L-T',
   'viewer.liveEvery': 'Live updates every 5s',
 
-  // Kiosk
-  'kiosk.title': 'PLAYER CHECK-IN',
-  'kiosk.subtitle': 'Tap to join or sit out',
-  'kiosk.activeCount': '{n} active',
-  'kiosk.waiting': 'Waiting to start',
-  'kiosk.roundComplete': 'Round complete',
-  'kiosk.playing': 'Playing...',
-  'kiosk.addPlayer': 'Add Player',
-  'kiosk.aiNickname': 'AI Nickname',
-  'kiosk.generatingNickname': 'Generating nickname...',
-  'kiosk.addToTournament': 'Add to Tournament',
-  'kiosk.activeNextRound': 'Active for Next Round ({n})',
-  'kiosk.sittingOut': 'Sitting Out ({n})',
-  'kiosk.liveSync': 'Live sync every 3s',
-  'kiosk.footer': '{n} courts • Games to 16',
 
   // Leaderboard display
-  'display.subtitle': 'Invitational — Live Leaderboard',
-  'display.prize': 'Prize',
-  'display.all': 'All',
+  'display.subtitle': 'Live Leaderboard',
   'display.playersCount': '{n} players',
   'display.games': 'Games',
   'display.gamesCount': '{n} games',
@@ -202,7 +182,6 @@ const es: Translations = {
   'common.playerNamePlaceholder': 'Nombre del jugador...',
   'common.skillLabel': 'Nivel:',
   'common.skill': 'Nivel',
-  'common.totogian': 'Totogian',
   'common.wins': '{n}G',
   'common.losses': '{n}P',
   'common.ties': '{n}E',
@@ -230,6 +209,7 @@ const es: Translations = {
   'nav.matches': 'Partidos',
   'nav.scores': 'Tabla',
   'header.tagline': 'Lógica Whist Profesional',
+  'header.taglineLeague': 'Rondas Equilibradas por Nivel',
   'header.whistTournament': 'Torneo Whist',
   'header.perfectBalance': 'Equilibrio Perfecto Activo',
   'header.share': 'Compartir',
@@ -239,14 +219,14 @@ const es: Translations = {
   'setup.inProgressTitle': 'Torneo en Curso',
   'setup.inProgressBody': 'Los jugadores están bloqueados mientras hay un torneo activo. Finaliza el torneo actual para modificar la lista.',
   'setup.endTournament': 'Finalizar Torneo',
-  'setup.eventModeActive': 'Modo Evento Activo — Añade o activa jugadores entre rondas',
+  'setup.eventModeActive': 'Modo Liga activo — Añade o activa jugadores entre rondas',
   'setup.players': 'Jugadores',
   'setup.noPlayers': 'Aún no hay jugadores.',
   'setup.activeTitle': 'Activo — pulsa para descansar',
   'setup.sittingOutTitle': 'Descansando — pulsa para activar',
   'setup.tournamentMode': 'Modo de Torneo',
-  'setup.classic': 'Clásico',
-  'setup.event': 'Evento',
+  'setup.classic': 'Aleatorio',
+  'setup.event': 'Liga',
   'setup.tournamentInfo': 'Info del Torneo',
   'setup.athletes': 'Jugadores',
   'setup.active': 'Activos',
@@ -271,7 +251,6 @@ const es: Translations = {
   // App — share modal
   'share.title': 'Compartir Torneo',
   'share.viewerLink': 'Enlace para Espectadores',
-  'share.kioskLink': 'Kiosco (Registro de Jugadores)',
   'share.displayLink': 'Pantalla de Clasificación',
   'share.disclaimer': 'Cualquiera con estos enlaces puede verlo. Solo tú puedes modificar resultados y generar rondas.',
   'share.syncing': 'Sincronizando...',
@@ -280,8 +259,6 @@ const es: Translations = {
   'share.stop': 'Dejar de Compartir',
 
   // App — leaderboard
-  'lb.prizeView': 'Vista Premios',
-  'lb.allPlayers': 'Todos',
   'lb.sortedBy': 'Orden: Pts → Victorias → Dif',
   'lb.avg': '{n} media',
   'lb.avgPerMatch': 'Media {n} / Partido',
@@ -302,7 +279,7 @@ const es: Translations = {
 
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
-  'tournament.eventName': 'Totogi Padel Invitational - {date}',
+  'tournament.leagueName': 'Liga - {date}',
 
   // Game viewer
   'viewer.loading': 'Cargando torneo...',
@@ -318,26 +295,9 @@ const es: Translations = {
   'viewer.wlt': 'G-P-E',
   'viewer.liveEvery': 'Actualización cada 5s',
 
-  // Kiosk
-  'kiosk.title': 'REGISTRO DE JUGADORES',
-  'kiosk.subtitle': 'Pulsa para jugar o descansar',
-  'kiosk.activeCount': 'Activos: {n}',
-  'kiosk.waiting': 'Esperando inicio',
-  'kiosk.roundComplete': 'Ronda terminada',
-  'kiosk.playing': 'Jugando...',
-  'kiosk.addPlayer': 'Añadir Jugador',
-  'kiosk.aiNickname': 'Apodo IA',
-  'kiosk.generatingNickname': 'Generando apodo...',
-  'kiosk.addToTournament': 'Añadir al Torneo',
-  'kiosk.activeNextRound': 'Activos para la Siguiente Ronda ({n})',
-  'kiosk.sittingOut': 'Descansando ({n})',
-  'kiosk.liveSync': 'Sincronización cada 3s',
-  'kiosk.footer': 'Pistas: {n} • Partidos a 16',
 
   // Leaderboard display
-  'display.subtitle': 'Invitational — Clasificación en Directo',
-  'display.prize': 'Premios',
-  'display.all': 'Todos',
+  'display.subtitle': 'Clasificación en Directo',
   'display.playersCount': 'Jugadores: {n}',
   'display.games': 'Partidos',
   'display.gamesCount': 'Partidos: {n}',

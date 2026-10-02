@@ -4,8 +4,7 @@
 
 **Padel Americano Manager** - A React/TypeScript web app for managing Padel Americano tournaments. Americano is a social format where players rotate partners each round, ensuring everyone plays with and against different people.
 
-**Live at**: https://padelme.io  
-**Event subdomain**: totogi.padelme.io (Totogi Padel Invitational)
+**Live at**: https://padelme.io
 
 ## Workflow
 
@@ -32,17 +31,15 @@
 
 | File | Purpose |
 |------|---------|
-| `App.tsx` | Main React component - UI, state management, scoring, event mode |
+| `App.tsx` | Main React component - UI, state management, scoring, both modes |
 | `types.ts` | TypeScript interfaces (Player, Match, Round, Tournament, LeaderboardEntry) |
 | `utils/scheduler.ts` | **Core logic** - tournament schedules, skill-balanced event rounds, championship |
-| `KioskView.tsx` | Tablet-friendly player check-in/out for event mode |
 | `LeaderboardDisplay.tsx` | Standalone auto-refreshing leaderboard display |
 | `GameViewer.tsx` | Read-only tournament viewer (polling) |
 | `index.tsx` | React entry point + routing |
 | `index.html` | HTML shell with Tailwind CDN, OG meta tags |
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id].ts` | GET/PUT/DELETE - shared tournament CRUD |
-| `functions/api/game/[id]/players.ts` | PATCH - kiosk player toggle/add (no PIN) |
 | `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
 | `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
@@ -54,21 +51,20 @@
 
 ### Two Tournament Modes
 
-**Classic Mode** (default):
+Internal `mode` values are kept for stored-data compatibility: `'classic'` = **Random / Aleatorio**, `'event'` = **League / Liga**.
+
+**Random / Aleatorio** (`mode: 'classic'`, default):
 - All rounds pre-generated using Whist tournament logic
 - Player roster locked after tournament starts
 - Perfect schedules for 8, 12, 16 players
 
-**Event Mode** (Totogi Padel Invitational — MWC Barcelona, Sunday March 1 2026):
-- Expected 25-30 players, ~8 Totogi staff, 4 courts, games to 16
+**League / Liga** (`mode: 'event'`):
 - Rounds generated one-at-a-time with skill-balanced matchmaking
-- Players can be added/removed between rounds (kiosk supports AI nickname generation)
-- `isTotogian` flag for sponsor players (grayed out, not eligible for prizes)
+- Manager adds players and toggles them active/inactive between rounds (no self-service check-in)
 - `skillLevel` (low/medium/high) drives team balancing
 - `isActive` toggle for round-by-round player pool management
-- Dedicated kiosk and leaderboard display views
-- Organizer app polls KV every 4s to pick up kiosk player additions/status changes
-- Event mode PUT merges players server-side (`functions/mergePlayers.ts`): KV-only players kept, `isActive` from KV — a stale organizer sync can't drop kiosk changes
+- Optional leaderboard display view (`/display/:id`) for a TV/screen
+- Purple accent theme (`bg-purple-600`, `bg-purple-950`)
 
 ### Scheduling Logic (`utils/scheduler.ts`)
 
@@ -92,7 +88,6 @@
 |------|-----------|---------|
 | `/` | App | Main tournament manager |
 | `/game/:id` | GameViewer | Read-only viewer (polling) |
-| `/kiosk/:id` | KioskView | Player self-service check-in |
 | `/display/:id` | LeaderboardDisplay | Live leaderboard display |
 
 ### State Management
@@ -104,33 +99,20 @@ All state lives in `App.tsx` using React hooks.
 - `padel_tournament` - Full tournament state
 - `padel_court_names` - Court names
 - `padel_share_state` - Sharing state (id, pin, url)
-- `padel_event_mode` - Event mode flag
+- `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
 - `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
 
 ### Cloud Sharing
 
 - Organizer creates shared tournament → POST `/api/game`
-- Auto-syncs on every change → PUT `/api/game/:id` (debounced 500ms)
-- Kiosk updates player status → PATCH `/api/game/:id/players` (no PIN)
+- Auto-syncs on every change → PUT `/api/game/:id` (debounced 500ms); organizer is the only writer
 - Viewers poll → GET `/api/game/:id` every 5s
 - 24-hour TTL auto-cleanup
 
 ### Scoring & Leaderboard
 
 Tiebreaker order: Total Points → Match Wins → Point Differential
-
-**Event Mode Leaderboard**:
-- Totogian players shown with reduced opacity
-- Filter toggle: "All Players" vs "Prize View" (hides Totogians)
-- Gold/silver/bronze medals skip Totogian players
-
-### Branding (Event Mode)
-
-- Purple theme (`bg-purple-600`, `bg-purple-950`)
-- `public/totogi-padel-logo.png` - Padel Invitational badge
-- `public/totogi-logo.png` - Totogi wordmark
-- Header: "PADEL INVITATIONAL" + "Social Mixer"
 
 ## Commands
 
@@ -146,9 +128,9 @@ npm run preview # Preview production build
 ## Conventions
 
 - Championship detection uses `match.id.includes('championship')`
-- Event mode detected via `tournament.mode === 'event'`
+- League mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
-- Kiosk/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
+- Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
 - AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
 - PIN stored internally for cloud sync but not displayed to users

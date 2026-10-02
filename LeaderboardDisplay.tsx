@@ -6,8 +6,8 @@ import {
   Award,
   Loader2, 
   Info,
-  Filter,
-  Users
+  Users,
+  Zap
 } from 'lucide-react';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 
@@ -25,7 +25,6 @@ const LeaderboardDisplay: React.FC = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hideTotogians, setHideTotogians] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const fetchTournament = async () => {
@@ -56,7 +55,7 @@ const LeaderboardDisplay: React.FC = () => {
     if (!tournament) return [];
     const stats: Record<string, LeaderboardEntry> = {};
     tournament.players.forEach(p => stats[p.id] = {
-      playerId: p.id, playerName: p.name, playerNickname: p.nickname, isTotogian: p.isTotogian,
+      playerId: p.id, playerName: p.name, playerNickname: p.nickname,
       totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0
     });
 
@@ -82,9 +81,6 @@ const LeaderboardDisplay: React.FC = () => {
       .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || b.pointDifferential - a.pointDifferential);
   }, [tournament]);
 
-  const prizeLeaderboard = useMemo(() => leaderboard.filter(e => !e.isTotogian), [leaderboard]);
-  const displayLeaderboard = hideTotogians ? prizeLeaderboard : leaderboard;
-  const hasTotogians = leaderboard.some(e => e.isTotogian);
   const isEvent = tournament?.mode === 'event';
 
   if (loading) {
@@ -112,28 +108,17 @@ const LeaderboardDisplay: React.FC = () => {
       <header className="bg-purple-900/50 border-b border-purple-800 px-4 md:px-6 py-3 md:py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 md:gap-4">
-            <img src="/totogi-padel-logo.png" alt="Totogi" className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl" />
+            <div className="bg-purple-600 text-white p-2 rounded-lg md:rounded-xl">
+              <Zap className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
+            </div>
             <div>
               <h1 className="text-base md:text-xl font-black text-white tracking-tight italic">
-                <span className="text-purple-400">TOTOGI</span> PADEL
+                AMERICANO<span className="text-purple-400">PADEL</span>
               </h1>
               <p className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">{t('display.subtitle')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            {hasTotogians && (
-              <button
-                onClick={() => setHideTotogians(!hideTotogians)}
-                className={`flex items-center gap-1.5 px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold transition-all ${
-                  hideTotogians
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-purple-900 text-purple-400 border border-purple-700'
-                }`}
-              >
-                <Filter className="w-3 h-3 md:w-4 md:h-4" />
-                {hideTotogians ? t('display.prize') : t('display.all')}
-              </button>
-            )}
             <div className="text-right">
               <div className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">{t('common.rounds')}</div>
               <div className="text-xl md:text-2xl font-black text-white">{tournament.rounds.length}</div>
@@ -151,19 +136,17 @@ const LeaderboardDisplay: React.FC = () => {
             </h2>
             <div className="flex items-center gap-2">
               <Users className="w-3 h-3 md:w-4 md:h-4 text-purple-500" />
-              <span className="text-purple-400 text-xs md:text-sm font-bold">{t('display.playersCount', { n: displayLeaderboard.length })}</span>
+              <span className="text-purple-400 text-xs md:text-sm font-bold">{t('display.playersCount', { n: leaderboard.length })}</span>
             </div>
           </div>
 
           {/* Mobile card layout */}
           <div className="md:hidden divide-y divide-purple-800/20">
-            {displayLeaderboard.map((entry, idx) => {
-              const prizeRank = prizeLeaderboard.findIndex(e => e.playerId === entry.playerId);
-              const displayRank = hideTotogians ? idx : leaderboard.findIndex(e => e.playerId === entry.playerId);
+            {leaderboard.map((entry, idx) => {
+              const displayRank = idx;
 
               const getRankStyle = () => {
-                if (entry.isTotogian) return 'bg-purple-700/50 text-purple-400';
-                const rank = isEvent ? prizeRank : displayRank;
+                const rank = displayRank;
                 if (rank === 0) return 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/30';
                 if (rank === 1) return 'bg-slate-300 text-slate-700';
                 if (rank === 2) return 'bg-orange-400 text-white';
@@ -174,16 +157,13 @@ const LeaderboardDisplay: React.FC = () => {
               const skill = player?.skillLevel || 'medium';
 
               return (
-                <div key={entry.playerId} className={`flex items-center gap-3 px-4 py-3 ${entry.isTotogian ? 'opacity-40' : ''}`}>
+                <div key={entry.playerId} className="flex items-center gap-3 px-4 py-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
                     {displayRank + 1}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="font-black text-white text-sm italic uppercase truncate">{entry.playerName}</span>
-                      {entry.isTotogian && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-purple-800 text-purple-400 shrink-0">T</span>
-                      )}
                     </div>
                     {entry.playerNickname && (
                       <div className="text-purple-400 font-semibold text-[10px] truncate">"{entry.playerNickname}"</div>
@@ -226,13 +206,11 @@ const LeaderboardDisplay: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-800/20">
-              {displayLeaderboard.map((entry, idx) => {
-                const prizeRank = prizeLeaderboard.findIndex(e => e.playerId === entry.playerId);
-                const displayRank = hideTotogians ? idx : leaderboard.findIndex(e => e.playerId === entry.playerId);
+              {leaderboard.map((entry, idx) => {
+                const displayRank = idx;
                 
                 const getRankStyle = () => {
-                  if (entry.isTotogian) return 'bg-purple-700/50 text-purple-400';
-                  const rank = isEvent ? prizeRank : displayRank;
+                  const rank = displayRank;
                   if (rank === 0) return 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/30';
                   if (rank === 1) return 'bg-slate-300 text-slate-700';
                   if (rank === 2) return 'bg-orange-400 text-white';
@@ -240,7 +218,7 @@ const LeaderboardDisplay: React.FC = () => {
                 };
                 
                 return (
-                  <tr key={entry.playerId} className={`transition-colors ${entry.isTotogian ? 'opacity-40' : 'hover:bg-purple-800/20'}`}>
+                  <tr key={entry.playerId} className="transition-colors hover:bg-purple-800/20">
                     <td className="px-6 py-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${getRankStyle()}`}>
                         {displayRank + 1}
@@ -251,9 +229,6 @@ const LeaderboardDisplay: React.FC = () => {
                         <span className="font-black text-white text-lg italic uppercase">{entry.playerName}</span>
                         {entry.playerNickname && (
                           <span className="text-purple-400 font-semibold text-sm">"{entry.playerNickname}"</span>
-                        )}
-                        {entry.isTotogian && (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-purple-800 text-purple-400">Totogi</span>
                         )}
                       </div>
                     </td>
@@ -302,7 +277,6 @@ const LeaderboardDisplay: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher variant="dark" />
-            <img src="/totogi-logo.png" alt="totogi" className="h-3 md:h-4 opacity-40" />
           </div>
         </div>
       </div>
