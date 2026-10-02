@@ -145,7 +145,7 @@ npm run preview # Preview production build
 
 Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`; `ANTHROPIC_API_KEY` via `.dev.vars` (gitignored).
 
-**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`, `ANTHROPIC_API_KEY` passed as binding. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines.
+**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`, `ANTHROPIC_API_KEY` passed as binding. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines. `docker-compose.yml` = build + volume `padel-data:/data` + optional `ANTHROPIC_API_KEY`/`HOST_PORT` from `.env`. CI `.github/workflows/docker.yml`: only on push to `main` → build + push `jotacor/padelamericano:{latest,sha8}` (secret `DOCKER_PASSWORD`).
 
 ## Conventions
 

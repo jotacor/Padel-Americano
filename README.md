@@ -168,6 +168,20 @@ KV Namespace `TOURNAMENTS` is used for cloud-synced tournament storage.
 
 The image runs the full app — frontend, `/api/*` Pages Functions and a local KV store — with `wrangler pages dev` (same `workerd` runtime as Cloudflare).
 
+**Docker Compose** (simplest):
+
+```bash
+docker compose up -d --build   # → http://localhost:8788
+docker compose logs -f         # logs
+docker compose down            # stop (data kept in the padel-data volume; add -v to wipe it)
+```
+
+Optional settings in a `.env` file next to `docker-compose.yml` (gitignored): `ANTHROPIC_API_KEY=sk-ant-...` (AI nicknames) and `HOST_PORT=8080` (host port, default 8788).
+
+Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`).
+
+**Plain Docker:**
+
 ```bash
 docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
@@ -183,6 +197,8 @@ Open [http://localhost:8788](http://localhost:8788).
 | `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire after 24h |
 | `-e ANTHROPIC_API_KEY` | Optional — enables AI nicknames |
 | `-e PORT` | Internal port (default `8788`) |
+
+**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
 
 Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-americano --log-level debug`). Put it behind a reverse proxy for HTTPS (needed for clipboard copy on non-localhost hosts).
 
