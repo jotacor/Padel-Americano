@@ -1,0 +1,227 @@
+# 🎾 Padel Americano Manager
+
+🌐 [English](README.md) · **Español**
+
+Una app web moderna para organizar torneos de **Pádel Americano** — el formato social en el que los jugadores rotan de pareja en cada ronda para que todos jueguen con y contra personas distintas.
+
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
+![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Pages-F38020?logo=cloudflare)
+
+## Características
+
+### Torneo base
+- ✅ **Parejas fijas** — Opcional en ambos modos: tú eliges las parejas, solo rotan los rivales
+- ✅ **Dos modos** — *Aleatorio* (todas las rondas generadas de antemano, lógica Whist) y *Liga* (rondas de una en una, equilibradas por nivel, los jugadores pueden entrar/descansar entre rondas)
+- ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
+- ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
+- ✅ **Nombres de pista personalizados** — Pon nombre a las pistas (p. ej., "Pista Central", "Pista A") para llamarlas fácilmente
+- ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
+- ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
+
+### Gestión flexible del torneo
+- ✅ **Añadir rondas bajo demanda** — Botón "+" para ampliar el torneo con una rotación justa de jugadores
+- ✅ **Ronda de campeonato** — Crea la final: 1.º+3.º vs 2.º+4.º clasificado
+- ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual
+- ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
+
+### Compartir y sincronización en la nube
+- ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
+- ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente
+- ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
+- ✅ **Limpieza automática** — Los torneos compartidos caducan a las 24 horas
+
+### Funciones con IA
+- ✅ **Apodos con IA** — Genera apodos divertidos de pádel para los jugadores (con tecnología de Anthropic Claude)
+- ✅ **Opcional** — Casilla para activar/desactivar la generación de apodos
+
+### Experiencia de usuario
+- ✅ **Mobile-first** — Diseño adaptable que funciona genial en el móvil junto a las pistas
+- ✅ **Navegación con teclado** — Teclas de flecha para moverte entre rondas
+- ✅ **Multidioma** — Inglés y español (selector EN/ES en todas las vistas, detecta automáticamente el idioma del navegador)
+- ✅ **Funciona sin conexión** — Todos los datos se guardan en localStorage, sin necesidad de cuenta
+- ✅ **Exportar / Importar (YAML)** — Guarda un torneo en un archivo `.yaml` legible y cárgalo más tarde para ver resultados o seguir jugando; cada exportación incrementa un `revision` y añade una entrada a un registro `history` dentro del archivo
+- ✅ **Desempates** — Ordenado por puntos totales → partidos ganados → diferencia de puntos
+
+## Inicio rápido
+
+**Requisitos previos:** Node.js 18+
+
+```bash
+# Instalar dependencias
+npm install
+
+# Iniciar el servidor de desarrollo (Vite + Pages Functions + KV local)
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Los enlaces de compartir, pantalla y espectador funcionan también en local.
+
+Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_API_KEY=sk-ant-...` y reinicia `npm run dev`.
+
+## Cómo funciona
+
+### Flujo del torneo
+
+1. **Configuración** — Añade jugadores con un nivel (mínimo 4; 8/12/16 para un equilibrio Whist "perfecto"), elige un modo y la modalidad de parejas
+2. **Configurar pistas** — Renombra las pistas según tu club (Tab para pasar entre campos)
+3. **Empezar** — *Aleatorio* crea todas las rondas de entrada; *Liga* las genera de una en una
+4. **Jugar** — Navega por las rondas e introduce los resultados tras cada partido
+5. **Ampliar** — Añade más rondas con el botón "+" si hay tiempo
+6. **Finales** — Crea la ronda de campeonato a partir de la clasificación
+7. **Resultados** — Consulta los equipos campeones y la clasificación individual
+
+### Modos de torneo
+
+| | **Aleatorio** (por defecto) | **Aleatorio + "Priorizar nivel"** | **Liga** |
+|---|---|---|---|
+| **Rondas** | Todas generadas al inicio (N−1, o N si es impar) | Todas generadas al inicio (mismo número) | Una a una ("Generar ronda N") |
+| **Parejas** | Rotación Whist / Berger: cada uno forma pareja con todos una vez | Elegidas en cada ronda para equilibrar el nivel | Elegidas en cada ronda para equilibrar el nivel |
+| **Nivel** | Solo decide quién ocupa cada hueco del calendario. Sin efecto con 8/12/16 (toda asignación está igual de equilibrada); ayuda con otros tamaños | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible |
+| **Repeticiones** | Ninguna: sin parejas repetidas, rivales repartidos de forma uniforme | Algunas parejas se repiten, otras nunca coinciden (8 jugadores: ~7 de 28 parejas) | Se evitan en lo posible (penalizadas, no prohibidas) |
+| **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel" |
+| **Plantilla** | Bloqueada al empezar | Bloqueada al empezar | Añade jugadores y alterna activo/descanso entre rondas |
+| **Quién juega** | Fijado por el calendario (los descansos rotan) | Primero quienes han jugado menos partidos | Primero quienes han jugado menos partidos, solo jugadores activos |
+| **Pistas** | Jugadores ÷ 4 | Jugadores ÷ 4 | Tú eliges (4 por defecto); los jugadores sobrantes descansan |
+| **Rondas extra (+)** | Rotación justa evitando repeticiones, rivales igualados por nivel | Mismo algoritmo que Liga | Botón de siguiente ronda |
+| **Finales** | 1.º+3.º vs 2.º+4.º | 1.º+3.º vs 2.º+4.º | — |
+| **Ideal para** | Grupo cerrado con tiempo para el calendario completo | Grupo de nivel mixto donde importan más los partidos igualados que conocer a todos | Sesiones abiertas donde la gente llega/se va, número de rondas desconocido |
+
+Los niveles cuentan como Bajo = 1, Medio = 2, Alto = 3 (el nivel de un equipo es la suma de ambos jugadores).
+
+**Parejas fijas** (opcional en ambos modos, *Parejas: Fijas*): tú formas las parejas y solo rotan los rivales.
+
+| | **Aleatorio + Parejas fijas** | **Liga + Parejas fijas** |
+|---|---|---|
+| **Calendario** | Todos contra todos: cada pareja se enfrenta a cada otra pareja una vez | Una ronda cada vez: primero las parejas que menos han jugado, evitando rivales repetidos y equilibrando el nivel de las parejas |
+| **Requisitos** | Todos los jugadores deben tener pareja | Los jugadores sin pareja esperan; se pueden formar parejas nuevas durante la liga |
+| **Descanso** | Una pareja descansa por ronda si el número de parejas es impar | Una pareja descansa junta (alternar a un miembro alterna a ambos) |
+| **Clasificación / Finales** | Por pareja; final 1.ª vs 2.ª pareja (3.ª vs 4.ª en la pista siguiente) | Por pareja |
+
+### Algoritmo de calendario
+
+El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
+
+| Jugadores | Rondas | Pistas | Equilibrio |
+|-----------|--------|--------|------------|
+| 8 | 7 | 2 | Pareja con todos una vez, rival de todos dos veces |
+| 12 | 11 | 3 | Pareja con todos una vez, rival de todos dos veces |
+| 16 | 15 | 4 | Pareja con todos una vez, rival de todos dos veces |
+| Otros | N-1 | Varía | Rotación con tabla de Berger (pareja con todos una vez) |
+
+**Rotación de pistas**: Los jugadores rotan automáticamente entre pistas en cada ronda — el algoritmo registra el historial de pistas y optimiza las asignaciones.
+
+**Rondas adicionales**: Al añadir rondas bajo demanda, el algoritmo:
+- Prioriza a los jugadores que han jugado menos partidos
+- Evita emparejamientos recientes de pareja/rival
+- Gestiona los descansos con un número impar de jugadores
+
+## Desarrollo
+
+```bash
+npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C detiene ambos
+npm run dev:vite # Solo Vite (sin /api — compartir/apodos no funcionarán)
+npm run build    # Build de producción
+npm run preview  # Previsualizar el build de producción en local (sin /api)
+```
+
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta las Pages Functions en `wrangler pages dev` y Vite redirige `/api` hacia él. Los datos de KV persisten en `.wrangler/state/` (bórralo para reiniciar). Los secretos van en `.dev.vars`. Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
+
+## Estructura del proyecto
+
+```
+├── App.tsx              # Componente React principal (UI + estado)
+├── GameViewer.tsx       # Visor de solo lectura para torneos compartidos
+├── types.ts             # Interfaces TypeScript
+├── utils/
+│   ├── scheduler.ts     # Calendario del torneo + rondas adicionales
+│   └── tournamentFile.ts # Exportar/importar YAML + validación
+├── functions/           # Cloudflare Pages Functions (API serverless)
+│   ├── api/
+│   │   ├── game.ts      # POST /api/game - crear torneo compartido
+│   │   ├── game/[id].ts # GET/PUT/DELETE /api/game/:id
+│   │   └── nicknames.ts # POST /api/nicknames - generación de apodos con IA
+│   ├── types.ts         # Tipos de la API
+│   └── words.ts         # Palabras en español para IDs de compartir (p. ej. /game/bala-zapato)
+├── index.tsx            # Punto de entrada React + rutas
+├── index.html           # Esqueleto HTML + meta tags OG
+├── scripts/dev.mjs      # Desarrollo local: Vite + wrangler pages dev
+├── wrangler.toml        # Configuración de Cloudflare (bindings KV)
+└── CLAUDE.md            # Archivo de contexto para agentes de IA
+```
+
+## Despliegue
+
+La app está desplegada en **Cloudflare Pages** en [padelme.io](https://padelme.io).
+
+- Push a `main` → despliega a producción
+- Crear una PR → genera un despliegue de vista previa
+
+### Variables de entorno (Cloudflare Pages)
+
+| Variable | Descripción |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Clave de API para la generación de apodos con IA |
+
+El namespace KV `TOURNAMENTS` se usa para almacenar los torneos sincronizados en la nube.
+
+### Docker (autoalojado)
+
+La imagen ejecuta la app completa — frontend, Pages Functions `/api/*` y un almacén KV local — con `wrangler pages dev` (el mismo runtime `workerd` que Cloudflare).
+
+**Docker Compose** (lo más sencillo):
+
+```bash
+docker compose up -d --build   # → http://localhost:8788
+docker compose logs -f         # logs
+docker compose down            # detener (los datos se conservan en el volumen padel-data; añade -v para borrarlo)
+```
+
+Ajustes opcionales en un archivo `.env` junto a `docker-compose.yml` (ignorado por git): `ANTHROPIC_API_KEY=sk-ant-...` (apodos con IA) y `HOST_PORT=8080` (puerto del host, 8788 por defecto).
+
+Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`).
+
+**Docker simple:**
+
+```bash
+docker build -t padel-americano .
+docker run -d --name padel -p 8788:8788 \
+  -v padel-data:/data \
+  -e ANTHROPIC_API_KEY=sk-ant-...  \
+  padel-americano
+```
+
+Abre [http://localhost:8788](http://localhost:8788).
+
+| Opción | Descripción |
+|--------|-------------|
+| `-v padel-data:/data` | Conserva los torneos compartidos (KV) entre reinicios; siguen caducando a las 24 h |
+| `-e ANTHROPIC_API_KEY` | Opcional — activa los apodos con IA |
+| `-e PORT` | Puerto interno (por defecto `8788`) |
+
+**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).
+
+Los argumentos extra se pasan a `wrangler pages dev` (p. ej. `docker run ... padel-americano --log-level debug`). Ponlo detrás de un proxy inverso para HTTPS (necesario para copiar al portapapeles en hosts que no sean localhost).
+
+## Contribuir
+
+1. Crea una rama de funcionalidad: `git checkout -b feature/tu-funcionalidad`
+2. Haz cambios y pruébalos en local
+3. Abre una PR — Cloudflare generará un enlace de vista previa
+4. Fusiona tras la revisión
+
+## Licencia
+
+MIT
+
+---
+
+<details>
+<summary>Información original de AI Studio</summary>
+
+Este proyecto se creó a partir de Google AI Studio.
+
+Ver en AI Studio: https://ai.studio/apps/drive/1oXCLn8u0242Op7GnKGWZ8KPmGR3-3US1
+
+</details>

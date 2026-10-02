@@ -1,5 +1,7 @@
 # 🎾 Padel Americano Manager
 
+🌐 **English** · [Español](README.es.md)
+
 A modern web app for running **Padel Americano** tournaments — the social format where players rotate partners each round so everyone plays with and against different people.
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
