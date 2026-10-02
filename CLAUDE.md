@@ -68,6 +68,7 @@
 - `isActive` toggle for round-by-round player pool management
 - Dedicated kiosk and leaderboard display views
 - Organizer app polls KV every 4s to pick up kiosk player additions/status changes
+- Event mode PUT merges players server-side (`functions/mergePlayers.ts`): KV-only players kept, `isActive` from KV — a stale organizer sync can't drop kiosk changes
 
 ### Scheduling Logic (`utils/scheduler.ts`)
 
