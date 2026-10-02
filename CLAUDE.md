@@ -46,6 +46,7 @@
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
+| `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile` (validates), `bumpExportMeta`, `exportFilename`. Lazy-loaded by App |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
 
@@ -119,6 +120,14 @@ All state lives in `App.tsx` using React hooks.
 - Auto-syncs on every change → PUT `/api/game/:id` (debounced 500ms); organizer is the only writer
 - Viewers poll → GET `/api/game/:id` every 5s
 - 24-hour TTL auto-cleanup
+
+### Export / Import (YAML)
+
+- Setup right panel: "Export (YAML)" (when a tournament exists) + "Import" (always). No DB; files only
+- File: header comments, `format: padel-americano/v1`, `revision`, `exportedAt`, `history[]` (revision, exportedAt, rounds/matches done, leader), `tournament` (full `Tournament` minus `exportMeta`)
+- Versioning: `tournament.exportMeta = { revision, history }`; each export bumps revision + appends history (kept in state, so import v2 → export = v3)
+- Import validates shape (players, rounds, matches, pair/player ids); invalid → translated alert, state untouched. Confirms before replacing, stops sharing, restores setup state (players, courts, mode, pairs), opens Scores
+- Changing the file format: bump `TOURNAMENT_FILE_FORMAT` and keep parsing older versions
 
 ### Scoring & Leaderboard
 

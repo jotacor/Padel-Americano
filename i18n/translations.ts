@@ -99,6 +99,8 @@ const en = {
   'setup.generate': 'GENERATE',
   'setup.goToMatches': 'GO TO MATCHES',
   'setup.clearAll': 'Clear All Data',
+  'setup.exportYaml': 'Export (YAML)',
+  'setup.importYaml': 'Import',
 
   // App — rounds
   'rounds.generateFirst': 'Generate First Round',
@@ -143,6 +145,12 @@ const en = {
   'confirm.stopSharing': 'Stop sharing this tournament? Others will no longer be able to view it.',
   'confirm.endTournament': 'End tournament? Scores will be lost.',
   'confirm.clearAll': 'Clear ALL data? This will remove all players and tournament data.',
+  'confirm.importReplace': 'Load tournament from file? The current tournament and players will be replaced.',
+  'alert.importTooLarge': 'File is too large to be a tournament export.',
+  'alert.importInvalidYaml': 'This file is not a valid tournament export (YAML).',
+  'alert.importUnsupported': 'Unsupported file version "{format}". Update the app and try again.',
+  'alert.importInvalidData': 'Invalid tournament file: {detail}',
+  'alert.importReadFailed': 'Could not read the file.',
 
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
@@ -267,6 +275,8 @@ const es: Translations = {
   'setup.generate': 'GENERAR',
   'setup.goToMatches': 'IR A PARTIDOS',
   'setup.clearAll': 'Borrar Todos los Datos',
+  'setup.exportYaml': 'Exportar (YAML)',
+  'setup.importYaml': 'Importar',
 
   // App — rounds
   'rounds.generateFirst': 'Generar Primera Ronda',
@@ -311,6 +321,12 @@ const es: Translations = {
   'confirm.stopSharing': '¿Dejar de compartir este torneo? Los demás ya no podrán verlo.',
   'confirm.endTournament': '¿Finalizar el torneo? Se perderán los resultados.',
   'confirm.clearAll': '¿Borrar TODOS los datos? Se eliminarán todos los jugadores y datos del torneo.',
+  'confirm.importReplace': '¿Cargar el torneo desde el archivo? Se reemplazarán el torneo y los jugadores actuales.',
+  'alert.importTooLarge': 'El archivo es demasiado grande para ser una exportación de torneo.',
+  'alert.importInvalidYaml': 'Este archivo no es una exportación de torneo válida (YAML).',
+  'alert.importUnsupported': 'Versión de archivo no soportada "{format}". Actualiza la app e inténtalo de nuevo.',
+  'alert.importInvalidData': 'Archivo de torneo no válido: {detail}',
+  'alert.importReadFailed': 'No se pudo leer el archivo.',
 
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
