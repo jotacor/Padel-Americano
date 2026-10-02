@@ -41,6 +41,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
 - ✅ **Multi-language** — English & Spanish (EN/ES switcher on every view, auto-detects browser language)
 - ✅ **Offline Ready** — All data persists in localStorage, no account needed
+- ✅ **Export / Import (YAML)** — Save a tournament to a human-readable `.yaml` file and load it later to see results or keep playing; each export bumps a `revision` and appends to a `history` log inside the file
 - ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
 
 ## Quick Start
@@ -107,7 +108,8 @@ npm run preview  # Preview production build locally (no /api)
 ├── GameViewer.tsx       # Read-only viewer for shared tournaments
 ├── types.ts             # TypeScript interfaces
 ├── utils/
-│   └── scheduler.ts     # Tournament scheduling + additional rounds
+│   ├── scheduler.ts     # Tournament scheduling + additional rounds
+│   └── tournamentFile.ts # YAML export/import + validation
 ├── functions/           # Cloudflare Pages Functions (serverless API)
 │   ├── api/
 │   │   ├── game.ts      # POST /api/game - create shared tournament

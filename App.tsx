@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule } from './utils/scheduler.ts';
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
@@ -33,7 +33,9 @@ import {
   Monitor,
   Shuffle,
   Link2,
-  Unlink
+  Unlink,
+  Download,
+  Upload
 } from 'lucide-react';
 
 interface ShareState {
@@ -554,6 +556,67 @@ const App: React.FC = () => {
       localStorage.removeItem('padel_prioritize_skill');
       setActiveTab('setup');
     }
+  };
+
+  // YAML lib lazy-loaded: only needed on export/import
+  const loadTournamentFile = () => import('./utils/tournamentFile.ts');
+  const exportTournament = async () => {
+    if (!tournament) return;
+    const { bumpExportMeta, serializeTournament, exportFilename } = await loadTournamentFile();
+    const updated = bumpExportMeta(tournament);
+    setTournament(updated);
+    const url = URL.createObjectURL(new Blob([serializeTournament(updated)], { type: 'application/yaml' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportFilename(updated);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const importTournament = async (file: File) => {
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      return alert(t('alert.importReadFailed'));
+    }
+    const { parseTournamentFile } = await loadTournamentFile();
+    const result = parseTournamentFile(text);
+    if ('error' in result) {
+      console.error('Import failed:', result.error, result.detail);
+      if (result.error === 'tooLarge') return alert(t('alert.importTooLarge'));
+      if (result.error === 'unsupportedFormat') return alert(t('alert.importUnsupported', { format: result.detail ?? '' }));
+      if (result.error === 'invalidData') return alert(t('alert.importInvalidData', { detail: result.detail ?? '' }));
+      return alert(t('alert.importInvalidYaml'));
+    }
+    if ((tournament || players.length > 0) && !window.confirm(t('confirm.importReplace'))) return;
+    if (shareState.isSharing && shareState.shareId && shareState.pin) {
+      try {
+        await fetch(`/api/game/${shareState.shareId}`, {
+          method: 'DELETE',
+          headers: { 'X-Tournament-Pin': shareState.pin },
+        });
+      } catch (e) {
+        console.error('Failed to delete shared game:', e);
+      }
+      setShareState({ isSharing: false, shareId: null, pin: null, shareUrl: null, isSyncing: false, lastSynced: null });
+    }
+    const imported = result.tournament;
+    setTournament(imported);
+    setPlayers(imported.players);
+    setCourtNames(imported.courtNames ?? []);
+    setEventMode(imported.mode === 'event');
+    if (imported.numCourts) setEventNumCourts(imported.numCourts);
+    setPairMode(imported.pairMode ?? 'rotating');
+    setPairs(imported.pairs ?? []);
+    setPrioritizeSkill(!!imported.prioritizeSkill);
+    setPairingWith(null);
+    // Resume at the first round with unfinished matches
+    const firstOpen = imported.rounds.findIndex(r => r.matches.some(m => !m.isCompleted));
+    setCurrentRoundIndex(firstOpen >= 0 ? firstOpen : Math.max(0, imported.rounds.length - 1));
+    const anyScored = imported.rounds.some(r => r.matches.some(m => m.isCompleted));
+    setActiveTab(anyScored ? 'leaderboard' : 'rounds');
   };
 
   const addRound = () => {
@@ -1087,6 +1150,28 @@ const App: React.FC = () => {
                     <Trash2 className="w-3 h-3" /> {t('setup.clearAll')}
                   </button>
                 )}
+                <div className="flex justify-center gap-6">
+                  {tournament && (
+                    <button onClick={exportTournament} className="text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
+                      <Download className="w-3 h-3" /> {t('setup.exportYaml')}
+                    </button>
+                  )}
+                  <button onClick={() => importFileRef.current?.click()} className="text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
+                    <Upload className="w-3 h-3" /> {t('setup.importYaml')}
+                  </button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".yaml,.yml"
+                    className="hidden"
+                    data-testid="import-file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (file) importTournament(file);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>

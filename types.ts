@@ -36,6 +36,23 @@ export interface Tournament {
   pairMode?: PairMode;
   pairs?: Pair[]; // fixed pairs (player IDs), only when pairMode === 'fixed'
   prioritizeSkill?: boolean; // Random + rotating: skill-balanced rounds instead of Whist rotation
+  exportMeta?: ExportMeta; // YAML export versioning (utils/tournamentFile.ts)
+}
+
+export interface ExportHistoryEntry {
+  revision: number;
+  exportedAt: string; // ISO timestamp
+  roundsPlayed: number; // rounds with every match completed
+  totalRounds: number;
+  matchesCompleted: number;
+  totalMatches: number;
+  leader?: string;
+  leaderPoints?: number;
+}
+
+export interface ExportMeta {
+  revision: number; // bumped on every export
+  history: ExportHistoryEntry[];
 }
 
 export type PairMode = 'rotating' | 'fixed';
