@@ -1,0 +1,27 @@
+name: Build and push to Docker Hub
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: |
+        docker build . --file Dockerfile \
+        --tag jotacor/padelamericano:latest \
+        --tag jotacor/padelamericano:$(echo $GITHUB_SHA | cut -c1-8)
+    # Pull requests only build; pushing happens for commits on main
+    - name: Docker login
+      if: github.event_name == 'push'
+      env:
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: echo "$DOCKER_PASSWORD" | docker login -u jotacor --password-stdin
+    - name: Docker push
+      if: github.event_name == 'push'
+      run: docker push jotacor/padelamericano --all-tags

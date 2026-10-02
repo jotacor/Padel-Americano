@@ -26,3 +26,6 @@ dist-ssr
 # Wrangler local state / secrets
 .wrangler
 .dev.vars*
+
+# Docker Compose settings / secrets
+.env
