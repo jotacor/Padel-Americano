@@ -1,9 +1,15 @@
 import type { Env, SharedTournament, CreateGameResponse, ErrorResponse } from '../types';
 import { hashPin, generateId, generatePin, TTL_SECONDS } from '../types';
 
-interface PagesContext {
-  request: Request;
-  env: Env;
+const ID_ATTEMPTS = 5;
+
+// Unused word-word ID; after ID_ATTEMPTS collisions, fall back to word-word-N
+async function generateUniqueId(kv: KVNamespace): Promise<string> {
+  for (let i = 0; i < ID_ATTEMPTS * 2; i++) {
+    const id = generateId(i >= ID_ATTEMPTS);
+    if ((await kv.get(id)) === null) return id;
+  }
+  throw new Error('Could not generate a unique game ID');
 }
 
 // POST /api/game - Create a new shared tournament
@@ -17,7 +23,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return Response.json({ error: 'Tournament data is required' } as ErrorResponse, { status: 400 });
     }
 
-    const id = generateId();
+    const id = await generateUniqueId(env.TOURNAMENTS);
     const pin = generatePin();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + TTL_SECONDS * 1000);

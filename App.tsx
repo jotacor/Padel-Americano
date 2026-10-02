@@ -1251,8 +1251,8 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Display Link - only for event mode */}
-                {tournament?.mode === 'event' && (
+                {/* Display Link (TV/screen leaderboard) - both modes */}
+                {shareState.shareId && (
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
                       <Trophy className="w-3 h-3" /> {t('share.displayLink')}

@@ -1,4 +1,5 @@
 import type { Tournament } from '../types';
+import { randomWordId } from './words';
 
 export interface Env {
   TOURNAMENTS: KVNamespace;
@@ -33,14 +34,10 @@ export function hashPin(pin: string): string {
   return hash.toString(16);
 }
 
-// Generate a random 6-character alphanumeric ID
-export function generateId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let id = '';
-  for (let i = 0; i < 6; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return id;
+// Memorable share ID: two Spanish words (`bala-zapato`), optional numeric suffix on collision fallback.
+// Old 6-char alphanumeric IDs stay valid: routes/KV treat the ID as an opaque string.
+export function generateId(withNumber = false): string {
+  return randomWordId(withNumber);
 }
 
 // Generate a 4-digit PIN

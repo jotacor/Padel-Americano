@@ -43,6 +43,7 @@
 | `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
 | `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
+| `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
@@ -67,7 +68,6 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - Manager adds players and toggles them active/inactive between rounds (no self-service check-in)
 - `skillLevel` (low/medium/high) drives team balancing
 - `isActive` toggle for round-by-round player pool management
-- Optional leaderboard display view (`/display/:id`) for a TV/screen
 - Purple accent theme (`bg-purple-600`, `bg-purple-950`)
 
 **Pair modality** (both modes): `tournament.pairMode` = `'rotating'` (default, Americano) or `'fixed'` (manager pairs players in setup; `tournament.pairs: [id, id][]`).
@@ -116,6 +116,8 @@ All state lives in `App.tsx` using React hooks.
 ### Cloud Sharing
 
 - Organizer creates shared tournament → POST `/api/game`
+- Share IDs: two different Spanish words from `functions/words.ts` (`bala-zapato`, ~320 words → ~100k combos); POST retries 5× if the KV key exists, then appends a number (`bala-zapato-7`). IDs are opaque strings everywhere (old 6-char IDs still work) — keep words `^[a-z]{3,7}$`, no ñ/accents, no duplicates
+- Share modal shows viewer link (`/game/:id`) and leaderboard display link (`/display/:id`, TV/screen) in both modes
 - Auto-syncs on every change → PUT `/api/game/:id` (debounced 500ms); organizer is the only writer
 - Viewers poll → GET `/api/game/:id` every 5s
 - 24-hour TTL auto-cleanup

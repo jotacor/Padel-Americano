@@ -27,7 +27,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
 ### Sharing & Cloud Sync
-- ✅ **Shareable Links** — Share your tournament with spectators via unique URL
+- ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
 - ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
 - ✅ **Auto-cleanup** — Shared tournaments expire after 24 hours
@@ -113,7 +113,8 @@ npm run preview  # Preview production build locally (no /api)
 │   │   ├── game.ts      # POST /api/game - create shared tournament
 │   │   ├── game/[id].ts # GET/PUT/DELETE /api/game/:id
 │   │   └── nicknames.ts # POST /api/nicknames - AI nickname generation
-│   └── types.ts         # API types
+│   ├── types.ts         # API types
+│   └── words.ts         # Spanish words for share IDs (e.g. /game/bala-zapato)
 ├── index.tsx            # React entry point + routing
 ├── index.html           # HTML shell + OG meta tags
 ├── scripts/dev.mjs      # Local dev: Vite + wrangler pages dev

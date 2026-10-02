@@ -55,8 +55,8 @@ const LeaderboardDisplay: React.FC = () => {
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
   const isFixed = tournament?.pairMode === 'fixed';
-  // Skill per entry only makes sense per player
-  const isEvent = tournament?.mode === 'event' && !isFixed;
+  // Skill badge only in League (skill always set there) and per player; Random skill is optional → hidden
+  const showSkill = tournament?.mode === 'event' && !isFixed;
 
   if (loading) {
     return (
@@ -152,7 +152,7 @@ const LeaderboardDisplay: React.FC = () => {
                         <span className="text-purple-500">{t('common.ties', { n: entry.ties })}</span>
                       </span>
                       <span className="text-[9px] text-purple-500 font-bold">{t('display.gamesCount', { n: entry.matchesPlayed })}</span>
-                      {isEvent && (
+                      {showSkill && (
                         <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
                           {t(`skill.${skill}`)}
                         </span>
@@ -174,7 +174,7 @@ const LeaderboardDisplay: React.FC = () => {
               <tr className="text-[9px] font-black text-purple-500 uppercase tracking-widest border-b border-purple-800/30">
                 <th className="px-6 py-3 w-16">#</th>
                 <th className="px-6 py-3">{t(isFixed ? 'lb.pair' : 'common.player')}</th>
-                {isEvent && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
+                {showSkill && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
                 <th className="px-6 py-3 text-center">{t('display.record')}</th>
                 <th className="px-6 py-3 text-center">{t('display.games')}</th>
                 <th className="px-6 py-3 text-right">{t('common.points')}</th>
@@ -207,7 +207,7 @@ const LeaderboardDisplay: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    {isEvent && (
+                    {showSkill && (
                       <td className="px-4 py-4 text-center">
                         {(() => {
                           const player = tournament.players.find(p => p.id === entry.playerId);
