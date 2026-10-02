@@ -228,7 +228,7 @@ const es: Translations = {
   'header.tagline': 'Lógica Whist Profesional',
   'header.taglineLeague': 'Rondas Equilibradas por Nivel',
   'header.whistTournament': 'Torneo Whist',
-  'header.perfectBalance': 'Equilibrio Perfecto Activo',
+  'header.perfectBalance': 'Equilibrio Aleatorio Activo',
   'header.share': 'Compartir',
   'header.sharing': 'Compartiendo',
 
