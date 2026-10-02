@@ -1,5 +1,6 @@
 import type { Env, SharedTournament, ErrorResponse } from '../../../types';
 import { hashPin, TTL_SECONDS } from '../../../types';
+import { mergeEventPlayers } from '../../../mergePlayers';
 
 // GET /api/game/:id - Get tournament data (public, no PIN required)
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -58,8 +59,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       return Response.json({ error: 'Tournament data is required' } as ErrorResponse, { status: 400 });
     }
 
-    // Update tournament data
-    sharedTournament.tournament = body.tournament;
+    // Update tournament data. Event mode: don't let a stale organizer copy drop kiosk changes
+    const isEvent = body.tournament.mode === 'event' && sharedTournament.tournament.mode === 'event';
+    sharedTournament.tournament = isEvent
+      ? { ...body.tournament, players: mergeEventPlayers(body.tournament.players || [], sharedTournament.tournament.players || []) }
+      : body.tournament;
 
     // Calculate remaining TTL
     const expiresAt = new Date(sharedTournament.expiresAt);
