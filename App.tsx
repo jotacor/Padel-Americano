@@ -778,7 +778,7 @@ const App: React.FC = () => {
                   <Zap className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tight italic">
-                  AMERICANO<span className={tc.primaryText}>PADEL</span>
+                  PADEL<span className={tc.primaryText}>AMERICANO</span>
                 </h1>
               </div>
               <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t('header.tagline')}</p>
