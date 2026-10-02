@@ -53,7 +53,7 @@ export const serializeTournament = (t: Tournament): string => {
     tournament,
   });
   doc.commentBefore = [
-    ' Padel Americano Manager — tournament export (https://padelme.io)',
+    ' Padel Americano Manager — tournament export',
     ` ${t.name} · revision ${revision}`,
     ' Import it from Setup → Import to see results or keep playing.',
     ' Each export of the same tournament bumps `revision` and appends to `history`.',

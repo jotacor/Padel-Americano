@@ -124,7 +124,7 @@ const GameViewer: React.FC = () => {
             </div>
             <div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight italic">
-                AMERICANO<span className="text-indigo-600">PADEL</span>
+                PADEL<span className="text-indigo-600">AMERICANO</span>
               </h1>
               <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
                 <Eye className="w-3 h-3" /> {t('viewer.viewingLive')}

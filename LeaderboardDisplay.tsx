@@ -88,7 +88,7 @@ const LeaderboardDisplay: React.FC = () => {
             </div>
             <div>
               <h1 className="text-base md:text-xl font-black text-white tracking-tight italic">
-                AMERICANO<span className="text-purple-400">PADEL</span>
+                PADEL<span className="text-purple-400">AMERICANO</span>
               </h1>
               <p className="text-purple-500 text-[9px] md:text-[10px] font-bold uppercase tracking-wider">{t('display.subtitle')}</p>
             </div>

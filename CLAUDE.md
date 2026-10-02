@@ -4,8 +4,6 @@
 
 **Padel Americano Manager** - A React/TypeScript web app for managing Padel Americano tournaments. Americano is a social format where players rotate partners each round, ensuring everyone plays with and against different people.
 
-**Live at**: https://padelme.io
-
 ## Workflow
 
 **ALWAYS use feature branches and PRs.** Never push directly to `main`. Every change — no matter how small — goes through:
