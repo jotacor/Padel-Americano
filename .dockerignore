@@ -11,3 +11,4 @@ dist
 .dev.vars*
 Dockerfile
 .dockerignore
+.claude
