@@ -34,7 +34,8 @@ const GameViewer: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'rounds' | 'leaderboard'>('rounds');
+  // null until the user picks a tab → mode-specific default (see `tab` below)
+  const [selectedTab, setSelectedTab] = useState<'rounds' | 'leaderboard' | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const fetchTournament = async () => {
@@ -105,6 +106,13 @@ const GameViewer: React.FC = () => {
     );
   }
 
+  // Random mode: spectators mostly care about standings, so show them first
+  const standingsFirst = tournament.mode !== 'event';
+  const tab = selectedTab ?? (standingsFirst ? 'leaderboard' : 'rounds');
+  const matchesTab = { tab: 'rounds', icon: Layout, label: t('nav.matches') } as const;
+  const standingsTab = { tab: 'leaderboard', icon: Trophy, label: t('common.standings') } as const;
+  const viewerTabs = standingsFirst ? [standingsTab, matchesTab] : [matchesTab, standingsTab];
+
   return (
     <div className="min-h-screen bg-[#fcfdfe] pb-24 font-inter antialiased">
       {/* Header */}
@@ -142,15 +150,12 @@ const GameViewer: React.FC = () => {
       {/* Tab Navigation */}
       <div className="bg-white border-b border-slate-200 sticky top-[72px] z-40">
         <div className="max-w-6xl mx-auto px-4 flex gap-2">
-          {[
-            { tab: 'rounds', icon: Layout, label: t('nav.matches') },
-            { tab: 'leaderboard', icon: Trophy, label: t('common.standings') }
-          ].map(item => (
+          {viewerTabs.map(item => (
             <button 
               key={item.tab}
-              onClick={() => setActiveTab(item.tab as any)}
+              onClick={() => setSelectedTab(item.tab)}
               className={`flex items-center gap-2 px-4 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] ${
-                activeTab === item.tab 
+                tab === item.tab 
                   ? 'text-indigo-600 border-indigo-600' 
                   : 'text-slate-400 border-transparent hover:text-slate-600'
               }`}
@@ -163,7 +168,7 @@ const GameViewer: React.FC = () => {
       </div>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {activeTab === 'rounds' && (
+        {tab === 'rounds' && (
           <div className="space-y-6">
             {/* Round Navigation */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center justify-between">
@@ -265,7 +270,7 @@ const GameViewer: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'leaderboard' && (
+        {tab === 'leaderboard' && (
           <div className="space-y-6">
             {/* Championship Results */}
             {(() => {
