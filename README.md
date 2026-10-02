@@ -128,6 +128,28 @@ The app is deployed on **Cloudflare Pages** at [padelme.io](https://padelme.io).
 
 KV Namespace `TOURNAMENTS` is used for cloud-synced tournament storage.
 
+### Docker (self-hosted)
+
+The image runs the full app — frontend, `/api/*` Pages Functions and a local KV store — with `wrangler pages dev` (same `workerd` runtime as Cloudflare).
+
+```bash
+docker build -t padel-americano .
+docker run -d --name padel -p 8788:8788 \
+  -v padel-data:/data \
+  -e ANTHROPIC_API_KEY=sk-ant-...  \
+  padel-americano
+```
+
+Open [http://localhost:8788](http://localhost:8788).
+
+| Option | Description |
+|--------|-------------|
+| `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire after 24h |
+| `-e ANTHROPIC_API_KEY` | Optional — enables AI nicknames |
+| `-e PORT` | Internal port (default `8788`) |
+
+Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-americano --log-level debug`). Put it behind a reverse proxy for HTTPS (needed for clipboard copy on non-localhost hosts).
+
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
