@@ -4,7 +4,7 @@
 # served by `wrangler pages dev` (workerd runtime, same as Cloudflare Pages).
 
 # ---- Build: compile the Vite frontend ----
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # ---- Runtime ----
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 WORKDIR /app
 
 ENV NODE_ENV=production \
