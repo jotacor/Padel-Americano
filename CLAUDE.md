@@ -57,6 +57,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - All rounds pre-generated using Whist tournament logic
 - Player roster locked after tournament starts
 - Perfect schedules for 8, 12, 16 players
+- `skillLevel` optional: `generateAmericanoSchedule` builds the Whist/Berger schedule on abstract slots, then `assignSlotsBySkill` picks the player→slot mapping minimizing Σ(match skill diff)². Partner/opponent guarantees are kept. For perfect Whist (8/12/16) every mapping gives the same total (each pair partners 1×, opposes 2×), so skill only helps other sizes
 
 **League / Liga** (`mode: 'event'`):
 - Rounds generated one-at-a-time with skill-balanced matchmaking
