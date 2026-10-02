@@ -903,6 +903,21 @@ export const generateEventRound = (
 };
 
 /**
+ * Random mode with "prioritize skill": same number of rounds as the Whist schedule, but each
+ * round is built like a League round (skill-balanced groups, avoiding repeats). Matches are
+ * more even; in exchange some partnerships repeat and others never happen.
+ */
+export const generateSkillBalancedSchedule = (players: Player[]): Round[] => {
+  const numRounds = players.length % 2 ? players.length : players.length - 1;
+  const numCourts = Math.floor(players.length / 4);
+  const rounds: Round[] = [];
+  for (let r = 0; r < numRounds; r++) {
+    rounds.push(generateEventRound(players, players, rounds, r, numCourts));
+  }
+  return rounds;
+};
+
+/**
  * Generate a championship round.
  * 1st + 3rd place vs 2nd + 4th place on Court 1
  * Remaining players fill other courts with balanced matchups.
