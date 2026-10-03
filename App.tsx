@@ -3,7 +3,7 @@ import { Player, Tournament, LeaderboardEntry, Pair, PairMode } from './types.ts
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
-import { cleanName, isNameTaken } from './utils/playerNames.ts';
+import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
 import { applyScoreInput, DEFAULT_POINTS, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
@@ -38,7 +38,6 @@ import {
   Link2,
   Unlink,
   Download,
-  Send,
   Copy,
   Upload
 } from 'lucide-react';
@@ -51,34 +50,72 @@ const SKILL_COLORS = {
 
 const MAX_COURTS = 10;
 
+/**
+ * Saved setup + open tournament, read once to initialize state (not in an effect: React StrictMode runs
+ * effects twice in dev, so the save effects would overwrite the storage with empty state before loading).
+ */
+const readSavedState = () => {
+  const parseSaved = <T,>(key: string): T | null => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) as T : null;
+    } catch (e) {
+      console.error(`Ignoring corrupted ${key}`, e); // must not leave a blank screen
+      return null;
+    }
+  };
+  const get = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
+  try { localStorage.removeItem('padel_court_names'); } catch { /* court names were removed */ }
+  const players = parseSaved<Player[]>('padel_players');
+  const pairs = parseSaved<Pair[]>('padel_pairs');
+  const rawTournament = parseSaved<Tournament>('padel_tournament');
+  const tournament = rawTournament && Array.isArray(rawTournament.players) && Array.isArray(rawTournament.rounds) ? withUpperNames(rawTournament) : null;
+  const points = get('padel_points_per_match');
+  const classicCourts = parseInt(get('padel_classic_courts') ?? '');
+  return {
+    players: Array.isArray(players) ? upperNames(players) : [],
+    tournament,
+    eventMode: tournament ? tournament.mode === 'event' : get('padel_event_mode') === 'true',
+    eventNumCourts: tournament?.numCourts || parseInt(get('padel_event_courts') ?? '') || 4,
+    classicCourts: classicCourts > 0 ? classicCourts : null,
+    setupPoints: points === 'free' ? null : parseInt(points ?? '') > 0 ? parseInt(points!) : DEFAULT_POINTS,
+    pairMode: (tournament?.pairMode ?? (get('padel_pair_mode') === 'fixed' ? 'fixed' : 'rotating')) as PairMode,
+    pairs: tournament?.pairs ?? (Array.isArray(pairs) ? pairs : []),
+    prioritizeSkill: get('padel_prioritize_skill') === 'true',
+    leagueSkill: get('padel_league_prioritize_skill') !== 'false',
+    leagueRanking: get('padel_prioritize_ranking') === 'true',
+  };
+};
+
 const App: React.FC = () => {
   const { t, locale, courtLabel } = useI18n();
-  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [saved] = useState(readSavedState);
+  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>(saved.tournament ? 'rounds' : 'setup');
+  const [players, setPlayers] = useState<Player[]>(saved.players);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
-  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(saved.tournament);
   const shareSync = useShareSync(tournament);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   
   // League ("event") mode
-  const [eventMode, setEventMode] = useState(false);
-  const [eventNumCourts, setEventNumCourts] = useState(4);
+  const [eventMode, setEventMode] = useState(saved.eventMode);
+  const [eventNumCourts, setEventNumCourts] = useState(saved.eventNumCourts);
   // Random: courts the club gives us; null = all that fit (players ÷ 4)
-  const [classicCourts, setClassicCourts] = useState<number | null>(null);
+  const [classicCourts, setClassicCourts] = useState<number | null>(saved.classicCourts);
   // Matches to a fixed points total (null = free scoring); the open tournament's value wins
-  const [setupPoints, setSetupPoints] = useState<number | null>(DEFAULT_POINTS);
+  const [setupPoints, setSetupPoints] = useState<number | null>(saved.setupPoints);
 
   // Pairs: rotating (Americano) or fixed (manager picks partners)
-  const [pairMode, setPairMode] = useState<PairMode>('rotating');
-  const [pairs, setPairs] = useState<Pair[]>([]);
+  const [pairMode, setPairMode] = useState<PairMode>(saved.pairMode);
+  const [pairs, setPairs] = useState<Pair[]>(saved.pairs);
   const [pairingWith, setPairingWith] = useState<string | null>(null);
   // Random + rotating: trade perfect Whist rotation for skill-even matches
-  const [prioritizeSkill, setPrioritizeSkill] = useState(false);
+  const [prioritizeSkill, setPrioritizeSkill] = useState(saved.prioritizeSkill);
   // League matchmaking: declared skill (default, legacy behavior) and/or current standings
-  const [leagueSkill, setLeagueSkill] = useState(true);
-  const [leagueRanking, setLeagueRanking] = useState(false);
+  const [leagueSkill, setLeagueSkill] = useState(saved.leagueSkill);
+  const [leagueRanking, setLeagueRanking] = useState(saved.leagueRanking);
   
   // Live sharing (KV, 24 h after the last update)
   const [showShareModal, setShowShareModal] = useState(false);
@@ -106,48 +143,6 @@ const App: React.FC = () => {
   const numCourts = isEvent ? eventNumCourts
     : tournament ? (tournament.numCourts ?? maxClassicCourts)
     : Math.min(classicCourts ?? maxClassicCourts, maxClassicCourts);
-
-  useEffect(() => {
-    // Corrupted saved values must not leave a blank screen
-    const parseSaved = <T,>(key: string): T | null => {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw) as T;
-      } catch (e) {
-        console.error(`Ignoring corrupted ${key}`, e);
-        return null;
-      }
-    };
-    const savedPlayers = parseSaved<Player[]>('padel_players');
-    const savedTournament = parseSaved<Tournament>('padel_tournament');
-    localStorage.removeItem('padel_court_names'); // court names were removed
-    const savedEventMode = localStorage.getItem('padel_event_mode');
-    const savedEventCourts = localStorage.getItem('padel_event_courts');
-    const savedPairMode = localStorage.getItem('padel_pair_mode');
-    if (localStorage.getItem('padel_prioritize_skill') === 'true') setPrioritizeSkill(true);
-    if (localStorage.getItem('padel_league_prioritize_skill') === 'false') setLeagueSkill(false);
-    if (localStorage.getItem('padel_prioritize_ranking') === 'true') setLeagueRanking(true);
-    const savedPairs = parseSaved<Pair[]>('padel_pairs');
-    if (savedPairMode === 'fixed') setPairMode('fixed');
-    if (Array.isArray(savedPairs)) setPairs(savedPairs);
-    if (Array.isArray(savedPlayers)) setPlayers(savedPlayers);
-    if (savedEventMode === 'true') setEventMode(true);
-    if (savedEventCourts) setEventNumCourts(parseInt(savedEventCourts) || 4);
-    const savedPoints = localStorage.getItem('padel_points_per_match');
-    if (savedPoints === 'free') setSetupPoints(null);
-    else if (parseInt(savedPoints ?? '') > 0) setSetupPoints(parseInt(savedPoints!));
-    const savedClassicCourts = parseInt(localStorage.getItem('padel_classic_courts') ?? '');
-    if (savedClassicCourts > 0) setClassicCourts(savedClassicCourts);
-    if (savedTournament && Array.isArray(savedTournament.players) && Array.isArray(savedTournament.rounds)) {
-      setTournament(savedTournament);
-      if (savedTournament.mode === 'event') setEventMode(true);
-      if (savedTournament.numCourts) setEventNumCourts(savedTournament.numCourts);
-      if (savedTournament.pairMode) setPairMode(savedTournament.pairMode);
-      if (savedTournament.pairs) setPairs(savedTournament.pairs);
-      setActiveTab('rounds');
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('padel_players', JSON.stringify(players));
@@ -402,7 +397,7 @@ const App: React.FC = () => {
     }
     if ((tournament || players.length > 0) && !window.confirm(t('confirm.importReplace'))) return;
     await shareSync.end();
-    const imported = result.tournament;
+    const imported = withUpperNames(result.tournament);
     setTournament(imported);
     setPlayers(imported.players);
     setEventMode(imported.mode === 'event');
@@ -591,19 +586,11 @@ const App: React.FC = () => {
     }
   };
 
-  /** Standings as text: share sheet, or clipboard where there is none */
-  const sendText = async (text: string) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-      }
-    }
+  /** Standings as text on the clipboard, like the round */
+  const copyStandings = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setToast(t('share.copied'));
+      setToast(t('share.standingsCopied'));
       setTimeout(() => setToast(null), 2500);
     } catch {
       window.prompt('', text);
@@ -1266,12 +1253,12 @@ const App: React.FC = () => {
                   <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
                   {tournament && (
                     <button
-                      onClick={() => sendText(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
-                      title={t('share.sendStandings')}
-                      aria-label={t('share.sendStandings')}
+                      onClick={() => copyStandings(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
+                      title={t('share.copyStandings')}
+                      aria-label={t('share.copyStandings')}
                       className="p-2 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                     >
-                      <Send className="w-4 h-4 md:w-5 md:h-5" />
+                      <Copy className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                   )}
                 </div>

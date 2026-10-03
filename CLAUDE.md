@@ -40,7 +40,7 @@
 | `functions/types.ts` | Shared API types, ID generation, `readTournamentBody` (512 KB → 413, malformed → 400) |
 | `functions/secret.ts` | Share write token: 128-bit random, stored as `sha256:<hex>`; legacy 4-digit PIN hashes still accepted |
 | `hooks/useShareSync.ts` | Organizer sharing: create/delete, one PUT in flight, debounce 1.2 s, retries 2/5/15/30 s (+ on online/visible), 404 → expired alert, 401/403 → revoked; share bound to `tournamentId` |
-| `utils/shareText.ts` | Texts: `roundText` (line-up, results, resting) → "Copiar ronda" (clipboard + toast); `standingsText` (ranking mode + live link) → "Enviar clasificación" (`navigator.share` or clipboard) |
+| `utils/shareText.ts` | Texts to copy: `roundText` ("Pista 1: ANA-LUIS vs MARTA-JUAN (7-4)", resting) and `standingsText` (+ live link) → "Copiar ronda" / "Copiar clasificación" (clipboard + toast) |
 | `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
@@ -170,7 +170,7 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 - Run `npm run typecheck` before committing (app + Functions; both `strict`, app also `noUnused*`; must be error-free)
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
-- Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
+- Player names are uppercase (`cleanName` uppercases; `upperNames`/`withUpperNames` normalize saved/imported data) and unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Courts have no names: always "Pista N"/"Court N" via `courtLabel(index)`
 - Share token stored in `padel_share_state` (with `tournamentId`), never displayed to users

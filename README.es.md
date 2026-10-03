@@ -18,6 +18,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
 - ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
 - ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos
+- ✅ **Nombres en mayúsculas** — Los nombres de los jugadores siempre se muestran en mayúsculas
 - ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
 - ✅ **Puntos por partido** — Partidos a 11, 15 o 21 puntos (impares: sin empates; 11 por defecto, o libre): escribes un marcador y el otro se rellena (13 → 8); teclado numérico, Enter salta al siguiente marcador; aviso si un resultado no suma
 - ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
@@ -29,7 +30,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
 
 ### Compartir y sincronización en la nube
-- ✅ **Copiar y enviar** — "Copiar ronda" (pistas, parejas, quién descansa) para pegarla donde quieras, y "Enviar clasificación" como texto
+- ✅ **Copiar ronda y clasificación** — "Copiar ronda" y "Copiar clasificación" dejan el texto en el portapapeles (`ANA-LUIS vs MARTA-JUAN`) para pegarlo donde quieras
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
 - ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar

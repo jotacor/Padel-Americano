@@ -18,6 +18,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
 - ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
+- ✅ **Names in capitals** — Player names are always shown in uppercase
 - ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
 - ✅ **Points per match** — Matches to 11, 15 or 21 points (odd: no ties; 11 by default, or free): type one score and the other fills in (13 → 8); numeric keypad, Enter jumps to the next score; a warning if a result doesn't add up
 - ✅ **Winner Highlighting** — Completed matches show winning team in green
@@ -29,7 +30,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
 ### Sharing & Cloud Sync
-- ✅ **Copy & send** — "Copy round" (courts, pairs, resting players) to paste wherever you like, and "Send standings" as text
+- ✅ **Copy round & standings** — "Copy round" and "Copy standings" put the text on the clipboard (`ANA-LUIS vs MARTA-JUAN`) to paste wherever you like
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
 - ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
