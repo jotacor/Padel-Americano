@@ -155,6 +155,7 @@ Two orders (`tournament.ranking`, absent = `'total'`; `utils/leaderboard.ts` `co
 
 - `tournament.pointsPerMatch` (11 default / 15 / 21 / Libre — odd so no ties; `padel_points_per_match` stores 'free' explicitly; older values like 24 stay selectable, setup panel, editable any time; `padel_points_per_match` for setup): `utils/scoring.ts` `applyScoreInput` fills the other side with P − x unless the organizer typed that side by hand (`lastTypedSide` per match), so time-capped results (15-7) still work; `scoreSumMismatch` → non-blocking "Suman X de P"
 - Score inputs: `type=text inputMode=numeric`, select on focus, Enter → next empty score (`data-score`)
+- "Undo round" (`canUndoRound`): last round with no score at all; League always, Random only finals or extra "+" rounds (previous round complete) — never the pre-generated schedule
 
 ## Commands
 

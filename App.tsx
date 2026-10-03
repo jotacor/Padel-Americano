@@ -37,6 +37,7 @@ import {
   Link2,
   Unlink,
   Download,
+  Undo2,
   Upload
 } from 'lucide-react';
 
@@ -625,6 +626,24 @@ const App: React.FC = () => {
   );
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
+  // Undo the last round while nobody has scored in it (e.g. someone arrived late in a League).
+  // Random: only finals and extra "+" rounds (previous round complete), not the pre-generated schedule.
+  const canUndoRound = (() => {
+    const rounds = tournament?.rounds ?? [];
+    const last = rounds[rounds.length - 1];
+    if (!tournament || !last || last.matches.some(m => m.scoreA !== null || m.scoreB !== null)) return false;
+    if (tournament.mode === 'event') return true;
+    const prev = rounds[rounds.length - 2];
+    return last.matches.some(m => m.id.includes('championship')) || (!!prev && prev.matches.every(m => m.isCompleted));
+  })();
+  const undoRound = () => {
+    if (!tournament || !canUndoRound) return;
+    if (!window.confirm(t('confirm.undoRound', { n: tournament.rounds.length }))) return;
+    const rounds = tournament.rounds.slice(0, -1);
+    setTournament({ ...tournament, rounds });
+    setCurrentRoundIndex(Math.max(0, rounds.length - 1));
+  };
+
   // Keyboard navigation for rounds
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1099,6 +1118,13 @@ const App: React.FC = () => {
                   </div>
                   <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={() => setCurrentRoundIndex(i => i + 1)} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
                 </div>
+                {canUndoRound && currentRoundIndex === tournament.rounds.length - 1 && (
+                  <div className="flex justify-center -mt-2 md:-mt-4">
+                    <button onClick={undoRound} className="flex items-center gap-2 text-slate-400 hover:text-rose-500 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
+                      <Undo2 className="w-3.5 h-3.5" /> {t('rounds.undoRound')}
+                    </button>
+                  </div>
+                )}
                 <div className="grid gap-4 md:gap-8">
                   {(tournament.rounds[currentRoundIndex]?.matches || [])
                     .slice()

@@ -24,6 +24,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Winner Highlighting** — Completed matches show winning team in green
 
 ### Flexible Tournament Management
+- ✅ **Undo a round** — Remove the last round while nobody has scored in it (someone arrived late? undo and generate again)
 - ✅ **Add Rounds On-Demand** — "+" button to extend tournament with fair player rotation
 - ✅ **Championship Round** — Create finals: 1st+3rd vs 2nd+4th place
 - ✅ **Championship Results** — Shows winning team, runner-up, and individual rankings
