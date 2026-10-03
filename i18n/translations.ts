@@ -128,9 +128,11 @@ const en = {
   'share.title': 'Share Tournament',
   'share.viewerLink': 'Viewer Link',
   'share.displayLink': 'Leaderboard Display',
-  'share.disclaimer': 'Anyone with these links can view. Only you can modify scores and generate rounds.',
+  'share.disclaimer': 'Anyone with these links can view. Only you can modify scores and generate rounds. Links expire 24 h after the last change.',
   'share.syncing': 'Syncing...',
   'share.synced': 'Live & Synced',
+  'share.retrying': 'Not synced · retrying',
+  'share.retry': 'Retry',
   'share.last': 'Last: {time}',
   'share.stop': 'Stop Sharing',
 
@@ -146,6 +148,8 @@ const en = {
 
   // App — alerts & confirms
   'alert.shareFailed': 'Failed to create shared game. Please try again.',
+  'alert.shareExpired': 'The shared link expired (24 h without changes). Tap Share to create a new one.',
+  'alert.shareRevoked': 'This device can no longer update the shared link. Tap Share to create a new one.',
   'alert.minPlayers': 'You need at least 4 players.',
   'alert.minActivePlayers': 'Need at least 4 active players to generate a round.',
   'alert.minPairs': 'You need at least 2 pairs.',
@@ -313,9 +317,11 @@ const es: Translations = {
   'share.title': 'Compartir Torneo',
   'share.viewerLink': 'Enlace para Espectadores',
   'share.displayLink': 'Pantalla de Clasificación',
-  'share.disclaimer': 'Cualquiera con estos enlaces puede verlo. Solo tú puedes modificar resultados y generar rondas.',
+  'share.disclaimer': 'Cualquiera con estos enlaces puede verlo. Solo tú puedes modificar resultados y generar rondas. Caducan 24 h después del último cambio.',
   'share.syncing': 'Sincronizando...',
   'share.synced': 'En directo y sincronizado',
+  'share.retrying': 'Sin sincronizar · reintentando',
+  'share.retry': 'Reintentar',
   'share.last': 'Última: {time}',
   'share.stop': 'Dejar de Compartir',
 
@@ -331,6 +337,8 @@ const es: Translations = {
 
   // App — alerts & confirms
   'alert.shareFailed': 'No se pudo crear el torneo compartido. Inténtalo de nuevo.',
+  'alert.shareExpired': 'El enlace compartido ha caducado (24 h sin cambios). Pulsa Compartir para crear uno nuevo.',
+  'alert.shareRevoked': 'Este dispositivo ya no puede actualizar el enlace compartido. Pulsa Compartir para crear uno nuevo.',
   'alert.minPlayers': 'Necesitas al menos 4 jugadores.',
   'alert.minActivePlayers': 'Se necesitan al menos 4 jugadores activos para generar una ronda.',
   'alert.minPairs': 'Necesitas al menos 2 parejas.',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Tournament, LeaderboardEntry } from './types';
 import { 
@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import { computeLeaderboard } from './utils/leaderboard.ts';
+import { liveRoundIndex } from './utils/rounds.ts';
+import { usePolling } from './hooks/usePolling.ts';
 
 interface SharedTournamentData {
   id: string;
@@ -38,35 +40,36 @@ const GameViewer: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<'rounds' | 'leaderboard' | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  // Follow the round being played until the viewer navigates by hand
+  const followLive = useRef(true);
+  const goToRound = (update: (i: number) => number) => {
+    followLive.current = false;
+    setCurrentRoundIndex(update);
+  };
+
   const fetchTournament = async () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        if (response.status === 404) {
-          setError(t('viewer.notFoundOrExpired'));
-        } else {
-          setError(t('viewer.failedToLoad'));
-        }
+        // Expired → error screen; other failures keep showing the last data
+        if (response.status === 404) setError(t('viewer.notFoundOrExpired'));
+        else if (!data) setError(t('viewer.failedToLoad'));
         return;
       }
-      const result = await response.json();
+      const result: SharedTournamentData = await response.json();
       setData(result);
       setError(null);
       setLastUpdated(new Date());
+      const rounds = result.tournament.rounds.length;
+      setCurrentRoundIndex(i => followLive.current ? liveRoundIndex(result.tournament) : Math.min(i, Math.max(0, rounds - 1)));
     } catch (err) {
-      setError(t('viewer.failedToConnect'));
+      if (!data) setError(t('viewer.failedToConnect'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTournament();
-    
-    // Poll for updates
-    const interval = setInterval(fetchTournament, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [id]);
+  usePolling(fetchTournament, POLL_INTERVAL, id);
 
   const tournament = data?.tournament;
 
@@ -173,7 +176,7 @@ const GameViewer: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center justify-between">
               <button 
                 disabled={currentRoundIndex === 0} 
-                onClick={() => setCurrentRoundIndex(i => i - 1)} 
+                onClick={() => goToRound(i => i - 1)} 
                 className="p-3 rounded-xl text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-0"
               >
                 <ChevronLeft className="w-6 h-6" strokeWidth={3} />
@@ -192,7 +195,7 @@ const GameViewer: React.FC = () => {
               </div>
               <button 
                 disabled={currentRoundIndex === tournament.rounds.length - 1} 
-                onClick={() => setCurrentRoundIndex(i => i + 1)} 
+                onClick={() => goToRound(i => i + 1)} 
                 className="p-3 rounded-xl text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-0"
               >
                 <ChevronRight className="w-6 h-6" strokeWidth={3} />

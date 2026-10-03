@@ -4,6 +4,9 @@ import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshi
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
+import { useShareSync } from './hooks/useShareSync.ts';
+import { liveRoundIndex } from './utils/rounds.ts';
+import ShareModal from './components/ShareModal.tsx';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -23,30 +26,18 @@ import {
   ShieldCheck,
   Zap,
   Share2,
-  Copy,
   Check,
   Loader2,
   Link as LinkIcon,
-  X,
   UserPlus,
   UserMinus,
   Minus,
-  Monitor,
   Shuffle,
   Link2,
   Unlink,
   Download,
   Upload
 } from 'lucide-react';
-
-interface ShareState {
-  isSharing: boolean;
-  shareId: string | null;
-  pin: string | null;
-  shareUrl: string | null;
-  isSyncing: boolean;
-  lastSynced: Date | null;
-}
 
 const SKILL_COLORS = {
   low: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-300' },
@@ -64,6 +55,7 @@ const App: React.FC = () => {
   const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const shareSync = useShareSync(tournament);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   const [courtNames, setCourtNames] = useState<string[]>([]);
   
@@ -83,18 +75,8 @@ const App: React.FC = () => {
   const [leagueSkill, setLeagueSkill] = useState(true);
   const [leagueRanking, setLeagueRanking] = useState(false);
   
-  // Sharing state
-  const [shareState, setShareState] = useState<ShareState>({
-    isSharing: false,
-    shareId: null,
-    pin: null,
-    shareUrl: null,
-    isSyncing: false,
-    lastSynced: null,
-  });
+  // Live sharing (KV, 24 h after the last update)
   const [showShareModal, setShowShareModal] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedDisplayUrl, setCopiedDisplayUrl] = useState(false);
   
 
   const isEvent = eventMode || tournament?.mode === 'event';
@@ -214,139 +196,23 @@ const App: React.FC = () => {
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
   }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking]);
 
-  // Load share state from localStorage
-  useEffect(() => {
-    const savedShare = localStorage.getItem('padel_share_state');
-    if (savedShare) {
-      try {
-        const parsed = JSON.parse(savedShare);
-        setShareState(prev => ({
-          ...prev,
-          isSharing: parsed.isSharing,
-          shareId: parsed.shareId,
-          pin: parsed.pin,
-          shareUrl: parsed.shareUrl,
-        }));
-      } catch (e) {
-        console.error("Failed to load share state", e);
-      }
-    }
-  }, []);
-
-  // Save share state to localStorage
-  useEffect(() => {
-    if (shareState.isSharing) {
-      localStorage.setItem('padel_share_state', JSON.stringify({
-        isSharing: shareState.isSharing,
-        shareId: shareState.shareId,
-        pin: shareState.pin,
-        shareUrl: shareState.shareUrl,
-      }));
-    } else {
-      localStorage.removeItem('padel_share_state');
-    }
-  }, [shareState.isSharing, shareState.shareId, shareState.pin, shareState.shareUrl]);
-
-  // Sync tournament to cloud when it changes (if sharing is active)
-  useEffect(() => {
-    if (!shareState.isSharing || !shareState.shareId || !shareState.pin || !tournament) return;
-    const { shareId, pin } = shareState;
-    
-    const syncToCloud = async () => {
-      setShareState(prev => ({ ...prev, isSyncing: true }));
-      try {
-        const response = await fetch(`/api/game/${shareId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Tournament-Pin': pin,
-          },
-          body: JSON.stringify({ tournament }),
-        });
-        
-        if (response.ok) {
-          setShareState(prev => ({ ...prev, lastSynced: new Date() }));
-        } else {
-          console.error('Failed to sync:', await response.text());
-        }
-      } catch (error) {
-        console.error('Sync error:', error);
-      } finally {
-        setShareState(prev => ({ ...prev, isSyncing: false }));
-      }
-    };
-
-    const timer = setTimeout(syncToCloud, 500);
-    return () => clearTimeout(timer);
-  }, [tournament, shareState.isSharing, shareState.shareId, shareState.pin]);
-
   const startSharing = async () => {
     if (!tournament) return;
-    
-    setShareState(prev => ({ ...prev, isSyncing: true }));
-    try {
-      const response = await fetch('/api/game', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tournament }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create shared game');
-      }
-      
-      const data = await response.json();
-      const fullUrl = `${window.location.origin}/game/${data.id}`;
-      
-      setShareState({
-        isSharing: true,
-        shareId: data.id,
-        pin: data.pin,
-        shareUrl: fullUrl,
-        isSyncing: false,
-        lastSynced: new Date(),
-      });
-      setShowShareModal(true);
-    } catch (error) {
-      console.error('Failed to start sharing:', error);
-      alert(t('alert.shareFailed'));
-      setShareState(prev => ({ ...prev, isSyncing: false }));
-    }
+    if (await shareSync.start(tournament)) setShowShareModal(true);
+    else alert(t('alert.shareFailed'));
   };
 
   const stopSharing = async () => {
-    if (!shareState.shareId || !shareState.pin) return;
-    
     if (!window.confirm(t('confirm.stopSharing'))) return;
-    
-    try {
-      await fetch(`/api/game/${shareState.shareId}`, {
-        method: 'DELETE',
-        headers: { 'X-Tournament-Pin': shareState.pin },
-      });
-    } catch (error) {
-      console.error('Failed to delete shared game:', error);
-    }
-    
-    setShareState({
-      isSharing: false,
-      shareId: null,
-      pin: null,
-      shareUrl: null,
-      isSyncing: false,
-      lastSynced: null,
-    });
+    await shareSync.end();
   };
 
-  const copyToClipboard = async (text: string, setter: (v: boolean) => void) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setter(true);
-      setTimeout(() => setter(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
+  // The link expired (24 h without updates) or this device lost write access
+  useEffect(() => {
+    if (!shareSync.ended) return;
+    alert(t(shareSync.ended === 'expired' ? 'alert.shareExpired' : 'alert.shareRevoked'));
+    shareSync.dismissEnded();
+  }, [shareSync.ended]);
 
   const addPlayer = () => {
     const name = cleanName(newPlayerName);
@@ -490,24 +356,7 @@ const App: React.FC = () => {
 
   const resetTournament = async () => {
     if (window.confirm(t('confirm.endTournament'))) {
-      if (shareState.isSharing && shareState.shareId && shareState.pin) {
-        try {
-          await fetch(`/api/game/${shareState.shareId}`, {
-            method: 'DELETE',
-            headers: { 'X-Tournament-Pin': shareState.pin },
-          });
-        } catch (e) {
-          console.error('Failed to delete shared game:', e);
-        }
-        setShareState({
-          isSharing: false,
-          shareId: null,
-          pin: null,
-          shareUrl: null,
-          isSyncing: false,
-          lastSynced: null,
-        });
-      }
+      await shareSync.end();
       setTournament(null);
       localStorage.removeItem('padel_tournament');
       setActiveTab('setup');
@@ -516,24 +365,7 @@ const App: React.FC = () => {
 
   const clearAllData = async () => {
     if (window.confirm(t('confirm.clearAll'))) {
-      if (shareState.isSharing && shareState.shareId && shareState.pin) {
-        try {
-          await fetch(`/api/game/${shareState.shareId}`, {
-            method: 'DELETE',
-            headers: { 'X-Tournament-Pin': shareState.pin },
-          });
-        } catch (e) {
-          console.error('Failed to delete shared game:', e);
-        }
-        setShareState({
-          isSharing: false,
-          shareId: null,
-          pin: null,
-          shareUrl: null,
-          isSyncing: false,
-          lastSynced: null,
-        });
-      }
+      await shareSync.end();
       setTournament(null);
       setPlayers([]);
       setCourtNames([]);
@@ -593,17 +425,7 @@ const App: React.FC = () => {
       return alert(t('alert.importInvalidYaml'));
     }
     if ((tournament || players.length > 0) && !window.confirm(t('confirm.importReplace'))) return;
-    if (shareState.isSharing && shareState.shareId && shareState.pin) {
-      try {
-        await fetch(`/api/game/${shareState.shareId}`, {
-          method: 'DELETE',
-          headers: { 'X-Tournament-Pin': shareState.pin },
-        });
-      } catch (e) {
-        console.error('Failed to delete shared game:', e);
-      }
-      setShareState({ isSharing: false, shareId: null, pin: null, shareUrl: null, isSyncing: false, lastSynced: null });
-    }
+    await shareSync.end();
     const imported = result.tournament;
     setTournament(imported);
     setPlayers(imported.players);
@@ -624,8 +446,7 @@ const App: React.FC = () => {
     }
     setPairingWith(null);
     // Resume at the first round with unfinished matches
-    const firstOpen = imported.rounds.findIndex(r => r.matches.some(m => !m.isCompleted));
-    setCurrentRoundIndex(firstOpen >= 0 ? firstOpen : Math.max(0, imported.rounds.length - 1));
+    setCurrentRoundIndex(liveRoundIndex(imported));
     const anyScored = imported.rounds.some(r => r.matches.some(m => m.isCompleted));
     setActiveTab(anyScored ? 'leaderboard' : 'rounds');
   };
@@ -835,22 +656,25 @@ const App: React.FC = () => {
           )}
             {tournament && (
               <button
-                onClick={() => shareState.isSharing ? setShowShareModal(true) : startSharing()}
-                disabled={shareState.isSyncing}
-                className={`flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold transition-all active:scale-95 ${
-                  shareState.isSharing 
+                onClick={() => shareSync.share ? setShowShareModal(true) : startSharing()}
+                disabled={shareSync.creating}
+                className={`relative flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold transition-all active:scale-95 ${
+                  shareSync.share
                     ? `${tc.primaryLight} ${tc.primaryText} border ${tc.primaryBorder}` 
                     : `${tc.primary} text-white shadow-lg`
                 }`}
               >
-                {shareState.isSyncing ? (
+                {shareSync.creating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : shareState.isSharing ? (
+                ) : shareSync.share ? (
                   <LinkIcon className="w-4 h-4" />
                 ) : (
                   <Share2 className="w-4 h-4" />
                 )}
-                <span className="text-sm">{shareState.isSharing ? t('header.sharing') : t('header.share')}</span>
+                <span className="text-sm">{shareSync.share ? t('header.sharing') : t('header.share')}</span>
+                {shareSync.share && shareSync.status === 'retrying' && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white" title={t('share.retrying')} />
+                )}
               </button>
             )}
           </div>
@@ -1299,90 +1123,17 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Share Modal */}
-        {showShareModal && shareState.isSharing && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 md:p-8" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                  <Share2 className={`w-5 h-5 ${tc.primaryText}`} /> {t('share.title')}
-                </h2>
-                <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Viewer Link */}
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                    <Monitor className="w-3 h-3" /> {t('share.viewerLink')}
-                  </label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value={shareState.shareUrl || ''} 
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-700"
-                    />
-                    <button 
-                      onClick={() => copyToClipboard(shareState.shareUrl || '', setCopiedUrl)}
-                      className={`px-4 rounded-xl font-bold transition-all ${copiedUrl ? 'bg-emerald-500 text-white' : `${tc.primary} text-white`}`}
-                    >
-                      {copiedUrl ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Display Link (TV/screen leaderboard) - both modes */}
-                {shareState.shareId && (
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                      <Trophy className="w-3 h-3" /> {t('share.displayLink')}
-                    </label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={`${window.location.origin}/display/${shareState.shareId}`} 
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-700"
-                      />
-                      <button 
-                        onClick={() => copyToClipboard(`${window.location.origin}/display/${shareState.shareId}`, setCopiedDisplayUrl)}
-                        className={`px-4 rounded-xl font-bold transition-all ${copiedDisplayUrl ? 'bg-emerald-500 text-white' : `${tc.primary} text-white`}`}
-                      >
-                        {copiedDisplayUrl ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-[10px] text-slate-400">{t('share.disclaimer')}</p>
-                
-                {/* Status */}
-                <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${shareState.isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                    <span className="text-sm font-bold text-slate-600">
-                      {shareState.isSyncing ? t('share.syncing') : t('share.synced')}
-                    </span>
-                  </div>
-                  {shareState.lastSynced && (
-                    <span className="text-[10px] text-slate-400">
-                      {t('share.last', { time: shareState.lastSynced.toLocaleTimeString(locale) })}
-                    </span>
-                  )}
-                </div>
-                
-                <button 
-                  onClick={stopSharing}
-                  className="w-full py-3 text-rose-500 hover:bg-rose-50 rounded-xl font-bold text-sm transition-colors"
-                >
-                  {t('share.stop')}
-                </button>
-              </div>
-            </div>
-          </div>
+        {showShareModal && shareSync.share && (
+          <ShareModal
+            share={shareSync.share}
+            status={shareSync.status}
+            lastSynced={shareSync.lastSynced}
+            onClose={() => setShowShareModal(false)}
+            onStop={stopSharing}
+            onRetry={shareSync.retry}
+            primaryClass={tc.primary}
+            primaryText={tc.primaryText}
+          />
         )}
 
         {activeTab === 'leaderboard' && (

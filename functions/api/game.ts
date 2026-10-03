@@ -1,5 +1,6 @@
-import type { Env, SharedTournament, CreateGameResponse, ErrorResponse } from '../types';
-import { hashPin, generateId, generatePin, TTL_SECONDS } from '../types';
+import type { Env, SharedTournament, CreateGameResponse } from '../types';
+import { generateId, TTL_SECONDS, errorResponse, readTournamentBody } from '../types';
+import { generateToken, hashSecret } from '../secret';
 
 const ID_ATTEMPTS = 5;
 
@@ -17,38 +18,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
   try {
-    const body = await request.json() as { tournament: SharedTournament['tournament'] };
-    
-    if (!body.tournament) {
-      return Response.json({ error: 'Tournament data is required' } as ErrorResponse, { status: 400 });
-    }
+    const body = await readTournamentBody(request);
+    if (body instanceof Response) return body;
 
     const id = await generateUniqueId(env.TOURNAMENTS);
-    const pin = generatePin();
+    const token = generateToken();
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + TTL_SECONDS * 1000);
 
     const sharedTournament: SharedTournament = {
       id,
-      pinHash: hashPin(pin),
+      pinHash: await hashSecret(token),
       tournament: body.tournament,
       createdAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: new Date(now.getTime() + TTL_SECONDS * 1000).toISOString(),
     };
 
-    await env.TOURNAMENTS.put(id, JSON.stringify(sharedTournament), {
-      expirationTtl: TTL_SECONDS,
-    });
+    await env.TOURNAMENTS.put(id, JSON.stringify(sharedTournament), { expirationTtl: TTL_SECONDS });
 
-    const response: CreateGameResponse = {
-      id,
-      pin,
-      shareUrl: `/game/${id}`,
-    };
-
+    const response: CreateGameResponse = { id, pin: token, shareUrl: `/game/${id}` };
     return Response.json(response, { status: 201 });
   } catch (error) {
     console.error('Error creating game:', error);
-    return Response.json({ error: 'Failed to create game' } as ErrorResponse, { status: 500 });
+    return errorResponse('Failed to create game', 500);
   }
 };
