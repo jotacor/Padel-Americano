@@ -164,5 +164,6 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 
 ## Cloudflare Pages configuration
 
-- No environment variables. KV Namespace binding: `TOURNAMENTS`
+- No environment variables. KV Namespace binding: `TOURNAMENTS`, ids in `wrangler.toml` (account Jotacor): production `padel-americano`, previews `[env.preview]` → `padel-americano-preview` (Pages ignores `preview_id`; every binding must be redeclared under `env.preview`)
+- Build: Pages Git integration, `npm run build` → `dist`, Node version from `.nvmrc`
 - No AI features: the AI nickname generator was removed (players have only a name)

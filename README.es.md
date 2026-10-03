@@ -163,7 +163,7 @@ npm run preview  # Previsualizar el build de producción en local (sin /api)
 
 ## Despliegue
 
-La app está desplegada en **Cloudflare Pages** en [padelme.io](https://padelme.io).
+La app está desplegada en **Cloudflare Pages** (integración con Git: build `npm run build`, salida `dist`, Node según `.nvmrc`).
 
 - Push a `main` → despliega a producción
 - Crear una PR → genera un despliegue de vista previa
