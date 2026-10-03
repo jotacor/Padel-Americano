@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Tournament, LeaderboardEntry, Match } from './types';
+import { Tournament, LeaderboardEntry } from './types';
 import { 
   Trophy, 
   Layout, 

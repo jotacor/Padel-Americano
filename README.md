@@ -38,13 +38,13 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Mobile-First** — Responsive design works great on phones at the courts
 - ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
 - ✅ **Spanish first** — Spanish by default; English available from a discreet link in Setup and the viewer, or with `?lang=en` in any URL (e.g. the TV display)
-- ✅ **Offline Ready** — All data persists in localStorage, no account needed
+- ✅ **No account needed** — Data stays on the device (localStorage)
 - ✅ **Export / Import (YAML)** — Save a tournament to a human-readable `.yaml` file and load it later to see results or keep playing; each export bumps a `revision` and appends to a `history` log inside the file
 - ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
 
 ## Quick Start
 
-**Prerequisites:** Node.js 18+
+**Prerequisites:** Node.js 20.19+
 
 ```bash
 # Install dependencies
@@ -151,7 +151,7 @@ npm run preview  # Preview production build locally (no /api)
 ├── functions/           # Cloudflare Pages Functions (serverless API)
 │   ├── api/
 │   │   ├── game.ts      # POST /api/game - create shared tournament
-│   │   └── game/[id].ts # GET/PUT/DELETE /api/game/:id
+│   │   └── game/[id]/index.ts # GET/PUT/DELETE /api/game/:id
 │   ├── types.ts         # API types
 │   └── words.ts         # Spanish words for share IDs (e.g. /game/bala-zapato)
 ├── index.tsx            # React entry point + routing
@@ -218,14 +218,3 @@ Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-a
 ## License
 
 MIT
-
----
-
-<details>
-<summary>Original AI Studio Info</summary>
-
-This project was bootstrapped with Google AI Studio.
-
-View in AI Studio: https://ai.studio/apps/drive/1oXCLn8u0242Op7GnKGWZ8KPmGR3-3US1
-
-</details>

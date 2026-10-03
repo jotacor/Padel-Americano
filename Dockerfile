@@ -28,7 +28,7 @@ RUN npm install -g --no-audit --no-fund \
     && mkdir -p /data \
     && chown node:node /app /data
 
-# Functions are bundled at startup and import shared code from the repo root (types.ts, utils/)
+# Functions are bundled at startup and may import shared code from the repo root (types.ts, utils/)
 COPY --chown=node:node wrangler.toml types.ts ./
 COPY --chown=node:node utils ./utils
 COPY --chown=node:node functions ./functions

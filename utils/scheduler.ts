@@ -406,7 +406,8 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
       };
 
       // Branch-and-bound search over all pair partitions
-      let bestPartition: [number, number][] | null = null;
+      // Cast keeps the union: it is assigned inside the search closure
+      let bestPartition = null as [number, number][] | null;
       let bestScore = Infinity;
 
       const search = (
