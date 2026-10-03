@@ -137,6 +137,7 @@ Two options in League setup, combinable:
 ```bash
 npm run dev      # Vite (HMR, :3000) + API server (server/index.ts, :8788, restarts on change); Ctrl-C stops both
 npm run dev:vite # Vite only (no /api — sharing won't work)
+npm test         # Unit tests (vitest)
 npm run build    # Production build (dist/)
 npm start        # Production server: dist/ + /api on :8788
 ```

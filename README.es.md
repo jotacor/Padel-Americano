@@ -137,6 +137,7 @@ El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
 ```bash
 npm run dev      # Vite (HMR, :3000) + servidor de la API (server/index.ts, :8788, se reinicia al cambiar); Ctrl-C detiene ambos
 npm run dev:vite # Solo Vite (sin /api — compartir no funcionará)
+npm test         # Tests unitarios (vitest)
 npm run build    # Build de producción (dist/)
 npm start        # Servidor de producción: dist/ + /api en :8788
 ```

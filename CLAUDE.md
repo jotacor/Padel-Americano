@@ -162,6 +162,7 @@ npm install    # Install dependencies
 npm run dev    # Vite :3000 (HMR) + API server :8788 (node --watch server/index.ts, data in ./data), /api proxied; Ctrl-C stops both
 npm start      # Production server (dist/ + /api)
 npm run dev:vite # Vite only, no /api
+npm test       # vitest (scheduler invariants, golden schedules, YAML, leaderboard…)
 npm run build  # Production build
 npm run preview # Preview production build
 ```
@@ -172,7 +173,8 @@ Local dev: `scripts/dev.mjs` spawns both; shared tournaments in `./data` (gitign
 
 ## Conventions
 
-- Run `npm run typecheck` before committing (app + Functions; both `strict`, app also `noUnused*`; must be error-free)
+- Run `npm run typecheck` and `npm test` before committing (app + server, `strict` + `noUnused*`; must be error-free). CI (`.github/workflows/ci.yml`) runs typecheck + test + build on push to `main`
+- Tests: vitest, `*.test.ts` next to the code (`utils/`, `i18n/`, `hooks/`, `server/`), helpers in `utils/testing.ts` (`makePlayers`, `seedRandom`, `expectValidRound`…). `utils/__snapshots__/scheduler.test.ts.snap` = golden Random schedules 4–30 players: scheduler/optimizer changes must keep it identical (only update with `npx vitest run -u` when a change is intended)
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
 - Player names are uppercase (`cleanName` uppercases; `upperNames`/`withUpperNames` normalize saved/imported data) and unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
