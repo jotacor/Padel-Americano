@@ -729,7 +729,8 @@ export const generateEventRound = (
   for (const c of sortedCounts) {
     selected.push(...shuffle(byCount.get(c)!));
   }
-  selected = selected.slice(0, playersPerRound);
+  // Only full groups of 4 play: cut here so whoever rests is among those who played most
+  selected = selected.slice(0, Math.min(playersPerRound, Math.floor(activePlayers.length / 4) * 4));
 
   /**
    * Score a grouping of players into groups of 4.

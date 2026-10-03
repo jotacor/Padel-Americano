@@ -143,6 +143,7 @@ Tiebreaker order: Total Points → Match Wins → Point Differential
 npm install    # Install dependencies
 npm run dev    # Vite :3000 (HMR) + wrangler pages dev :8788 (Functions + local KV), /api proxied; Ctrl-C stops both
 npm run dev:vite # Vite only, no /api
+npm test       # vitest (scheduler invariants, golden schedules, YAML, leaderboard…)
 npm run build  # Production build
 npm run preview # Preview production build
 ```
@@ -153,7 +154,8 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 
 ## Conventions
 
-- Run `npm run typecheck` before committing (app + Functions; both `strict`, app also `noUnused*`; must be error-free)
+- Run `npm run typecheck` and `npm test` before committing (app + Functions both `strict`, app also `noUnused*`; must be error-free). CI (`.github/workflows/ci.yml`) runs typecheck + test + build on every PR
+- Tests: vitest, `*.test.ts` next to the code (`utils/`, `i18n/`), helpers in `utils/testing.ts` (`makePlayers`, `seedRandom`, `expectValidRound`…). `utils/__snapshots__/scheduler.test.ts.snap` = golden Random schedules 4–30 players: scheduler/optimizer changes must keep it identical (only update with `npx vitest run -u` when a change is intended)
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path

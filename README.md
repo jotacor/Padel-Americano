@@ -133,6 +133,7 @@ Two options in League setup, combinable:
 ```bash
 npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C stops both
 npm run dev:vite # Vite only (no /api — sharing won't work)
+npm test         # Unit tests (vitest)
 npm run build    # Production build
 npm run preview  # Preview production build locally (no /api)
 ```

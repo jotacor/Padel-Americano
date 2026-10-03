@@ -11,7 +11,8 @@
     "dev:vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p functions"
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p functions",
+    "test": "vitest run"
   },
   "dependencies": {
     "lucide-react": "0.460.0",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
+    "vitest": "^5.0.3",
     "wrangler": "^4.60.0"
   }
 }

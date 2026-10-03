@@ -133,6 +133,7 @@ El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
 ```bash
 npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C detiene ambos
 npm run dev:vite # Solo Vite (sin /api — compartir no funcionará)
+npm test         # Tests unitarios (vitest)
 npm run build    # Build de producción
 npm run preview  # Previsualizar el build de producción en local (sin /api)
 ```
