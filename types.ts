@@ -37,6 +37,7 @@ export interface Tournament {
   prioritizeSkill?: boolean; // Random + rotating: skill-balanced rounds instead of Whist rotation. League: balance by declared skill (undefined = true, legacy)
   prioritizeRanking?: boolean; // League: re-match every round by current standings (utils/ranking.ts)
   ranking?: 'total' | 'average'; // standings order (utils/leaderboard.ts); absent = total
+  pointsPerMatch?: number; // matches to a fixed total (16/21/24/32): auto-fills the other score; absent = free
   createdAt?: string; // ISO; set when the tournament starts (absent on older data)
   updatedAt?: string; // ISO; stamped when saved to the library
   finishedAt?: string; // ISO; set by "Finalizar"

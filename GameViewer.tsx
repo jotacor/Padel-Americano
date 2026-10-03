@@ -194,6 +194,9 @@ const GameViewer: React.FC = () => {
                 <div className="text-3xl font-black text-slate-900">
                   {currentRoundIndex + 1}<span className="text-slate-300 text-base font-bold">/ {tournament.rounds.length}</span>
                 </div>
+                {tournament.pointsPerMatch && (
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t('rounds.toPoints', { n: tournament.pointsPerMatch })}</div>
+                )}
               </div>
               <button 
                 disabled={currentRoundIndex === tournament.rounds.length - 1} 
