@@ -7,6 +7,8 @@ import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
+import LibraryView from './components/library/LibraryView.tsx';
+import { autosave, cancelAutosave, flushAutosave, getTournament, removeTournament, saveTournament } from './utils/library/localLibrary.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -36,6 +38,8 @@ import {
   Link2,
   Unlink,
   Download,
+  FolderOpen,
+  Pencil,
   Upload
 } from 'lucide-react';
 
@@ -49,7 +53,9 @@ const MAX_COURTS = 10;
 
 const App: React.FC = () => {
   const { t, lang, locale, courtName } = useI18n();
-  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard' | 'library'>('setup');
+  // Card to highlight in Tournaments (e.g. the one just finished)
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
@@ -168,6 +174,21 @@ const App: React.FC = () => {
   useEffect(() => {
     if (tournament) localStorage.setItem('padel_tournament', JSON.stringify(tournament));
   }, [tournament]);
+
+  // Mirror the open tournament into the saved-tournaments library (IndexedDB)
+  useEffect(() => {
+    if (tournament) autosave(tournament);
+  }, [tournament]);
+  useEffect(() => {
+    const flush = () => { flushAutosave().catch(() => undefined); };
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, []);
 
   useEffect(() => {
     if (courtNames.length > 0) {
@@ -356,13 +377,114 @@ const App: React.FC = () => {
 
   const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
-  const resetTournament = async () => {
-    if (window.confirm(t('confirm.endTournament'))) {
-      await shareSync.end();
-      setTournament(null);
-      localStorage.removeItem('padel_tournament');
-      setActiveTab('setup');
+  /** Load a tournament as the open one (library, import): restores its setup state too */
+  const applyTournament = (next: Tournament) => {
+    setTournament(next);
+    setPlayers(next.players);
+    setCourtNames(next.courtNames ?? []);
+    setEventMode(next.mode === 'event');
+    if (next.numCourts) {
+      if (next.mode === 'event') setEventNumCourts(next.numCourts);
+      else setClassicCourts(next.numCourts);
     }
+    setPairMode(next.pairMode ?? 'rotating');
+    setPairs(next.pairs ?? []);
+    if (next.mode === 'event') {
+      const mm = leagueMatchmaking(next);
+      setLeagueSkill(mm.skill);
+      setLeagueRanking(mm.ranking);
+    } else {
+      setPrioritizeSkill(!!next.prioritizeSkill);
+    }
+    setPairingWith(null);
+    // Resume at the first round with unfinished matches
+    setCurrentRoundIndex(liveRoundIndex(next));
+    const anyScored = next.rounds.some(r => r.matches.some(m => m.isCompleted));
+    setActiveTab(anyScored ? 'leaderboard' : 'rounds');
+  };
+
+  const closeTournament = () => {
+    setTournament(null);
+    localStorage.removeItem('padel_tournament');
+  };
+
+  /** Archive the open tournament (or cancel it when nothing was played) */
+  const finishTournament = async () => {
+    if (!tournament) return;
+    const matches = tournament.rounds.flatMap(r => r.matches);
+    const completed = matches.filter(m => m.isCompleted).length;
+    if (completed === 0) {
+      if (!window.confirm(t('confirm.cancelTournament'))) return;
+      cancelAutosave();
+      await shareSync.end();
+      await removeTournament(tournament.id).catch(() => undefined);
+      closeTournament();
+      setActiveTab('setup');
+      return;
+    }
+    const notes = [
+      t('confirm.finish', { name: tournament.name }),
+      ...(completed < matches.length ? [t('confirm.finishPending', { n: matches.length - completed })] : []),
+      ...(shareSync.share ? [t('confirm.finishShared')] : []),
+    ];
+    if (!window.confirm(notes.join('\n\n'))) return;
+    cancelAutosave();
+    const finished: Tournament = { ...tournament, finishedAt: new Date().toISOString() };
+    await shareSync.detach(finished);
+    try {
+      await saveTournament(finished);
+    } catch {
+      return alert(t('library.saveFailed'));
+    }
+    closeTournament();
+    setHighlightId(finished.id);
+    setActiveTab('library');
+  };
+
+  /** Pause the open tournament (stays in the library) and go set up a new one */
+  const newTournament = async () => {
+    if (tournament) {
+      if (!window.confirm(t('confirm.newTournament', { name: tournament.name }))) return;
+      await flushAutosave().catch(() => undefined);
+      await shareSync.detach(tournament);
+      closeTournament();
+    }
+    setActiveTab('setup');
+  };
+
+  const openFromLibrary = async (id: string) => {
+    if (tournament?.id === id) {
+      setActiveTab(tournament.rounds.some(r => r.matches.some(m => m.isCompleted)) ? 'leaderboard' : 'rounds');
+      return;
+    }
+    if (!tournament && players.length > 0 && !window.confirm(t('confirm.openReplacesSetup'))) return;
+    const saved = await getTournament(id).catch(() => undefined);
+    if (!saved) return;
+    if (tournament) {
+      await flushAutosave().catch(() => undefined);
+      await shareSync.detach(tournament);
+    }
+    applyTournament(saved);
+  };
+
+  const deleteFromLibrary = async (id: string) => {
+    const name = tournament?.id === id ? tournament.name : (await getTournament(id).catch(() => undefined))?.name ?? '';
+    if (!window.confirm(t('confirm.deleteTournament', { name }))) return;
+    if (tournament?.id === id) {
+      cancelAutosave();
+      await shareSync.end();
+      closeTournament();
+    }
+    await removeTournament(id).catch(() => undefined);
+  };
+
+  const renameTournament = async (id: string) => {
+    const target = tournament?.id === id ? tournament : await getTournament(id).catch(() => undefined);
+    if (!target) return;
+    const name = window.prompt(t('library.renamePrompt'), target.name)?.trim().slice(0, 80);
+    if (!name || name === target.name) return;
+    if (tournament?.id === id) setTournament({ ...tournament, name });
+    else await saveTournament({ ...target, name }).catch(() => alert(t('library.saveFailed')));
   };
 
   const clearAllData = async () => {
@@ -396,11 +518,13 @@ const App: React.FC = () => {
 
   // YAML lib lazy-loaded: only needed on export/import
   const loadTournamentFile = () => import('./utils/tournamentFile.ts');
-  const exportTournament = async () => {
-    if (!tournament) return;
+  const exportTournament = async (target: Tournament | null | undefined = tournament) => {
+    if (!target) return;
     const { bumpExportMeta, serializeTournament, exportFilename } = await loadTournamentFile();
-    const updated = bumpExportMeta(tournament);
-    setTournament(updated);
+    const updated = bumpExportMeta(target);
+    // Keep the new revision: in the open tournament, or in the saved copy
+    if (target.id === tournament?.id) setTournament(updated);
+    else await saveTournament(updated).catch(() => undefined);
     const url = URL.createObjectURL(new Blob([serializeTournament(updated)], { type: 'application/yaml' }));
     const a = document.createElement('a');
     a.href = url;
@@ -426,31 +550,24 @@ const App: React.FC = () => {
       if (result.error === 'invalidData') return alert(t('alert.importInvalidData', { detail: result.detail ?? '' }));
       return alert(t('alert.importInvalidYaml'));
     }
-    if ((tournament || players.length > 0) && !window.confirm(t('confirm.importReplace'))) return;
-    await shareSync.end();
-    const imported = result.tournament;
-    setTournament(imported);
-    setPlayers(imported.players);
-    setCourtNames(imported.courtNames ?? []);
-    setEventMode(imported.mode === 'event');
-    if (imported.numCourts) {
-      if (imported.mode === 'event') setEventNumCourts(imported.numCourts);
-      else setClassicCourts(imported.numCourts);
+    let imported = result.tournament;
+    // The open tournament is already in the library, so importing never loses it
+    await flushAutosave().catch(() => undefined);
+    const existing = await getTournament(imported.id).catch(() => undefined);
+    if (existing) {
+      const { summarizeTournament } = await loadTournamentFile();
+      const strip = (x: Tournament) => JSON.stringify({ ...x, updatedAt: undefined, exportMeta: undefined });
+      if (strip(existing) !== strip(imported)) {
+        const progress = (x: Tournament) => { const s = summarizeTournament(x); return `${s.matchesCompleted}/${s.totalMatches}`; };
+        const replace = window.confirm(t('confirm.importSameId', { name: existing.name, saved: progress(existing), file: progress(imported) }));
+        if (!replace) imported = { ...imported, id: crypto.randomUUID(), name: imported.name + t('library.copySuffix') };
+      }
+    } else if (!tournament && players.length > 0 && !window.confirm(t('confirm.openReplacesSetup'))) {
+      return;
     }
-    setPairMode(imported.pairMode ?? 'rotating');
-    setPairs(imported.pairs ?? []);
-    if (imported.mode === 'event') {
-      const mm = leagueMatchmaking(imported);
-      setLeagueSkill(mm.skill);
-      setLeagueRanking(mm.ranking);
-    } else {
-      setPrioritizeSkill(!!imported.prioritizeSkill);
-    }
-    setPairingWith(null);
-    // Resume at the first round with unfinished matches
-    setCurrentRoundIndex(liveRoundIndex(imported));
-    const anyScored = imported.rounds.some(r => r.matches.some(m => m.isCompleted));
-    setActiveTab(anyScored ? 'leaderboard' : 'rounds');
+    if (tournament && tournament.id !== imported.id) await shareSync.detach(tournament);
+    await saveTournament(imported).catch(() => undefined);
+    applyTournament(imported);
   };
 
   const addRound = () => {
@@ -617,7 +734,8 @@ const App: React.FC = () => {
         {[
           { tab: 'setup', icon: Settings, label: t('nav.setup') },
           { tab: 'rounds', icon: Layout, label: t('nav.matches'), disabled: !tournament },
-          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament }
+          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament },
+          { tab: 'library', icon: FolderOpen, label: t('nav.library') }
         ].map(item => (
           <button 
             key={item.tab}
@@ -632,6 +750,19 @@ const App: React.FC = () => {
       </nav>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+        {/* Shared by Setup and Tournaments */}
+        <input
+          ref={importFileRef}
+          type="file"
+          accept=".yaml,.yml"
+          className="hidden"
+          data-testid="import-file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) importTournament(file);
+          }}
+        />
         <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="flex flex-col items-center md:items-start text-center md:text-left">
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
@@ -644,6 +775,11 @@ const App: React.FC = () => {
                 </h1>
               </div>
               <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t('header.tagline')}</p>
+              {tournament && (
+                <button onClick={() => renameTournament(tournament.id)} title={t('header.rename')} className="mt-2 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 text-sm font-bold pl-1 max-w-full">
+                  <span className="truncate">{tournament.name}</span> <Pencil className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
@@ -692,7 +828,7 @@ const App: React.FC = () => {
                     <ShieldCheck className="w-12 h-12 text-amber-500 mx-auto mb-4" />
                     <h3 className="text-xl font-black text-slate-800 mb-2">{t('setup.inProgressTitle')}</h3>
                     <p className="text-slate-600 text-sm mb-4">{t('setup.inProgressBody')}</p>
-                    <button onClick={resetTournament} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-xl font-bold transition-all">
+                    <button onClick={finishTournament} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-xl font-bold transition-all">
                       {t('setup.endTournament')}
                     </button>
                   </div>
@@ -967,7 +1103,7 @@ const App: React.FC = () => {
                 ) : (
                   <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> {t('setup.goToMatches')}</button>
                 )}
-                {tournament && <button onClick={resetTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
+                {tournament && <button onClick={finishTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
                 {(players.length > 0 && !tournament) && (
                   <button onClick={clearAllData} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
                     <Trash2 className="w-3 h-3" /> {t('setup.clearAll')}
@@ -975,7 +1111,7 @@ const App: React.FC = () => {
                 )}
                 <div className="flex justify-center gap-6">
                   {tournament && (
-                    <button onClick={exportTournament} className="text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
+                    <button onClick={() => exportTournament()} className="text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
                       <Download className="w-3 h-3" /> {t('setup.exportYaml')}
                     </button>
                   )}
@@ -983,18 +1119,6 @@ const App: React.FC = () => {
                     <Upload className="w-3 h-3" /> {t('setup.importYaml')}
                   </button>
                   <LanguageLink className="text-slate-400 hover:text-slate-200" />
-                  <input
-                    ref={importFileRef}
-                    type="file"
-                    accept=".yaml,.yml"
-                    className="hidden"
-                    data-testid="import-file"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = '';
-                      if (file) importTournament(file);
-                    }}
-                  />
                 </div>
               </div>
             </div>
@@ -1135,6 +1259,19 @@ const App: React.FC = () => {
             onRetry={shareSync.retry}
             primaryClass={tc.primary}
             primaryText={tc.primaryText}
+          />
+        )}
+
+        {activeTab === 'library' && (
+          <LibraryView
+            current={tournament}
+            highlightId={highlightId}
+            onOpen={openFromLibrary}
+            onNew={newTournament}
+            onImport={() => importFileRef.current?.click()}
+            onRename={renameTournament}
+            onExport={async id => exportTournament(tournament?.id === id ? tournament : await getTournament(id).catch(() => undefined))}
+            onDelete={deleteFromLibrary}
           />
         )}
 

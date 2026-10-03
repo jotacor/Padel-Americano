@@ -178,6 +178,25 @@ export const useShareSync = (tournament: Tournament | null) => {
     }
   }, [setShare]);
 
+  /** Stop sharing from this device but keep the link: viewers keep `final` (sent now) until it expires */
+  const detach = useCallback(async (final?: Tournament) => {
+    const s = shareRef.current;
+    clearTimeout(timer.current);
+    setShare(null);
+    setStatus('synced');
+    setLastSynced(null);
+    if (!s || !final) return;
+    try {
+      await fetch(`/api/game/${s.shareId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Tournament-Pin': s.pin },
+        body: JSON.stringify({ tournament: final }),
+      });
+    } catch (e) {
+      console.error('Failed to send the final tournament:', e);
+    }
+  }, [setShare]);
+
   const retry = useCallback(() => {
     attempt.current = 0;
     flush();
@@ -185,5 +204,5 @@ export const useShareSync = (tournament: Tournament | null) => {
 
   const dismissEnded = useCallback(() => setEnded(null), []);
 
-  return { share, status, lastSynced, creating, ended, start, end, retry, dismissEnded };
+  return { share, status, lastSynced, creating, ended, start, end, detach, retry, dismissEnded };
 };

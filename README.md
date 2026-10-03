@@ -28,6 +28,11 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Championship Results** — Shows winning team, runner-up, and individual rankings
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
+### Saved Tournaments
+- ✅ **Tournaments tab** — Every tournament is saved on the device automatically; open, continue, rename, export or delete them; filter finished/unfinished and search
+- ✅ **Finish = archive** — Finishing a tournament keeps it (with its champion or leader); several leagues can run in parallel with "New"
+- ✅ **Safe import** — Importing a file never overwrites a saved tournament without asking (or imports it as a copy)
+
 ### Sharing & Cloud Sync
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
 - ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically

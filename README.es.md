@@ -28,6 +28,11 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual
 - ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
 
+### Torneos guardados
+- ✅ **Pestaña Torneos** — Cada torneo se guarda solo en el dispositivo; ábrelos, continúalos, renómbralos, expórtalos o elimínalos; filtra finalizados/sin finalizar y busca
+- ✅ **Finalizar = archivar** — Al finalizar un torneo se conserva (con su campeón o líder); con "Nuevo" puedes llevar varias ligas a la vez
+- ✅ **Importar sin riesgos** — Importar un archivo nunca sobrescribe un torneo guardado sin preguntar (o lo importa como copia)
+
 ### Compartir y sincronización en la nube
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
 - ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente

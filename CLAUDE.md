@@ -49,7 +49,10 @@
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
 | `utils/tournamentSchema.ts` | `validateTournament(v, meta?)`: shape validation shared by YAML import, the library and (later) Functions; new `Tournament` fields must be added here (unknown keys are dropped) |
-| `utils/tournamentSummary.ts` | `summarizeTournament` (progress + leader), no `yaml` import |
+| `utils/tournamentSummary.ts` | `summarizeTournament` (progress + leader), `describeTournament` (list summary), `championsOf`, `tournamentStatus` (open / unfinished / finished: never stored); no `yaml` import |
+| `utils/library/` | Saved tournaments on the device: `idb.ts` (IndexedDB `padel-americano`, stores `library-meta` + `library-data`), `localLibrary.ts` (`saveTournament` stamps `updatedAt`, `removeTournament`, `autosave`/`flushAutosave`/`cancelAutosave`, serialized writes so a late autosave can't revive a deleted one, `BroadcastChannel` sync between tabs) |
+| `components/library/` | Tournaments tab: `LibraryView` (filters, search, empty/unavailable states), `TournamentCard` |
+| `hooks/useLibrary.ts` | Library list for the UI (refresh on change/focus) |
 | `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
@@ -122,6 +125,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
+- IndexedDB `padel-americano`: saved tournaments (the open one is also kept in `padel_tournament` and mirrored by the autosave)
 - `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)
 
 ### Cloud Sharing
@@ -133,6 +137,15 @@ All state lives in `App.tsx` using React hooks.
 - Viewers poll → GET `/api/game/:id` every 5s while visible (`usePolling`); a failed poll keeps the last data; the viewer follows the live round (`liveRoundIndex`) until navigated by hand
 - TTL: 24 h after the last update (each PUT renews it)
 - Write auth: header `X-Tournament-Pin` carries a random token (field still named `pin` for compatibility)
+
+### Saved tournaments (Tournaments tab)
+
+- Every tournament is saved on the device automatically (autosave ~0.8 s, flushed on page hide); "Tournaments" tab lists them (open one pinned, live summary)
+- **Finish** (`finishTournament`): no scores → cancel & delete; otherwise sets `finishedAt`, saves, detaches the share (`shareSync.detach(final)`: last PUT, link kept until it expires), opens Tournaments with the card highlighted
+- **New** pauses the open one (stays "unfinished"); **Open** loads any saved one (`applyTournament`, also used by import) — finished ones stay editable to fix scores
+- **Delete** asks; deleting the open, shared one also deletes the link. "Clear all data" keeps saved tournaments
+- Import never overwrites silently: same id + different content → confirm replace, Cancel = copy with new id and " (copia)"
+- Status is derived (`tournamentStatus`): open / finished (`finishedAt` or final played) / unfinished
 
 ### Export / Import (YAML)
 
