@@ -1,4 +1,4 @@
-import { Player, Match, Round, Pair } from '../types.ts';
+import type { Player, Match, Round, Pair } from '../types.ts';
 import { optimizeCourtAssignments, shuffle, skillValue } from './scheduler.ts';
 import { MATCH_WEIGHTS, repeatCost } from './ranking.ts';
 

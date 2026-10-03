@@ -1,4 +1,4 @@
-import { Player, Match, Round } from '../types.ts';
+import type { Player, Match, Round } from '../types.ts';
 
 /**
  * Mathematically Perfect Whist Tournament Logic

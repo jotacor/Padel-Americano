@@ -1,4 +1,4 @@
-import { Tournament, LeaderboardEntry, Pair } from '../types.ts';
+import type { Tournament, LeaderboardEntry, Pair } from '../types.ts';
 import { pairKey } from './fixedPairs.ts';
 
 const sortEntries = (entries: LeaderboardEntry[]) => entries.sort((a, b) =>

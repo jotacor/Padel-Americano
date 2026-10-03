@@ -1,4 +1,4 @@
-import { Player, Match, Round, Tournament } from '../types.ts';
+import type { Player, Match, Round, Tournament } from '../types.ts';
 import { optimizeCourtAssignments, shuffle, skillValue } from './scheduler.ts';
 
 // League matchmaking by initial skill and/or current standings ("prioritize standings").

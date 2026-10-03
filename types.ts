@@ -36,6 +36,9 @@ export interface Tournament {
   pairs?: Pair[]; // fixed pairs (player IDs), only when pairMode === 'fixed'
   prioritizeSkill?: boolean; // Random + rotating: skill-balanced rounds instead of Whist rotation. League: balance by declared skill (undefined = true, legacy)
   prioritizeRanking?: boolean; // League: re-match every round by current standings (utils/ranking.ts)
+  createdAt?: string; // ISO; set when the tournament starts (absent on older data)
+  updatedAt?: string; // ISO; stamped when saved to the library
+  finishedAt?: string; // ISO; set by "Finalizar"
   exportMeta?: ExportMeta; // YAML export versioning (utils/tournamentFile.ts)
 }
 

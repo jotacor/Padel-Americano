@@ -43,7 +43,9 @@
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
-| `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile` (validates), `bumpExportMeta`, `exportFilename`. Lazy-loaded by App |
+| `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
+| `utils/tournamentSchema.ts` | `validateTournament(v, meta?)`: shape validation shared by YAML import, the library and (later) Functions; new `Tournament` fields must be added here (unknown keys are dropped) |
+| `utils/tournamentSummary.ts` | `summarizeTournament` (progress + leader), no `yaml` import |
 | `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
@@ -131,7 +133,8 @@ All state lives in `App.tsx` using React hooks.
 - File: header comments, `format: padel-americano/v1`, `revision`, `exportedAt`, `history[]` (revision, exportedAt, rounds/matches done, leader), `tournament` (full `Tournament` minus `exportMeta`)
 - Versioning: `tournament.exportMeta = { revision, history }`; each export bumps revision + appends history (kept in state, so import v2 → export = v3)
 - Import validates shape (players, rounds, matches, pair/player ids); invalid → translated alert, state untouched. Confirms before replacing, stops sharing, restores setup state (players, courts, mode, pairs), opens Scores
-- Changing the file format: bump `TOURNAMENT_FILE_FORMAT` and keep parsing older versions
+- Changing the file format: bump `TOURNAMENT_FILE_FORMAT` and keep parsing older versions. Adding optional fields (e.g. `createdAt/updatedAt/finishedAt`) keeps v1: older versions just drop them
+- `utils/` modules use `import type` for types (lets Node run them with type stripping, e.g. scripts)
 
 ### Scoring & Leaderboard
 
