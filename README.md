@@ -41,7 +41,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Spanish first** — Spanish by default; English available from a discreet link in Setup and the viewer, or with `?lang=en` in any URL (e.g. the TV display)
 - ✅ **No account needed** — Data stays on the device (localStorage)
 - ✅ **Export / Import (YAML)** — Save a tournament to a human-readable `.yaml` file and load it later to see results or keep playing; each export bumps a `revision` and appends to a `history` log inside the file
-- ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
+- ✅ **Fair standings with rests** — Rank by average per match (default in League and when players rest) or by total points; switch any time in the Scores tab. Ties: wins/win rate → point difference
 
 ## Quick Start
 

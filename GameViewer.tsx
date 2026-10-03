@@ -16,7 +16,7 @@ import {
   Eye
 } from 'lucide-react';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
-import { computeLeaderboard } from './utils/leaderboard.ts';
+import { computeLeaderboard, minMatchesToQualify, rankingModeOf } from './utils/leaderboard.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { usePolling } from './hooks/usePolling.ts';
 
@@ -74,6 +74,8 @@ const GameViewer: React.FC = () => {
   const tournament = data?.tournament;
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
+  const byAverage = rankingModeOf(tournament) === 'average';
+  const formatAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
@@ -296,7 +298,7 @@ const GameViewer: React.FC = () => {
               
               const allFinalists = [...winningTeam, ...runnerUpTeam]
                 .map(pid => ({ id: pid, name: getPlayerName(pid), stats: getPlayerStats(pid) }))
-                .sort((a, b) => (b.stats?.totalPoints || 0) - (a.stats?.totalPoints || 0));
+                .sort((a, b) => leaderboard.findIndex(e => e.playerId === a.id) - leaderboard.findIndex(e => e.playerId === b.id));
               
               const placeLabels = ['🥇', '🥈', '🥉', t('champ.fourth')];
               
@@ -328,7 +330,7 @@ const GameViewer: React.FC = () => {
                         <div key={entry.id} className="bg-white/60 rounded-lg p-2 text-center">
                           <div className="text-lg">{placeLabels[idx]}</div>
                           <div className="font-black text-sm italic truncate">{entry.name}</div>
-                          <div className="text-[10px] text-slate-500 font-bold">{entry.stats?.totalPoints || 0} {t('common.pts')}</div>
+                          <div className="text-[10px] text-slate-500 font-bold">{byAverage ? `${formatAvg(entry.stats?.avgPoints || 0)} ${t('lb.perMatch')}` : `${entry.stats?.totalPoints || 0} ${t('common.pts')}`}</div>
                         </div>
                       ))}
                     </div>
@@ -343,6 +345,7 @@ const GameViewer: React.FC = () => {
                 <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
                   <Award className="w-5 h-5 text-yellow-500" /> {t('common.standings')}
                 </h2>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">{t(byAverage ? 'lb.sortedByAvg' : 'lb.sortedBy')}</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -351,12 +354,12 @@ const GameViewer: React.FC = () => {
                       <th className="px-4 py-3">#</th>
                       <th className="px-4 py-3">{t(tournament.pairMode === 'fixed' ? 'lb.pair' : 'common.player')}</th>
                       <th className="px-4 py-3 text-center">{t('viewer.wlt')}</th>
-                      <th className="px-4 py-3 text-right">{t('common.pts')}</th>
+                      <th className="px-4 py-3 text-right">{byAverage ? t('lb.perMatch') : t('common.pts')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {leaderboard.map((entry, idx) => (
-                      <tr key={entry.playerId} className="hover:bg-indigo-50/10">
+                      <tr key={entry.playerId} className={`hover:bg-indigo-50/10 ${entry.qualified ? '' : 'opacity-50'}`}>
                         <td className="px-4 py-4">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black ${
                             idx === 0 ? 'bg-yellow-400 text-white' : 
@@ -368,7 +371,10 @@ const GameViewer: React.FC = () => {
                         </td>
                         <td className="px-4 py-4">
                           <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-base italic uppercase block" />
-                          <div className="text-[9px] text-slate-400 font-bold">{t('viewer.avg', { n: entry.avgPoints })}</div>
+                          <div className="text-[9px] text-slate-400 font-bold">
+                            {byAverage ? t('lb.ptsInMatches', { pts: entry.totalPoints, n: entry.matchesPlayed }) : t('viewer.avg', { n: formatAvg(entry.avgPoints) })}
+                            {!entry.qualified && <span className="text-amber-600 ml-1">{t('lb.fewMatches', { n: minMatchesToQualify(leaderboard) })}</span>}
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center gap-1 font-black text-xs">
@@ -380,7 +386,7 @@ const GameViewer: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <span className="font-black text-2xl text-slate-900 italic">{entry.totalPoints}</span>
+                          <span className="font-black text-2xl text-slate-900 italic">{byAverage ? formatAvg(entry.avgPoints) : entry.totalPoints}</span>
                         </td>
                       </tr>
                     ))}

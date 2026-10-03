@@ -138,6 +138,14 @@ const en = {
 
   // App — leaderboard
   'lb.sortedBy': 'Sorted by Pts → Wins → Diff',
+  'lb.sortedByAvg': 'Sorted by Avg → Win % → Diff',
+  'lb.modeTotal': 'Points',
+  'lb.modeAverage': 'Average',
+  'lb.modeHint': 'With rests or late arrivals, ranking by average per match is fairer',
+  'lb.perMatch': 'per match',
+  'lb.ptsInMatches': '{pts} pts · {n} played',
+  'lb.fewMatches': 'Few matches (min. {n})',
+  'lb.avgHeader': 'Avg / Match',
   'lb.avg': '{n} avg',
   'lb.avgPerMatch': 'Avg {n} / Match',
   'lb.rank': 'Rank',
@@ -327,6 +335,14 @@ const es: Translations = {
 
   // App — leaderboard
   'lb.sortedBy': 'Orden: Pts → Victorias → Dif',
+  'lb.sortedByAvg': 'Orden: Media → % Victorias → Dif',
+  'lb.modeTotal': 'Puntos',
+  'lb.modeAverage': 'Media',
+  'lb.modeHint': 'Con descansos o llegadas tarde, ordenar por media por partido es más justo',
+  'lb.perMatch': 'por partido',
+  'lb.ptsInMatches': '{pts} pts · {n} jugados',
+  'lb.fewMatches': 'Pocos partidos (mín. {n})',
+  'lb.avgHeader': 'Media / Partido',
   'lb.avg': '{n} media',
   'lb.avgPerMatch': 'Media {n} / Partido',
   'lb.rank': 'Pos.',

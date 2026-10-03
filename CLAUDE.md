@@ -145,7 +145,10 @@ All state lives in `App.tsx` using React hooks.
 
 ### Scoring & Leaderboard
 
-Tiebreaker order: Total Points → Match Wins → Point Differential
+Two orders (`tournament.ranking`, absent = `'total'`; `utils/leaderboard.ts` `computeLeaderboard`, used by all views and finals):
+- `'total'`: Total Points → Wins → Point Differential → fewer matches
+- `'average'` (default for League, and for Random when the schedule has rests): players with ≥ half the max matches first (`qualified`), then points per match (unrounded) → win rate (tie = ½) → difference per match → more matches
+- Organizer switches it in the Scores tab (Puntos / Media); viewers and TV follow
 
 ## Commands
 

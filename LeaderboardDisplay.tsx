@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from './i18n/I18nContext.tsx';
 import { usePolling } from './hooks/usePolling.ts';
+import { rankingModeOf } from './utils/leaderboard.ts';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 
 const SKILL_COLORS = {
@@ -51,6 +52,8 @@ const LeaderboardDisplay: React.FC = () => {
   usePolling(fetchTournament, POLL_INTERVAL, id);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
+  const byAverage = rankingModeOf(tournament) === 'average';
+  const formatAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const isFixed = tournament?.pairMode === 'fixed';
   // Skill badge only in League (skill always set there) and per player; Random skill is optional → hidden
@@ -130,7 +133,7 @@ const LeaderboardDisplay: React.FC = () => {
               const skill = player?.skillLevel || 'medium';
 
               return (
-                <div key={entry.playerId} className="flex items-center gap-3 px-4 py-3">
+                <div key={entry.playerId} className={`flex items-center gap-3 px-4 py-3 ${entry.qualified ? '' : 'opacity-50'}`}>
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
                     {displayRank + 1}
                   </div>
@@ -155,8 +158,8 @@ const LeaderboardDisplay: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="font-black text-2xl text-white italic tracking-tighter leading-none">{entry.totalPoints}</span>
-                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t('common.pts')}</div>
+                    <span className="font-black text-2xl text-white italic tracking-tighter leading-none">{byAverage ? formatAvg(entry.avgPoints) : entry.totalPoints}</span>
+                    <div className="text-[8px] text-purple-500 font-bold uppercase">{byAverage ? t('lb.perMatch') : t('common.pts')}</div>
                   </div>
                 </div>
               );
@@ -172,6 +175,7 @@ const LeaderboardDisplay: React.FC = () => {
                 {showSkill && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
                 <th className="px-6 py-3 text-center">{t('display.record')}</th>
                 <th className="px-6 py-3 text-center">{t('display.games')}</th>
+                <th className="px-6 py-3 text-center">{t('lb.avgHeader')}</th>
                 <th className="px-6 py-3 text-right">{t('common.points')}</th>
               </tr>
             </thead>
@@ -188,7 +192,7 @@ const LeaderboardDisplay: React.FC = () => {
                 };
                 
                 return (
-                  <tr key={entry.playerId} className="transition-colors hover:bg-purple-800/20">
+                  <tr key={entry.playerId} className={`transition-colors hover:bg-purple-800/20 ${entry.qualified ? '' : 'opacity-50'}`}>
                     <td className="px-6 py-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${getRankStyle()}`}>
                         {displayRank + 1}
@@ -224,8 +228,11 @@ const LeaderboardDisplay: React.FC = () => {
                     <td className="px-6 py-4 text-center">
                       <span className="text-purple-400 font-bold">{entry.matchesPlayed}</span>
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={byAverage ? 'font-black text-3xl text-white italic tracking-tighter' : 'text-purple-300 font-bold'}>{formatAvg(entry.avgPoints)}</span>
+                    </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="font-black text-3xl text-white italic tracking-tighter">{entry.totalPoints}</span>
+                      <span className={byAverage ? 'text-purple-300 font-bold' : 'font-black text-3xl text-white italic tracking-tighter'}>{entry.totalPoints}</span>
                     </td>
                   </tr>
                 );

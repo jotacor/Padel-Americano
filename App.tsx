@@ -8,7 +8,7 @@ import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
-import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
+import { computeLeaderboard, minMatchesToQualify, pairOfEntry, rankingModeOf, type RankingMode } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
 import { 
   Users, 
@@ -314,6 +314,7 @@ const App: React.FC = () => {
         isStarted: true,
         courtNames: [...courtNames],
         mode: 'event',
+        ranking: 'average', // rests are normal in a League
         createdAt: new Date().toISOString(),
         numCourts: eventNumCourts,
         ...pairFields,
@@ -335,6 +336,7 @@ const App: React.FC = () => {
         isStarted: true,
         courtNames: [...courtNames],
         mode: 'classic',
+        ranking: rounds.some(r => r.byes.length > 0) ? 'average' : 'total', // same order without rests
         createdAt: new Date().toISOString(),
         numCourts,
         ...pairFields,
@@ -551,6 +553,10 @@ const App: React.FC = () => {
   const getPlayer = (id: string) => tournament?.players.find(p => p.id === id);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
+  const byAverage = rankingModeOf(tournament) === 'average';
+  const minToQualify = minMatchesToQualify(leaderboard);
+  const formatAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const setRanking = (ranking: RankingMode) => { if (tournament) setTournament({ ...tournament, ranking }); };
 
   const matchmaking = tournament ? leagueMatchmaking(tournament) : null;
   const matchmakingKey: TranslationKey = !matchmaking ? 'matchmaking.skill'
@@ -1166,7 +1172,7 @@ const App: React.FC = () => {
               
               const allFinalists = [...winningTeam, ...runnerUpTeam]
                 .map(id => ({ id, name: getPlayerNameStr(id), stats: getPlayerStats(id) }))
-                .sort((a, b) => (b.stats?.totalPoints || 0) - (a.stats?.totalPoints || 0));
+                .sort((a, b) => leaderboard.findIndex(e => e.playerId === a.id) - leaderboard.findIndex(e => e.playerId === b.id));
               
               const placeLabels = ['🥇', '🥈', '🥉', t('champ.fourth')];
               
@@ -1209,7 +1215,7 @@ const App: React.FC = () => {
                               {entry.name}
                             </div>
                             <div className="text-xs text-slate-500 font-bold">
-                              {entry.stats?.totalPoints || 0} {t('common.pts')}
+                              {byAverage ? `${formatAvg(entry.stats?.avgPoints || 0)} ${t('lb.perMatch')}` : `${entry.stats?.totalPoints || 0} ${t('common.pts')}`}
                             </div>
                           </div>
                         ))}
@@ -1244,7 +1250,19 @@ const App: React.FC = () => {
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
                 <div className="flex items-center gap-3">
-                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
+                  <span className="hidden lg:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t(byAverage ? 'lb.sortedByAvg' : 'lb.sortedBy')}</span>
+                  <div className="flex gap-1 p-1 bg-slate-100 rounded-xl" title={t('lb.modeHint')}>
+                    {(['total', 'average'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setRanking(mode)}
+                        aria-pressed={byAverage === (mode === 'average')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider transition-all ${byAverage === (mode === 'average') ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        {t(mode === 'average' ? 'lb.modeAverage' : 'lb.modeTotal')}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1265,7 +1283,7 @@ const App: React.FC = () => {
                   const skill = player?.skillLevel || 'medium';
 
                   return (
-                    <div key={entry.playerId} className="flex items-center gap-3 px-4 py-4">
+                    <div key={entry.playerId} className={`flex items-center gap-3 px-4 py-4 ${entry.qualified ? '' : 'opacity-50'}`}>
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
                         {displayRank + 1}
                       </div>
@@ -1281,7 +1299,9 @@ const App: React.FC = () => {
                             <span className="text-slate-300">-</span>
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
-                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
+                          <span className="text-[9px] text-slate-400 font-bold">
+                            {byAverage ? t('lb.ptsInMatches', { pts: entry.totalPoints, n: entry.matchesPlayed }) : t('lb.avg', { n: formatAvg(entry.avgPoints) })}
+                          </span>
                           {!isFixed && (
                             <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
                               {t(`skill.${skill}`)}
@@ -1290,8 +1310,9 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-black text-2xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
-                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t('common.pts')}</div>
+                        <span className="font-black text-2xl tracking-tighter text-slate-900 italic leading-none">{byAverage ? formatAvg(entry.avgPoints) : entry.totalPoints}</span>
+                        <div className="text-[8px] text-slate-400 font-bold uppercase">{byAverage ? t('lb.perMatch') : t('common.pts')}</div>
+                        {!entry.qualified && <div className="text-[8px] text-amber-600 font-bold">{t('lb.fewMatches', { n: minToQualify })}</div>}
                       </div>
                     </div>
                   );
@@ -1307,7 +1328,7 @@ const App: React.FC = () => {
                       <th className="px-12 py-8">{t(isFixed ? 'lb.pair' : 'lb.athlete')}</th>
                       {!isFixed && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
-                      <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
+                      <th className="px-12 py-8 text-right">{t(byAverage ? 'lb.avgHeader' : 'lb.totalPoints')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1323,7 +1344,7 @@ const App: React.FC = () => {
                       };
                       
                       return (
-                        <tr key={entry.playerId} className="hover:bg-slate-50/50 transition-colors">
+                        <tr key={entry.playerId} className={`hover:bg-slate-50/50 transition-colors ${entry.qualified ? '' : 'opacity-50'}`}>
                           <td className="px-12 py-10">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl ${getRankStyle()}`}>
                               {displayRank + 1}
@@ -1333,7 +1354,10 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
                             </div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                              {byAverage ? t('lb.ptsInMatches', { pts: entry.totalPoints, n: entry.matchesPlayed }) : t('lb.avgPerMatch', { n: formatAvg(entry.avgPoints) })}
+                              {!entry.qualified && <span className="text-amber-600 ml-2">{t('lb.fewMatches', { n: minToQualify })}</span>}
+                            </div>
                           </td>
                           {!isFixed && (
                             <td className="px-8 py-10 text-center">
@@ -1358,7 +1382,7 @@ const App: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-12 py-10 text-right">
-                            <span className="font-black text-6xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
+                            <span className="font-black text-6xl tracking-tighter text-slate-900 italic leading-none">{byAverage ? formatAvg(entry.avgPoints) : entry.totalPoints}</span>
                           </td>
                         </tr>
                       );

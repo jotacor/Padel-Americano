@@ -41,7 +41,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **En español** — Español por defecto; inglés disponible con un enlace discreto en Ajustes y en el visor, o con `?lang=en` en cualquier URL (p. ej. la pantalla de TV)
 - ✅ **Sin cuenta** — Los datos se quedan en el dispositivo (localStorage)
 - ✅ **Exportar / Importar (YAML)** — Guarda un torneo en un archivo `.yaml` legible y cárgalo más tarde para ver resultados o seguir jugando; cada exportación incrementa un `revision` y añade una entrada a un registro `history` dentro del archivo
-- ✅ **Desempates** — Ordenado por puntos totales → partidos ganados → diferencia de puntos
+- ✅ **Clasificación justa con descansos** — Ordena por media por partido (por defecto en Liga y cuando hay descansos) o por puntos totales; se cambia en cualquier momento en la pestaña Tabla. Desempates: victorias/% de victorias → diferencia de puntos
 
 ## Inicio rápido
 
