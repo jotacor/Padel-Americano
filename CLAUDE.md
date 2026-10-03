@@ -16,7 +16,7 @@
 
 - **Framework**: React 19 with TypeScript
 - **Build**: Vite 6
-- **Styling**: Tailwind CSS (via CDN in index.html)
+- **Styling**: Tailwind CSS 3.4 compiled at build (PostCSS: `tailwind.config.js`, `postcss.config.js`, `index.css`); Inter self-hosted (`@fontsource-variable/inter`). Never build class names from pieces (purge would drop them)
 - **Icons**: Lucide React
 - **Routing**: React Router DOM
 - **Deployment**: Docker image `jotacor/padelamericano` (self-hosted: TrueNAS/Portainer), domain through Cloudflare DNS proxy
@@ -33,7 +33,8 @@
 | `LeaderboardDisplay.tsx` | Standalone auto-refreshing leaderboard display |
 | `GameViewer.tsx` | Read-only tournament viewer (polling) |
 | `index.tsx` | React entry point + routing |
-| `index.html` | HTML shell with Tailwind CDN, OG meta tags (Spanish) |
+| `index.html` | HTML shell, OG meta tags (Spanish) |
+| `index.css` | Tailwind directives + global styles (`animate-in`, `no-scrollbar`) |
 | `server/index.ts` | Server entry (env `PORT` 8788, `DATA_DIR`, `DIST_DIR`), hourly sweep of expired shares |
 | `server/app.ts` | `/api/game` POST, `/api/game/:id` GET/PUT/DELETE (body ≤ 512 KB → 413, malformed → 400), `/api/health`; static `dist/` with SPA fallback, immutable cache for `/assets/*`, absolute `og:image` |
 | `server/store.ts` | File store: `shares/<id>.json`, atomic writes, ids validated (no path traversal), expiry |
