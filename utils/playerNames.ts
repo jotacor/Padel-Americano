@@ -1,4 +1,4 @@
-// Player name normalization — shared by the frontend and Pages Functions.
+// Player name normalization (frontend).
 
 /** Trim and collapse inner whitespace: "  Ana   María " → "Ana María" */
 export const cleanName = (name: string): string => name.trim().replace(/\s+/g, ' ');

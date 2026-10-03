@@ -38,13 +38,13 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Mobile-first** — Diseño adaptable que funciona genial en el móvil junto a las pistas
 - ✅ **Navegación con teclado** — Teclas de flecha para moverte entre rondas
 - ✅ **En español** — Español por defecto; inglés disponible con un enlace discreto en Ajustes y en el visor, o con `?lang=en` en cualquier URL (p. ej. la pantalla de TV)
-- ✅ **Funciona sin conexión** — Todos los datos se guardan en localStorage, sin necesidad de cuenta
+- ✅ **Sin cuenta** — Los datos se quedan en el dispositivo (localStorage)
 - ✅ **Exportar / Importar (YAML)** — Guarda un torneo en un archivo `.yaml` legible y cárgalo más tarde para ver resultados o seguir jugando; cada exportación incrementa un `revision` y añade una entrada a un registro `history` dentro del archivo
 - ✅ **Desempates** — Ordenado por puntos totales → partidos ganados → diferencia de puntos
 
 ## Inicio rápido
 
-**Requisitos previos:** Node.js 18+
+**Requisitos previos:** Node.js 20.19+
 
 ```bash
 # Instalar dependencias
@@ -151,7 +151,7 @@ npm run preview  # Previsualizar el build de producción en local (sin /api)
 ├── functions/           # Cloudflare Pages Functions (API serverless)
 │   ├── api/
 │   │   ├── game.ts      # POST /api/game - crear torneo compartido
-│   │   └── game/[id].ts # GET/PUT/DELETE /api/game/:id
+│   │   └── game/[id]/index.ts # GET/PUT/DELETE /api/game/:id
 │   ├── types.ts         # Tipos de la API
 │   └── words.ts         # Palabras en español para IDs de compartir (p. ej. /game/bala-zapato)
 ├── index.tsx            # Punto de entrada React + rutas
@@ -218,14 +218,3 @@ Los argumentos extra se pasan a `wrangler pages dev` (p. ej. `docker run ... pad
 ## Licencia
 
 MIT
-
----
-
-<details>
-<summary>Información original de AI Studio</summary>
-
-Este proyecto se creó a partir de Google AI Studio.
-
-Ver en AI Studio: https://ai.studio/apps/drive/1oXCLn8u0242Op7GnKGWZ8KPmGR3-3US1
-
-</details>

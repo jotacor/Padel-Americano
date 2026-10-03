@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, LeaderboardEntry } from './types';
 import { 
-  Trophy, 
   Award,
   Loader2, 
   Info,

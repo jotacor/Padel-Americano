@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
+import { Player, Tournament, LeaderboardEntry, Pair, PairMode } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
@@ -100,7 +100,6 @@ const App: React.FC = () => {
   const isEvent = eventMode || tournament?.mode === 'event';
   const isFixed = (tournament?.pairMode ?? pairMode) === 'fixed';
   const minForFinals = isFixed ? 2 : 4;
-  const themeColor = isEvent ? 'purple' : 'indigo';
   
   // Theme classes
   const tc = {
@@ -135,37 +134,43 @@ const App: React.FC = () => {
   }, [numCourts]);
 
   useEffect(() => {
-    const savedPlayers = localStorage.getItem('padel_players');
-    const savedTournament = localStorage.getItem('padel_tournament');
-    const savedCourtNames = localStorage.getItem('padel_court_names');
+    // Corrupted saved values must not leave a blank screen
+    const parseSaved = <T,>(key: string): T | null => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as T;
+      } catch (e) {
+        console.error(`Ignoring corrupted ${key}`, e);
+        return null;
+      }
+    };
+    const savedPlayers = parseSaved<Player[]>('padel_players');
+    const savedTournament = parseSaved<Tournament>('padel_tournament');
+    const savedCourtNames = parseSaved<string[]>('padel_court_names');
     const savedEventMode = localStorage.getItem('padel_event_mode');
     const savedEventCourts = localStorage.getItem('padel_event_courts');
     const savedPairMode = localStorage.getItem('padel_pair_mode');
     if (localStorage.getItem('padel_prioritize_skill') === 'true') setPrioritizeSkill(true);
     if (localStorage.getItem('padel_league_prioritize_skill') === 'false') setLeagueSkill(false);
     if (localStorage.getItem('padel_prioritize_ranking') === 'true') setLeagueRanking(true);
-    const savedPairs = localStorage.getItem('padel_pairs');
+    const savedPairs = parseSaved<Pair[]>('padel_pairs');
     if (savedPairMode === 'fixed') setPairMode('fixed');
-    if (savedPairs) setPairs(JSON.parse(savedPairs));
-    if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
-    if (savedCourtNames) setCourtNames(JSON.parse(savedCourtNames));
+    if (Array.isArray(savedPairs)) setPairs(savedPairs);
+    if (Array.isArray(savedPlayers)) setPlayers(savedPlayers);
+    if (Array.isArray(savedCourtNames)) setCourtNames(savedCourtNames);
     if (savedEventMode === 'true') setEventMode(true);
     if (savedEventCourts) setEventNumCourts(parseInt(savedEventCourts) || 4);
     const savedClassicCourts = parseInt(localStorage.getItem('padel_classic_courts') ?? '');
     if (savedClassicCourts > 0) setClassicCourts(savedClassicCourts);
-    if (savedTournament) {
-      try {
-        const parsed = JSON.parse(savedTournament);
-        setTournament(parsed);
-        if (parsed.courtNames) setCourtNames(parsed.courtNames);
-        if (parsed.mode === 'event') setEventMode(true);
-        if (parsed.numCourts) setEventNumCourts(parsed.numCourts);
-        if (parsed.pairMode) setPairMode(parsed.pairMode);
-        if (parsed.pairs) setPairs(parsed.pairs);
-        setActiveTab('rounds');
-      } catch (e) {
-        console.error("Failed to load tournament", e);
-      }
+    if (savedTournament && Array.isArray(savedTournament.players) && Array.isArray(savedTournament.rounds)) {
+      setTournament(savedTournament);
+      if (savedTournament.courtNames) setCourtNames(savedTournament.courtNames);
+      if (savedTournament.mode === 'event') setEventMode(true);
+      if (savedTournament.numCourts) setEventNumCourts(savedTournament.numCourts);
+      if (savedTournament.pairMode) setPairMode(savedTournament.pairMode);
+      if (savedTournament.pairs) setPairs(savedTournament.pairs);
+      setActiveTab('rounds');
     }
   }, []);
 
@@ -245,15 +250,16 @@ const App: React.FC = () => {
   // Sync tournament to cloud when it changes (if sharing is active)
   useEffect(() => {
     if (!shareState.isSharing || !shareState.shareId || !shareState.pin || !tournament) return;
+    const { shareId, pin } = shareState;
     
     const syncToCloud = async () => {
       setShareState(prev => ({ ...prev, isSyncing: true }));
       try {
-        const response = await fetch(`/api/game/${shareState.shareId}`, {
+        const response = await fetch(`/api/game/${shareId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Tournament-Pin': shareState.pin,
+            'X-Tournament-Pin': pin,
           },
           body: JSON.stringify({ tournament }),
         });
@@ -1108,7 +1114,7 @@ const App: React.FC = () => {
                               }
                             }}
                             placeholder={t('common.court', { n: idx + 1 })}
-                            className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none ${isEvent ? 'focus:border-purple-500' : 'focus:border-indigo-500'} placeholder:text-slate-600`}
+                            className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm font-bold focus:outline-none ${isEvent ? 'focus:border-purple-500' : 'focus:border-indigo-500'} placeholder:text-slate-600`}
                           />
                         </div>
                       ))}

@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from './App.tsx';
 import GameViewer from './GameViewer.tsx';
 import LeaderboardDisplay from './LeaderboardDisplay.tsx';
@@ -19,6 +19,7 @@ if (!rootElement) {
             <Route path="/" element={<App />} />
             <Route path="/game/:id" element={<GameViewer />} />
             <Route path="/display/:id" element={<LeaderboardDisplay />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </I18nProvider>

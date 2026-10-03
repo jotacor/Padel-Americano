@@ -36,13 +36,13 @@
 | `index.tsx` | React entry point + routing |
 | `index.html` | HTML shell with Tailwind CDN, OG meta tags |
 | `functions/api/game.ts` | POST - create shared tournament |
-| `functions/api/game/[id].ts` | GET/PUT/DELETE - shared tournament CRUD |
+| `functions/api/game/[id]/index.ts` | GET/PUT/DELETE - shared tournament CRUD |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
-| `utils/playerNames.ts` | Name cleanup + duplicate check (shared by frontend and Functions) |
+| `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile` (validates), `bumpExportMeta`, `exportFilename`. Lazy-loaded by App |
 | `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
@@ -153,10 +153,10 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 
 ## Conventions
 
-- Run `npm run typecheck` before committing (app + Functions; must be error-free)
+- Run `npm run typecheck` before committing (app + Functions; both `strict`, app also `noUnused*`; must be error-free)
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
-- Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
+- Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
 - PIN stored internally for cloud sync but not displayed to users
