@@ -17,7 +17,7 @@
 
 - **Framework**: React 19 with TypeScript
 - **Build**: Vite 6
-- **Styling**: Tailwind CSS (via CDN in index.html)
+- **Styling**: Tailwind CSS 3.4 compiled at build (PostCSS: `tailwind.config.js`, `postcss.config.js`, `index.css`); Inter self-hosted (`@fontsource-variable/inter`). Never build class names from pieces (purge would drop them)
 - **Icons**: Lucide React
 - **Routing**: React Router DOM
 - **Deployment**: Cloudflare Pages
@@ -34,7 +34,9 @@
 | `LeaderboardDisplay.tsx` | Standalone auto-refreshing leaderboard display |
 | `GameViewer.tsx` | Read-only tournament viewer (polling) |
 | `index.tsx` | React entry point + routing |
-| `index.html` | HTML shell with Tailwind CDN, OG meta tags |
+| `index.html` | HTML shell, OG meta tags (Spanish) |
+| `index.css` | Tailwind directives + global styles (`animate-in`, `no-scrollbar`) |
+| `public/_headers` | Long cache for hashed `/assets/*` (Cloudflare Pages) |
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id]/index.ts` | GET/PUT/DELETE - shared tournament CRUD |
 | `functions/types.ts` | Shared API types, ID generation, `readTournamentBody` (512 KB → 413, malformed → 400) |
