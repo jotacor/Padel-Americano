@@ -10,7 +10,7 @@ const sample = (): Tournament => {
   rounds[0].matches.forEach((m, i) => { m.scoreA = 15 + i; m.scoreB = 9 - i; m.isCompleted = true; });
   return {
     id: 'tour-1', name: 'Americano - 3/10/2026', players, rounds, isStarted: true,
-    courtNames: ['Pista Central', 'Pista 2'], mode: 'classic', pairMode: 'rotating', numCourts: 2,
+    mode: 'classic', pairMode: 'rotating', numCourts: 2,
   };
 };
 

@@ -29,7 +29,6 @@ export interface Tournament {
   players: Player[];
   rounds: Round[];
   isStarted: boolean;
-  courtNames?: string[];
   mode?: 'classic' | 'event';
   numCourts?: number;
   pairMode?: PairMode;
@@ -39,7 +38,7 @@ export interface Tournament {
   ranking?: 'total' | 'average'; // standings order (utils/leaderboard.ts); absent = total
   pointsPerMatch?: number; // matches to a fixed total (16/21/24/32): auto-fills the other score; absent = free
   createdAt?: string; // ISO; set when the tournament starts (absent on older data)
-  updatedAt?: string; // ISO; stamped when saved to the library
+  updatedAt?: string; // ISO; reserved for server-side saving
   finishedAt?: string; // ISO; set by "Finalizar"
   exportMeta?: ExportMeta; // YAML export versioning (utils/tournamentFile.ts)
 }

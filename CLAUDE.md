@@ -50,11 +50,11 @@
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
-| `utils/tournamentSchema.ts` | `validateTournament(v, meta?)`: shape validation shared by YAML import, the library and (later) Functions; new `Tournament` fields must be added here (unknown keys are dropped) |
+| `utils/tournamentSchema.ts` | `validateTournament(v, meta?)`: shape validation shared by YAML import and (later) the server; new `Tournament` fields must be added here (unknown keys are dropped) |
 | `utils/tournamentSummary.ts` | `summarizeTournament` (progress + leader), no `yaml` import |
 | `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
-| `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
+| `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtLabel`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
 
 ## Architecture
 
@@ -117,7 +117,6 @@ All state lives in `App.tsx` using React hooks.
 **localStorage keys**:
 - `padel_players` - Player list
 - `padel_tournament` - Full tournament state
-- `padel_court_names` - Court names
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
@@ -183,7 +182,7 @@ Local dev: `scripts/dev.mjs` spawns both; shared tournaments in `./data` (gitign
 - League mode detected via `tournament.mode === 'event'`
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
 - Viewer/display views communicate only through the server API (no localStorage) — except the per-device `padel_language` UI preference
-- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
+- **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Courts have no names: always "Pista N"/"Court N" via `courtLabel(index)`
 - Share token stored in `padel_share_state` (with `tournamentId`), never displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
 

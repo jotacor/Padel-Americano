@@ -7,7 +7,7 @@ import type { Tournament } from '../types.ts';
 const base = (): Tournament => ({ id: 't', name: 'Liga', players: makePlayers(4), rounds: [], isStarted: true, mode: 'event' });
 
 describe('validateTournament', () => {
-  it('keeps the dates and an embedded revision history (library/server JSON)', () => {
+  it('keeps the dates and an embedded revision history (server JSON)', () => {
     const t: Tournament = {
       ...base(),
       createdAt: '2026-10-03T10:00:00.000Z', updatedAt: '2026-10-03T12:00:00.000Z', finishedAt: '2026-10-03T13:00:00.000Z',

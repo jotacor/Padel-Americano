@@ -4,11 +4,11 @@ import type { TranslationKey } from '../i18n/translations.ts';
 import { rankingModeOf } from './leaderboard.ts';
 
 type T = (key: TranslationKey, params?: Record<string, string | number>) => string;
-interface Ctx { t: T; courtName: (name: string | undefined, index: number) => string; locale: string }
+interface Ctx { t: T; courtLabel: (index: number) => string; locale: string }
 
 const nameOf = (t: Tournament, id: string) => t.players.find(p => p.id === id)?.name ?? '?';
 
-export const roundText = (tournament: Tournament, roundIndex: number, { t, courtName }: Ctx): string => {
+export const roundText = (tournament: Tournament, roundIndex: number, { t, courtLabel }: Ctx): string => {
   const round = tournament.rounds[roundIndex];
   if (!round) return '';
   const pair = (ids: [string, string]) => t('text.pair', { a: nameOf(tournament, ids[0]), b: nameOf(tournament, ids[1]) });
@@ -18,7 +18,7 @@ export const roundText = (tournament: Tournament, roundIndex: number, { t, court
     ...(tournament.pointsPerMatch ? [t('rounds.toPoints', { n: tournament.pointsPerMatch })] : []),
   ].join(' · ');
   const matches = [...round.matches].sort((a, b) => a.courtIndex - b.courtIndex).map(m => {
-    const court = m.id.includes('championship') ? `🏆 ${t('common.finals')}` : courtName(tournament.courtNames?.[m.courtIndex], m.courtIndex);
+    const court = m.id.includes('championship') ? `🏆 ${t('common.finals')}` : courtLabel(m.courtIndex);
     const score = m.isCompleted ? ` (${m.scoreA}-${m.scoreB})` : '';
     return `${court}: ${pair(m.teamA)} ${t('common.vs').toLowerCase()} ${pair(m.teamB)}${score}`;
   });

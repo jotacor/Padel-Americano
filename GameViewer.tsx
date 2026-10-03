@@ -31,7 +31,7 @@ const POLL_INTERVAL = 5000; // 5 seconds
 
 const GameViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { t, locale, courtName } = useI18n();
+  const { t, locale, courtLabel } = useI18n();
   const [data, setData] = useState<SharedTournamentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,6 @@ const GameViewer: React.FC = () => {
   const byAverage = rankingModeOf(tournament) === 'average';
   const formatAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-  const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
   const PlayerName = ({ name, baseClass }: { name: string, baseClass: string }) => (
     <span className={baseClass}>{name}</span>
@@ -227,7 +226,7 @@ const GameViewer: React.FC = () => {
                     }`}>
                       <span className="flex items-center gap-1">
                         {match.id.includes('championship') && <Trophy className="w-3 h-3 text-yellow-500" />}
-                        {match.id.includes('championship') ? t('common.finals') : getCourtName(match.courtIndex)}
+                        {match.id.includes('championship') ? t('common.finals') : courtLabel(match.courtIndex)}
                       </span>
                       {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={10}/> {t('common.done')}</span>}
                     </div>

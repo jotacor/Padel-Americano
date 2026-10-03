@@ -7,12 +7,11 @@ import type { Tournament } from '../types.ts';
 
 const t = (key: TranslationKey, params: Record<string, string | number> = {}) =>
   translations.es[key].replace(/\{(\w+)\}/g, (_, p) => String(params[p]));
-const ctx = { t, courtName: (name: string | undefined, i: number) => name || t('common.court', { n: i + 1 }), locale: 'es-ES' };
+const ctx = { t, courtLabel: (i: number) => t('common.court', { n: i + 1 }), locale: 'es-ES' };
 
 const players = makePlayers(10).map((p, i) => ({ ...p, name: ['Ana', 'Luis', 'Marta', 'Juan', 'Pedro', 'Laura', 'Sara', 'Iván', 'Nuria', 'Raúl'][i] }));
 const tournament: Tournament = {
   id: 't', name: 'Liga martes', players, isStarted: true, mode: 'event', ranking: 'average', pointsPerMatch: 24,
-  courtNames: ['Pista Central'],
   rounds: [{
     index: 0, byes: ['p8', 'p9'],
     matches: [
@@ -26,7 +25,7 @@ describe('WhatsApp texts', () => {
   it('round line-up', () => {
     expect(roundText(tournament, 0, ctx)).toBe([
       '🎾 Liga martes · Ronda 1/1 · a 24 puntos',
-      'Pista Central: Ana y Luis vs Marta y Juan (15-9)',
+      'Pista 1: Ana y Luis vs Marta y Juan (15-9)',
       'Pista 2: Pedro y Laura vs Sara y Iván',
       'Descansan: Nuria, Raúl',
     ].join('\n'));
