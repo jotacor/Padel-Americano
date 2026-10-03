@@ -97,7 +97,9 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - Team splits evaluated for skill equality + partnership/opponent history
 - Avoids repeat partnerships and opponents
 
-**Court Rotation**: `optimizeCourtAssignments()` ensures court variety.
+**Court Rotation**: `optimizeCourtAssignments()` ensures court variety: minimizes players staying on their last court, ties broken by round number (lexicographic index `round % ties`). Exact DP over court subsets (n·2ⁿ), identical to the old n! search (equivalence test in `utils/optimizer.test.ts`).
+
+**Random general case** (Berger sizes): per round, branch-and-bound over pair groupings with a greedy starting bound + admissible lower bound (keeps the first optimal grouping → same output) and a deterministic node budget (400k, only hit from ~36 players).
 
 ### Routes
 
