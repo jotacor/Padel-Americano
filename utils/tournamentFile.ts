@@ -92,7 +92,6 @@ const toPlayer = (v: unknown, path: string): Player => {
   return defined({
     id: str(v.id, `${path}.id`),
     name: str(v.name, `${path}.name`),
-    nickname: opt(v.nickname, str, `${path}.nickname`),
     skillLevel: (skill ?? undefined) as Player['skillLevel'],
     isActive: opt(v.isActive, bool, `${path}.isActive`),
   });

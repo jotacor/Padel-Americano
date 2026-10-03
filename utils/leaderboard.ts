@@ -15,7 +15,7 @@ export const computeLeaderboard = (tournament: Tournament | null | undefined): L
   if (!tournament) return [];
   const stats: Record<string, LeaderboardEntry> = {};
   tournament.players.forEach(p => stats[p.id] = {
-    playerId: p.id, playerName: p.name, playerNickname: p.nickname,
+    playerId: p.id, playerName: p.name,
     totalPoints: 0, matchesPlayed: 0, avgPoints: 0, wins: 0, losses: 0, ties: 0, pointDifferential: 0,
   });
 
@@ -44,7 +44,6 @@ export const computeLeaderboard = (tournament: Tournament | null | undefined): L
       ...stats[a],
       playerId: pairKey([a, b]),
       playerName: `${stats[a].playerName} & ${stats[b].playerName}`,
-      playerNickname: undefined,
     })));
   }
   return sortEntries(Object.values(stats).map(withAvg));

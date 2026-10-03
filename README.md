@@ -34,10 +34,6 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
 - ✅ **Auto-cleanup** — Shared tournaments expire after 24 hours
 
-### AI-Powered Features
-- ✅ **AI Nicknames** — Generate fun padel-themed nicknames for players (powered by Anthropic Claude)
-- ✅ **Optional** — Checkbox to enable/disable nickname generation
-
 ### User Experience
 - ✅ **Mobile-First** — Responsive design works great on phones at the courts
 - ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
@@ -59,8 +55,6 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser. Sharing, display and viewer links all work locally.
-
-Optional — AI nicknames: create `.dev.vars` (gitignored) with `ANTHROPIC_API_KEY=sk-ant-...` and restart `npm run dev`.
 
 ## How It Works
 
@@ -138,12 +132,12 @@ Two options in League setup, combinable:
 
 ```bash
 npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C stops both
-npm run dev:vite # Vite only (no /api — sharing/nicknames won't work)
+npm run dev:vite # Vite only (no /api — sharing won't work)
 npm run build    # Production build
 npm run preview  # Preview production build locally (no /api)
 ```
 
-`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the Pages Functions in `wrangler pages dev` and Vite proxies `/api` to it. KV data persists in `.wrangler/state/` (delete to reset). Secrets go in `.dev.vars`. Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the Pages Functions in `wrangler pages dev` and Vite proxies `/api` to it. KV data persists in `.wrangler/state/` (delete to reset). Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
 
 ## Project Structure
 
@@ -157,8 +151,7 @@ npm run preview  # Preview production build locally (no /api)
 ├── functions/           # Cloudflare Pages Functions (serverless API)
 │   ├── api/
 │   │   ├── game.ts      # POST /api/game - create shared tournament
-│   │   ├── game/[id].ts # GET/PUT/DELETE /api/game/:id
-│   │   └── nicknames.ts # POST /api/nicknames - AI nickname generation
+│   │   └── game/[id].ts # GET/PUT/DELETE /api/game/:id
 │   ├── types.ts         # API types
 │   └── words.ts         # Spanish words for share IDs (e.g. /game/bala-zapato)
 ├── index.tsx            # React entry point + routing
@@ -175,13 +168,9 @@ The app is deployed on **Cloudflare Pages** at [padelme.io](https://padelme.io).
 - Push to `main` → deploys to production
 - Create a PR → generates a preview deployment
 
-### Environment Variables (Cloudflare Pages)
+### Cloudflare configuration
 
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | API key for AI nickname generation |
-
-KV Namespace `TOURNAMENTS` is used for cloud-synced tournament storage.
+No environment variables are needed. The KV namespace `TOURNAMENTS` (binding in `wrangler.toml`) stores shared tournaments.
 
 ### Docker (self-hosted)
 
@@ -195,7 +184,7 @@ docker compose logs -f         # logs
 docker compose down            # stop (data kept in the padel-data volume; add -v to wipe it)
 ```
 
-Optional settings in a `.env` file next to `docker-compose.yml` (gitignored): `ANTHROPIC_API_KEY=sk-ant-...` (AI nicknames) and `HOST_PORT=8080` (host port, default 8788).
+Optional: `HOST_PORT=8080` (host port, default 8788) in a `.env` file next to `docker-compose.yml` (gitignored).
 
 Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`).
 
@@ -205,7 +194,6 @@ Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI fro
 docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
   -v padel-data:/data \
-  -e ANTHROPIC_API_KEY=sk-ant-...  \
   padel-americano
 ```
 
@@ -214,7 +202,6 @@ Open [http://localhost:8788](http://localhost:8788).
 | Option | Description |
 |--------|-------------|
 | `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire after 24h |
-| `-e ANTHROPIC_API_KEY` | Optional — enables AI nicknames |
 | `-e PORT` | Internal port (default `8788`) |
 
 **CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).

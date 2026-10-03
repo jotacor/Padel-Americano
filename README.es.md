@@ -34,10 +34,6 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
 - ✅ **Limpieza automática** — Los torneos compartidos caducan a las 24 horas
 
-### Funciones con IA
-- ✅ **Apodos con IA** — Genera apodos divertidos de pádel para los jugadores (con tecnología de Anthropic Claude)
-- ✅ **Opcional** — Casilla para activar/desactivar la generación de apodos
-
 ### Experiencia de usuario
 - ✅ **Mobile-first** — Diseño adaptable que funciona genial en el móvil junto a las pistas
 - ✅ **Navegación con teclado** — Teclas de flecha para moverte entre rondas
@@ -59,8 +55,6 @@ npm run dev
 ```
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Los enlaces de compartir, pantalla y espectador funcionan también en local.
-
-Opcional — apodos con IA: crea `.dev.vars` (ignorado por git) con `ANTHROPIC_API_KEY=sk-ant-...` y reinicia `npm run dev`.
 
 ## Cómo funciona
 
@@ -138,12 +132,12 @@ El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
 
 ```bash
 npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C detiene ambos
-npm run dev:vite # Solo Vite (sin /api — compartir/apodos no funcionarán)
+npm run dev:vite # Solo Vite (sin /api — compartir no funcionará)
 npm run build    # Build de producción
 npm run preview  # Previsualizar el build de producción en local (sin /api)
 ```
 
-`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta las Pages Functions en `wrangler pages dev` y Vite redirige `/api` hacia él. Los datos de KV persisten en `.wrangler/state/` (bórralo para reiniciar). Los secretos van en `.dev.vars`. Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta las Pages Functions en `wrangler pages dev` y Vite redirige `/api` hacia él. Los datos de KV persisten en `.wrangler/state/` (bórralo para reiniciar). Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
 
 ## Estructura del proyecto
 
@@ -157,8 +151,7 @@ npm run preview  # Previsualizar el build de producción en local (sin /api)
 ├── functions/           # Cloudflare Pages Functions (API serverless)
 │   ├── api/
 │   │   ├── game.ts      # POST /api/game - crear torneo compartido
-│   │   ├── game/[id].ts # GET/PUT/DELETE /api/game/:id
-│   │   └── nicknames.ts # POST /api/nicknames - generación de apodos con IA
+│   │   └── game/[id].ts # GET/PUT/DELETE /api/game/:id
 │   ├── types.ts         # Tipos de la API
 │   └── words.ts         # Palabras en español para IDs de compartir (p. ej. /game/bala-zapato)
 ├── index.tsx            # Punto de entrada React + rutas
@@ -175,13 +168,9 @@ La app está desplegada en **Cloudflare Pages** en [padelme.io](https://padelme.
 - Push a `main` → despliega a producción
 - Crear una PR → genera un despliegue de vista previa
 
-### Variables de entorno (Cloudflare Pages)
+### Configuración de Cloudflare
 
-| Variable | Descripción |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | Clave de API para la generación de apodos con IA |
-
-El namespace KV `TOURNAMENTS` se usa para almacenar los torneos sincronizados en la nube.
+No hace falta ninguna variable de entorno. El namespace KV `TOURNAMENTS` (binding en `wrangler.toml`) guarda los torneos compartidos.
 
 ### Docker (autoalojado)
 
@@ -195,7 +184,7 @@ docker compose logs -f         # logs
 docker compose down            # detener (los datos se conservan en el volumen padel-data; añade -v para borrarlo)
 ```
 
-Ajustes opcionales en un archivo `.env` junto a `docker-compose.yml` (ignorado por git): `ANTHROPIC_API_KEY=sk-ant-...` (apodos con IA) y `HOST_PORT=8080` (puerto del host, 8788 por defecto).
+Opcional: `HOST_PORT=8080` (puerto del host, 8788 por defecto) en un archivo `.env` junto a `docker-compose.yml` (ignorado por git).
 
 Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`).
 
@@ -205,7 +194,6 @@ Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por 
 docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
   -v padel-data:/data \
-  -e ANTHROPIC_API_KEY=sk-ant-...  \
   padel-americano
 ```
 
@@ -214,7 +202,6 @@ Abre [http://localhost:8788](http://localhost:8788).
 | Opción | Descripción |
 |--------|-------------|
 | `-v padel-data:/data` | Conserva los torneos compartidos (KV) entre reinicios; siguen caducando a las 24 h |
-| `-e ANTHROPIC_API_KEY` | Opcional — activa los apodos con IA |
 | `-e PORT` | Puerto interno (por defecto `8788`) |
 
 **CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).

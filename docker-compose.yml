@@ -1,13 +1,11 @@
 # docker compose up -d --build   → http://localhost:8788
-# Optional: put ANTHROPIC_API_KEY=sk-ant-... (and HOST_PORT=...) in a .env file next to this one.
+# Optional: put HOST_PORT=... in a .env file next to this one.
 services:
   padel:
     build: .
     image: jotacor/padelamericano:latest
     ports:
       - "${HOST_PORT:-8788}:8788"
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - padel-data:/data # shared tournaments (KV), survive restarts
     restart: unless-stopped

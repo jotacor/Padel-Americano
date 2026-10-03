@@ -4,7 +4,6 @@ import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshi
 import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
-import { useNicknamesAvailable } from './utils/nicknames.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -29,7 +28,6 @@ import {
   Loader2,
   Link as LinkIcon,
   X,
-  Sparkles,
   UserPlus,
   UserMinus,
   Minus,
@@ -98,10 +96,6 @@ const App: React.FC = () => {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedDisplayUrl, setCopiedDisplayUrl] = useState(false);
   
-  // Nickname generation
-  const [generateNicknames, setGenerateNicknames] = useState(false);
-  const [isGeneratingNicknames, setIsGeneratingNicknames] = useState(false);
-  const nicknamesAvailable = useNicknamesAvailable();
 
   const isEvent = eventMode || tournament?.mode === 'event';
   const isFixed = (tournament?.pairMode ?? pairMode) === 'fixed';
@@ -118,7 +112,6 @@ const App: React.FC = () => {
     activeTab: isEvent ? 'text-purple-600 bg-purple-50' : 'text-indigo-600 bg-indigo-50',
     focusBorder: isEvent ? 'focus:border-purple-600' : 'focus:border-indigo-600',
     shadow: isEvent ? 'shadow-purple-100' : 'shadow-indigo-100',
-    nicknameText: isEvent ? 'text-purple-400' : 'text-indigo-400',
   };
 
   // Calculate number of courts based on mode
@@ -419,7 +412,7 @@ const App: React.FC = () => {
   };
   const unpair = (pair: Pair) => updatePairs(prev => prev.filter(p => pairKey(p) !== pairKey(pair)));
 
-  const startTournament = async () => {
+  const startTournament = () => {
     if (players.length < 4) return alert(t('alert.minPlayers'));
     const fixed = pairMode === 'fixed';
     const tournamentPairs = pairs.filter(pair => pair.every(id => players.some(p => p.id === id)));
@@ -437,38 +430,6 @@ const App: React.FC = () => {
     if (eventMode) {
       tournamentPlayers = tournamentPlayers.map(p => ({ ...p, isActive: true }));
       setPlayers(tournamentPlayers);
-    }
-    
-    // Generate nicknames if checkbox is checked
-    if (generateNicknames && nicknamesAvailable) {
-      setIsGeneratingNicknames(true);
-      try {
-        const response = await fetch('/api/nicknames', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ names: players.map(p => p.name), lang }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.nicknames) {
-            tournamentPlayers = tournamentPlayers.map(p => ({
-              ...p,
-              nickname: data.nicknames[p.name] || undefined,
-            }));
-            setPlayers(tournamentPlayers);
-          }
-        } else {
-          const errorText = await response.text();
-          console.error('Failed to generate nicknames:', response.status, errorText);
-          alert(t('alert.nicknamesFailed'));
-        }
-      } catch (error) {
-        console.error('Error generating nicknames:', error);
-        alert(t('alert.nicknamesError'));
-      } finally {
-        setIsGeneratingNicknames(false);
-      }
     }
     
     if (eventMode) {
@@ -755,26 +716,8 @@ const App: React.FC = () => {
     </label>
   );
 
-  const PlayerName = ({ name, nickname, baseClass, inline = false }: { name: string, nickname?: string, baseClass: string, inline?: boolean }) => {
-    if (inline) {
-      return (
-        <span className={baseClass}>
-          {name}
-          {nickname && (
-            <span className={`${tc.nicknameText} font-semibold not-italic text-[0.65em] ml-2`}>"{nickname}"</span>
-          )}
-        </span>
-      );
-    }
-    return (
-      <div className={baseClass}>
-        <div>{name}</div>
-        {nickname && (
-          <div className={`${tc.nicknameText} font-medium not-italic text-xs md:text-sm tracking-wide mt-0.5`}>"{nickname}"</div>
-        )}
-      </div>
-    );
-  };
+  const PlayerName = ({ name, baseClass, inline = false }: { name: string, baseClass: string, inline?: boolean }) =>
+    inline ? <span className={baseClass}>{name}</span> : <div className={baseClass}>{name}</div>;
 
   const getPlayer = (id: string) => tournament?.players.find(p => p.id === id);
 
@@ -1014,7 +957,7 @@ const App: React.FC = () => {
                   } ${inactive ? 'opacity-40 grayscale' : ''}`}>
                     <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black text-sm text-white ${colors.dot}`}>{idx + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <PlayerName name={p.name} nickname={p.nickname} baseClass="block truncate font-black text-slate-800 text-base md:text-lg leading-tight" inline />
+                      <PlayerName name={p.name} baseClass="block truncate font-black text-slate-800 text-base md:text-lg leading-tight" inline />
                       <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                         <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${colors.text}`}>{t(`skill.${skill}`)}</span>
                         {partnerId && (
@@ -1185,36 +1128,10 @@ const App: React.FC = () => {
                 )}
               </div>
               <div className="space-y-4">
-                {!tournament && players.length >= 4 && nicknamesAvailable && (
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${generateNicknames ? `${tc.primary} border-transparent` : 'border-slate-600 group-hover:border-slate-500'}`}>
-                      {generateNicknames && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={generateNicknames} 
-                      onChange={(e) => setGenerateNicknames(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <span className="text-slate-400 font-bold text-sm flex items-center gap-2">
-                      <Sparkles className={`w-4 h-4 ${isEvent ? 'text-purple-400' : 'text-indigo-400'}`} />
-                      {t('setup.generateNicknames')}
-                    </span>
-                  </label>
-                )}
                 {!tournament ? (
-                  <button onClick={startTournament} disabled={players.length < 4 || isGeneratingNicknames} className={`w-full ${tc.primary} ${tc.primaryHover} disabled:bg-slate-800 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl lg:text-lg xl:text-xl whitespace-nowrap flex items-center justify-center gap-3 transition-all active:scale-95`}>
-                    {isGeneratingNicknames ? (
-                      <>
-                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                        {t('setup.generating')}
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
-                        {eventMode ? t('setup.startEvent') : t('setup.generate')}
-                      </>
-                    )}
+                  <button onClick={startTournament} disabled={players.length < 4} className={`w-full ${tc.primary} ${tc.primaryHover} disabled:bg-slate-800 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl lg:text-lg xl:text-xl whitespace-nowrap flex items-center justify-center gap-3 transition-all active:scale-95`}>
+                    <Play className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
+                    {eventMode ? t('setup.startEvent') : t('setup.generate')}
                   </button>
                 ) : (
                   <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> {t('setup.goToMatches')}</button>
@@ -1329,8 +1246,8 @@ const App: React.FC = () => {
                         </div>
                         <div className="p-6 md:p-14 flex flex-col md:grid md:grid-cols-7 items-center gap-6 md:gap-8">
                           <div className="w-full md:col-span-2 text-center md:text-right space-y-3 md:space-y-4 pr-1">
-                            <PlayerName name={p1a?.name || t('common.unknown')} nickname={p1a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
-                            <PlayerName name={p2a?.name || t('common.unknown')} nickname={p2a?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p1a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p2a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                           <div className="w-full md:col-span-3 flex items-center justify-center gap-4 md:gap-6">
                             <input type="number" value={match.scoreA ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'A', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamAWon ? winnerInputClass : ''}`} placeholder="0" />
@@ -1338,8 +1255,8 @@ const App: React.FC = () => {
                             <input type="number" value={match.scoreB ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'B', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamBWon ? winnerInputClass : ''}`} placeholder="0" />
                           </div>
                           <div className="w-full md:col-span-2 text-center md:text-left space-y-3 md:space-y-4 pl-1">
-                            <PlayerName name={p1b?.name || t('common.unknown')} nickname={p1b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
-                            <PlayerName name={p2b?.name || t('common.unknown')} nickname={p2b?.nickname} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p1b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
+                            <PlayerName name={p2b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                         </div>
                       </div>
@@ -1354,7 +1271,7 @@ const App: React.FC = () => {
                         const player = getPlayer(id);
                         return (
                         <div key={id} className="bg-white px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl shadow-sm border border-amber-200">
-                            <PlayerName name={player?.name || ''} nickname={player?.nickname} baseClass="font-black text-sm md:text-xl" inline />
+                            <PlayerName name={player?.name || ''} baseClass="font-black text-sm md:text-xl" inline />
                         </div>
                         );
                       })}
@@ -1485,7 +1402,7 @@ const App: React.FC = () => {
               const getChampPlayer = (id: string) => tournament?.players.find(p => p.id === id);
               const getPlayerNameStr = (id: string) => {
                 const p = getChampPlayer(id);
-                return p ? (p.nickname ? `${p.name} "${p.nickname}"` : p.name) : t('common.unknown');
+                return p ? p.name : t('common.unknown');
               };
               
               const allFinalists = [...winningTeam, ...runnerUpTeam]
@@ -1597,9 +1514,6 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="font-black text-slate-900 text-sm italic uppercase truncate">{entry.playerName}</span>
                         </div>
-                        {entry.playerNickname && (
-                          <div className={`${tc.nicknameText} font-semibold text-[10px] truncate`}>"{entry.playerNickname}"</div>
-                        )}
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="font-bold text-[10px]">
                             <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
@@ -1658,7 +1572,7 @@ const App: React.FC = () => {
                           </td>
                           <td className="px-12 py-10">
                             <div className="flex items-center gap-2">
-                              <PlayerName name={entry.playerName} nickname={entry.playerNickname} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
+                              <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
                             </div>
                             <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
