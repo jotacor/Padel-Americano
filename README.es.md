@@ -24,6 +24,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
 
 ### Gestión flexible del torneo
+- ✅ **Deshacer una ronda** — Quita la última ronda mientras nadie haya apuntado resultados (¿alguien llegó tarde? deshaz y genera otra)
 - ✅ **Añadir rondas bajo demanda** — Botón "+" para ampliar el torneo con una rotación justa de jugadores
 - ✅ **Ronda de campeonato** — Crea la final: 1.º+3.º vs 2.º+4.º clasificado
 - ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual

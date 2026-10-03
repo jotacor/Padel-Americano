@@ -40,6 +40,7 @@ import {
   Unlink,
   Download,
   Copy,
+  Undo2,
   Upload
 } from 'lucide-react';
 
@@ -585,6 +586,24 @@ const App: React.FC = () => {
   const copyRound = (text: string) => copyToClipboard(text, 'share.roundCopied');
   const copyStandings = (text: string) => copyToClipboard(text, 'share.standingsCopied');
   const textCtx = { t, courtLabel, locale };
+  // Undo the last round while nobody has scored in it (e.g. someone arrived late in a League).
+  // Random: only finals and extra "+" rounds (previous round complete), not the pre-generated schedule.
+  const canUndoRound = (() => {
+    const rounds = tournament?.rounds ?? [];
+    const last = rounds[rounds.length - 1];
+    if (!tournament || !last || last.matches.some(m => m.scoreA !== null || m.scoreB !== null)) return false;
+    if (tournament.mode === 'event') return true;
+    const prev = rounds[rounds.length - 2];
+    return last.matches.some(m => m.id.includes('championship')) || (!!prev && prev.matches.every(m => m.isCompleted));
+  })();
+  const undoRound = () => {
+    if (!tournament || !canUndoRound) return;
+    if (!window.confirm(t('confirm.undoRound', { n: tournament.rounds.length }))) return;
+    const rounds = tournament.rounds.slice(0, -1);
+    setTournament({ ...tournament, rounds });
+    setCurrentRoundIndex(Math.max(0, rounds.length - 1));
+  };
+
   // Keyboard navigation for rounds
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1024,6 +1043,11 @@ const App: React.FC = () => {
                   <button onClick={() => copyRound(roundText(tournament, currentRoundIndex, textCtx))} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
                     <Copy className="w-3.5 h-3.5" /> {t('share.copyRound')}
                   </button>
+                  {canUndoRound && currentRoundIndex === tournament.rounds.length - 1 && (
+                    <button onClick={undoRound} className="flex items-center gap-2 text-slate-400 hover:text-rose-500 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
+                      <Undo2 className="w-3.5 h-3.5" /> {t('rounds.undoRound')}
+                    </button>
+                  )}
                 </div>
                 <div className="grid gap-4 md:gap-8">
                   {(tournament.rounds[currentRoundIndex]?.matches || [])
