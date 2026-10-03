@@ -111,6 +111,7 @@ export const validateTournament = (v: unknown, meta?: ExportMeta): Tournament =>
     pairs: opt(v.pairs, (ps, p) => arr(ps, p).map((x, i) => pairOf(x, `${p}[${i}]`, ids)), 'tournament.pairs'),
     prioritizeSkill: opt(v.prioritizeSkill, bool, 'tournament.prioritizeSkill'),
     prioritizeRanking: opt(v.prioritizeRanking, bool, 'tournament.prioritizeRanking'),
+    pointsPerMatch: opt(v.pointsPerMatch, (n, path) => int(n, path) >= 1 ? n as number : fail(`${path}: expected integer ≥ 1`), 'tournament.pointsPerMatch'),
     createdAt: opt(v.createdAt, iso, 'tournament.createdAt'),
     updatedAt: opt(v.updatedAt, iso, 'tournament.updatedAt'),
     finishedAt: opt(v.finishedAt, iso, 'tournament.finishedAt'),

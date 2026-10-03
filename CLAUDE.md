@@ -116,6 +116,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
+- `padel_points_per_match` - points per match chosen in setup ('free' or a number; absent = 11)
 - `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)
 
 ### Cloud Sharing
@@ -139,6 +140,11 @@ All state lives in `App.tsx` using React hooks.
 ### Scoring & Leaderboard
 
 Tiebreaker order: Total Points → Match Wins → Point Differential
+
+### Score entry
+
+- `tournament.pointsPerMatch` (11 default / 15 / 21 / Libre — odd so no ties; `padel_points_per_match` stores 'free' explicitly; older values like 24 stay selectable, setup panel, editable any time; `padel_points_per_match` for setup): `utils/scoring.ts` `applyScoreInput` fills the other side with P − x unless the organizer typed that side by hand (`lastTypedSide` per match), so time-capped results (15-7) still work; `scoreSumMismatch` → non-blocking "Suman X de P"
+- Score inputs: `type=text inputMode=numeric`, select on focus, Enter → next empty score (`data-score`)
 
 ## Commands
 

@@ -20,6 +20,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
 - ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts
 - ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
+- ✅ **Points per match** — Matches to 11, 15 or 21 points (odd: no ties; 11 by default, or free): type one score and the other fills in (13 → 8); numeric keypad, Enter jumps to the next score; a warning if a result doesn't add up
 - ✅ **Winner Highlighting** — Completed matches show winning team in green
 
 ### Flexible Tournament Management

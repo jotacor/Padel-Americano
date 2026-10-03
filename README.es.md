@@ -20,6 +20,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos
 - ✅ **Nombres de pista personalizados** — Pon nombre a las pistas (p. ej., "Pista Central", "Pista A") para llamarlas fácilmente
 - ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
+- ✅ **Puntos por partido** — Partidos a 11, 15 o 21 puntos (impares: sin empates; 11 por defecto, o libre): escribes un marcador y el otro se rellena (13 → 8); teclado numérico, Enter salta al siguiente marcador; aviso si un resultado no suma
 - ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
 
 ### Gestión flexible del torneo
