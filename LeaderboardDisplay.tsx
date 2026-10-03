@@ -9,7 +9,7 @@ import {
   Users,
   Zap
 } from 'lucide-react';
-import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { useI18n } from './i18n/I18nContext.tsx';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 
 const SKILL_COLORS = {
@@ -239,13 +239,10 @@ const LeaderboardDisplay: React.FC = () => {
 
       {/* Bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-purple-950/95 backdrop-blur-md border-t border-purple-800 px-4 md:px-6 py-2.5 md:py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto flex items-center justify-center">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
             <span className="text-purple-400 text-[10px] md:text-xs font-bold">{t('display.liveUpdated', { time: lastUpdated.toLocaleTimeString(locale) })}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher variant="dark" />
           </div>
         </div>
       </div>

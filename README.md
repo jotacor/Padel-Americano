@@ -37,7 +37,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ### User Experience
 - ✅ **Mobile-First** — Responsive design works great on phones at the courts
 - ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
-- ✅ **Multi-language** — English & Spanish (EN/ES switcher on every view, auto-detects browser language)
+- ✅ **Spanish first** — Spanish by default; English available from a discreet link in Setup and the viewer, or with `?lang=en` in any URL (e.g. the TV display)
 - ✅ **Offline Ready** — All data persists in localStorage, no account needed
 - ✅ **Export / Import (YAML)** — Save a tournament to a human-readable `.yaml` file and load it later to see results or keep playing; each export bumps a `revision` and appends to a `history` log inside the file
 - ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
