@@ -29,6 +29,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
 
 ### Compartir y sincronización en la nube
+- ✅ **Copiar y enviar** — "Copiar ronda" (pistas, parejas, quién descansa) para pegarla donde quieras, y "Enviar clasificación" como texto
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
 - ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar

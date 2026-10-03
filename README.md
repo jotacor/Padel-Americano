@@ -29,6 +29,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
 ### Sharing & Cloud Sync
+- ✅ **Copy & send** — "Copy round" (courts, pairs, resting players) to paste wherever you like, and "Send standings" as text
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
 - ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
