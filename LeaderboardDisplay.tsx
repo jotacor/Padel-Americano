@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, LeaderboardEntry } from './types';
 import { 
@@ -9,6 +9,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useI18n } from './i18n/I18nContext.tsx';
+import { usePolling } from './hooks/usePolling.ts';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 
 const SKILL_COLORS = {
@@ -31,7 +32,9 @@ const LeaderboardDisplay: React.FC = () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        setError(response.status === 404 ? t('common.tournamentNotFound') : t('common.failedToLoad'));
+        // Expired → error screen; other failures keep showing the last data
+        if (response.status === 404) setError(t('common.tournamentNotFound'));
+        else if (!tournament) setError(t('common.failedToLoad'));
         return;
       }
       const data = await response.json();
@@ -39,17 +42,13 @@ const LeaderboardDisplay: React.FC = () => {
       setError(null);
       setLastUpdated(new Date());
     } catch {
-      setError(t('common.connectionError'));
+      if (!tournament) setError(t('common.connectionError'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTournament();
-    const interval = setInterval(fetchTournament, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [id]);
+  usePolling(fetchTournament, POLL_INTERVAL, id);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 

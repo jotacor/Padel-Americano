@@ -32,7 +32,8 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
 - ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
-- ✅ **Auto-cleanup** — Shared tournaments expire after 24 hours
+- ✅ **Auto-cleanup** — Shared links expire 24 hours after the last change
+- ✅ **Reliable sync** — Retries on bad signal and shows when the link is out of date; viewers open on the round being played
 
 ### User Experience
 - ✅ **Mobile-First** — Responsive design works great on phones at the courts
@@ -145,6 +146,8 @@ npm run preview  # Preview production build locally (no /api)
 ├── App.tsx              # Main React component (UI + state)
 ├── GameViewer.tsx       # Read-only viewer for shared tournaments
 ├── types.ts             # TypeScript interfaces
+├── components/          # Shared UI pieces (share modal, …)
+├── hooks/               # useShareSync (live sharing), usePolling (viewers)
 ├── utils/
 │   ├── scheduler.ts     # Tournament scheduling + additional rounds
 │   └── tournamentFile.ts # YAML export/import + validation
@@ -201,7 +204,7 @@ Open [http://localhost:8788](http://localhost:8788).
 
 | Option | Description |
 |--------|-------------|
-| `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire after 24h |
+| `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire 24 h after the last change |
 | `-e PORT` | Internal port (default `8788`) |
 
 **CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).

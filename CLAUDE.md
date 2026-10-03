@@ -22,7 +22,7 @@
 - **Routing**: React Router DOM
 - **Deployment**: Cloudflare Pages
 - **Backend**: Cloudflare Pages Functions (serverless)
-- **Storage**: Cloudflare Workers KV (24hr TTL, shared tournaments)
+- **Storage**: Cloudflare Workers KV (shared tournaments, expire 24 h after the last update)
 
 ## Key Files
 
@@ -37,7 +37,11 @@
 | `index.html` | HTML shell with Tailwind CDN, OG meta tags |
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id]/index.ts` | GET/PUT/DELETE - shared tournament CRUD |
-| `functions/types.ts` | Shared API types, PIN hashing, ID generation |
+| `functions/types.ts` | Shared API types, ID generation, `readTournamentBody` (512 KB → 413, malformed → 400) |
+| `functions/secret.ts` | Share write token: 128-bit random, stored as `sha256:<hex>`; legacy 4-digit PIN hashes still accepted |
+| `hooks/useShareSync.ts` | Organizer sharing: create/delete, one PUT in flight, debounce 1.2 s, retries 2/5/15/30 s (+ on online/visible), 404 → expired alert, 401/403 → revoked; share bound to `tournamentId` |
+| `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
+| `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
@@ -123,9 +127,10 @@ All state lives in `App.tsx` using React hooks.
 - Organizer creates shared tournament → POST `/api/game`
 - Share IDs: two different Spanish words from `functions/words.ts` (`bala-zapato`, ~320 words → ~100k combos); POST retries 5× if the KV key exists, then appends a number (`bala-zapato-7`). IDs are opaque strings everywhere (old 6-char IDs still work) — keep words `^[a-z]{3,7}$`, no ñ/accents, no duplicates
 - Share modal shows viewer link (`/game/:id`) and leaderboard display link (`/display/:id`, TV/screen) in both modes
-- Auto-syncs on every change → PUT `/api/game/:id` (debounced 500ms); organizer is the only writer
-- Viewers poll → GET `/api/game/:id` every 5s
-- 24-hour TTL auto-cleanup
+- Auto-syncs on every change → PUT `/api/game/:id` (`useShareSync`: debounced, one request at a time, retries, visible status); organizer is the only writer
+- Viewers poll → GET `/api/game/:id` every 5s while visible (`usePolling`); a failed poll keeps the last data; the viewer follows the live round (`liveRoundIndex`) until navigated by hand
+- TTL: 24 h after the last update (each PUT renews it)
+- Write auth: header `X-Tournament-Pin` carries a random token (field still named `pin` for compatibility)
 
 ### Export / Import (YAML)
 
@@ -167,7 +172,7 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Courts have no names: always "Pista N"/"Court N" via `courtLabel(index)`
-- PIN stored internally for cloud sync but not displayed to users
+- Share token stored in `padel_share_state` (with `tournamentId`), never displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
 
 ## Cloudflare Pages configuration

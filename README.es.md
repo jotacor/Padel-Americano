@@ -32,7 +32,8 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
 - ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
-- ✅ **Limpieza automática** — Los torneos compartidos caducan a las 24 horas
+- ✅ **Limpieza automática** — Los enlaces compartidos caducan 24 horas después del último cambio
+- ✅ **Sincronización fiable** — Reintenta con mala cobertura y avisa si el enlace no está al día; el visor abre en la ronda que se está jugando
 
 ### Experiencia de usuario
 - ✅ **Mobile-first** — Diseño adaptable que funciona genial en el móvil junto a las pistas
@@ -145,6 +146,8 @@ npm run preview  # Previsualizar el build de producción en local (sin /api)
 ├── App.tsx              # Componente React principal (UI + estado)
 ├── GameViewer.tsx       # Visor de solo lectura para torneos compartidos
 ├── types.ts             # Interfaces TypeScript
+├── components/          # Piezas de UI compartidas (modal de compartir, …)
+├── hooks/               # useShareSync (compartir en directo), usePolling (visores)
 ├── utils/
 │   ├── scheduler.ts     # Calendario del torneo + rondas adicionales
 │   └── tournamentFile.ts # Exportar/importar YAML + validación
@@ -201,7 +204,7 @@ Abre [http://localhost:8788](http://localhost:8788).
 
 | Opción | Descripción |
 |--------|-------------|
-| `-v padel-data:/data` | Conserva los torneos compartidos (KV) entre reinicios; siguen caducando a las 24 h |
+| `-v padel-data:/data` | Conserva los torneos compartidos (KV) entre reinicios; siguen caducando 24 h después del último cambio |
 | `-e PORT` | Puerto interno (por defecto `8788`) |
 
 **CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).

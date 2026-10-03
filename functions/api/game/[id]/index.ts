@@ -1,116 +1,62 @@
-import type { Env, SharedTournament, ErrorResponse } from '../../../types';
-import { hashPin, TTL_SECONDS } from '../../../types';
+import type { Env, SharedTournament } from '../../../types';
+import { TTL_SECONDS, errorResponse, readTournamentBody } from '../../../types';
+import { verifySecret } from '../../../secret';
 
-// GET /api/game/:id - Get tournament data (public, no PIN required)
+const publicView = (s: SharedTournament) => ({ id: s.id, tournament: s.tournament, createdAt: s.createdAt, expiresAt: s.expiresAt });
+
+/** Loads the share and checks the write token: the share, or the error response */
+async function authorize(request: Request, env: Env, id: string): Promise<SharedTournament | Response> {
+  const secret = request.headers.get('X-Tournament-Pin');
+  if (!secret) return errorResponse('PIN is required', 401);
+  const data = await env.TOURNAMENTS.get(id);
+  if (!data) return errorResponse('Tournament not found', 404);
+  const shared: SharedTournament = JSON.parse(data);
+  if (!(await verifySecret(secret, shared.pinHash))) return errorResponse('Invalid PIN', 403);
+  return shared;
+}
+
+// GET /api/game/:id - Get tournament data (public)
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, params } = context;
-  const id = params.id as string;
-
   try {
-    const data = await env.TOURNAMENTS.get(id);
-    
-    if (!data) {
-      return Response.json({ error: 'Tournament not found' } as ErrorResponse, { status: 404 });
-    }
-
-    const sharedTournament: SharedTournament = JSON.parse(data);
-    
-    // Return tournament data without the PIN hash
-    return Response.json({
-      id: sharedTournament.id,
-      tournament: sharedTournament.tournament,
-      createdAt: sharedTournament.createdAt,
-      expiresAt: sharedTournament.expiresAt,
-    });
+    const data = await env.TOURNAMENTS.get(params.id as string);
+    if (!data) return errorResponse('Tournament not found', 404);
+    return Response.json(publicView(JSON.parse(data)));
   } catch (error) {
     console.error('Error fetching game:', error);
-    return Response.json({ error: 'Failed to fetch game' } as ErrorResponse, { status: 500 });
+    return errorResponse('Failed to fetch game', 500);
   }
 };
 
-// PUT /api/game/:id - Update tournament scores (requires PIN)
+// PUT /api/game/:id - Update the tournament (organizer only); the share then lives 24 h more
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
-  const id = params.id as string;
-  const pin = request.headers.get('X-Tournament-Pin');
-
-  if (!pin) {
-    return Response.json({ error: 'PIN is required' } as ErrorResponse, { status: 401 });
-  }
-
   try {
-    const data = await env.TOURNAMENTS.get(id);
-    
-    if (!data) {
-      return Response.json({ error: 'Tournament not found' } as ErrorResponse, { status: 404 });
-    }
+    const shared = await authorize(request, env, params.id as string);
+    if (shared instanceof Response) return shared;
+    const body = await readTournamentBody(request);
+    if (body instanceof Response) return body;
 
-    const sharedTournament: SharedTournament = JSON.parse(data);
-    
-    // Verify PIN
-    if (hashPin(pin) !== sharedTournament.pinHash) {
-      return Response.json({ error: 'Invalid PIN' } as ErrorResponse, { status: 403 });
-    }
-
-    const body = await request.json() as { tournament: SharedTournament['tournament'] };
-    
-    if (!body.tournament) {
-      return Response.json({ error: 'Tournament data is required' } as ErrorResponse, { status: 400 });
-    }
-
-    // Update tournament data (organizer is the only writer)
-    sharedTournament.tournament = body.tournament;
-
-    // Calculate remaining TTL
-    const expiresAt = new Date(sharedTournament.expiresAt);
-    const now = new Date();
-    const remainingTtl = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
-
-    await env.TOURNAMENTS.put(id, JSON.stringify(sharedTournament), {
-      expirationTtl: remainingTtl > 0 ? remainingTtl : TTL_SECONDS,
-    });
-
-    return Response.json({
-      id: sharedTournament.id,
-      tournament: sharedTournament.tournament,
-      createdAt: sharedTournament.createdAt,
-      expiresAt: sharedTournament.expiresAt,
-    });
+    shared.tournament = body.tournament;
+    shared.expiresAt = new Date(Date.now() + TTL_SECONDS * 1000).toISOString();
+    await env.TOURNAMENTS.put(shared.id, JSON.stringify(shared), { expirationTtl: TTL_SECONDS });
+    return Response.json(publicView(shared));
   } catch (error) {
     console.error('Error updating game:', error);
-    return Response.json({ error: 'Failed to update game' } as ErrorResponse, { status: 500 });
+    return errorResponse('Failed to update game', 500);
   }
 };
 
-// DELETE /api/game/:id - Delete tournament (requires PIN)
+// DELETE /api/game/:id - Delete the share (organizer only)
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
-  const id = params.id as string;
-  const pin = request.headers.get('X-Tournament-Pin');
-
-  if (!pin) {
-    return Response.json({ error: 'PIN is required' } as ErrorResponse, { status: 401 });
-  }
-
   try {
-    const data = await env.TOURNAMENTS.get(id);
-    
-    if (!data) {
-      return Response.json({ error: 'Tournament not found' } as ErrorResponse, { status: 404 });
-    }
-
-    const sharedTournament: SharedTournament = JSON.parse(data);
-    
-    // Verify PIN
-    if (hashPin(pin) !== sharedTournament.pinHash) {
-      return Response.json({ error: 'Invalid PIN' } as ErrorResponse, { status: 403 });
-    }
-
-    await env.TOURNAMENTS.delete(id);
-
+    const shared = await authorize(request, env, params.id as string);
+    if (shared instanceof Response) return shared;
+    await env.TOURNAMENTS.delete(shared.id);
     return Response.json({ success: true });
   } catch (error) {
     console.error('Error deleting game:', error);
-    return Response.json({ error: 'Failed to delete game' } as ErrorResponse, { status: 500 });
+    return errorResponse('Failed to delete game', 500);
   }
 };
