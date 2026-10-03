@@ -146,3 +146,22 @@ describe('generateChampionshipRound', () => {
     expectValidRound(round, ids(players), 2);
   });
 });
+
+describe('performance', () => {
+  it('generates a 40-player Random schedule quickly', () => {
+    const t = performance.now();
+    const rounds = generateAmericanoSchedule(makePlayers(40));
+    expect(performance.now() - t).toBeLessThan(1500);
+    expect(rounds).toHaveLength(39);
+    rounds.forEach(r => expectValidRound(r, ids(makePlayers(40)), 10));
+  });
+
+  it('generates a League round with 40 players on 10 courts quickly', () => {
+    seedRandom(1);
+    const players = makePlayers(40, 'mixed');
+    const t = performance.now();
+    const round = generateEventRound(players, players, [], 0, 10);
+    expect(performance.now() - t).toBeLessThan(100);
+    expect(round.matches).toHaveLength(10);
+  });
+});

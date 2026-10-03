@@ -57,93 +57,85 @@ const WHIST_SEEDS: Record<number, number[][]> = {
 /**
  * Optimize court assignments to maximize variety for each player.
  * Players should play on different courts as much as possible.
- * 
- * The Whist schedule is perfectly balanced, so statistical approaches
- * often result in ties. We use a simple, deterministic approach:
- * 
- * 1. Try to minimize players staying on the same court as last round
- * 2. When tied (common with balanced schedules), use round parity to alternate
+ *
+ * Picks the court permutation minimizing how many players stay on their last court.
+ * Ties (common with balanced schedules) are broken by round number: among the optimal
+ * permutations in lexicographic order, take index `roundNumber % count` — so courts
+ * alternate predictably.
+ *
+ * Exact dynamic programming over subsets of courts (n·2ⁿ steps instead of n! permutations),
+ * giving exactly the permutation the old exhaustive search picked.
  */
 export const optimizeCourtAssignments = (
   matches: Match[],
   playerCourtHistory: Map<string, number[]>
 ): Match[] => {
-  if (matches.length <= 1) return matches;
+  const n = matches.length;
+  if (n <= 1) return matches;
 
-  const getPlayersInMatch = (m: Match) => [...m.teamA, ...m.teamB];
-  const numCourts = matches.length;
-  
-  /**
-   * Count players who would stay on the same court as their last round
-   * Lower is better (we want movement)
-   */
-  const countPlayersStaying = (perm: number[]): number => {
-    let staying = 0;
-    for (let matchIdx = 0; matchIdx < matches.length; matchIdx++) {
-      const courtIdx = perm[matchIdx];
-      for (const playerId of getPlayersInMatch(matches[matchIdx])) {
-        const history = playerCourtHistory.get(playerId) || [];
-        if (history.length > 0 && history[history.length - 1] === courtIdx) {
-          staying++;
-        }
-      }
+  // w[i][c] = players of match i whose last court was c (the cost of putting match i on court c)
+  const w = matches.map(m => {
+    const row = new Array<number>(n).fill(0);
+    for (const id of [...m.teamA, ...m.teamB]) {
+      const history = playerCourtHistory.get(id);
+      const last = history?.length ? history[history.length - 1] : -1;
+      if (last >= 0 && last < n) row[last]++;
     }
-    return staying;
-  };
+    return row;
+  });
 
-  // Generate all permutations of court indices
-  const permute = (arr: number[]): number[][] => {
-    if (arr.length <= 1) return [arr];
-    const result: number[][] = [];
-    for (let i = 0; i < arr.length; i++) {
-      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-      for (const perm of permute(rest)) {
-        result.push([arr[i], ...perm]);
-      }
-    }
-    return result;
-  };
-
-  const courtIndices = Array.from({ length: numCourts }, (_, i) => i);
-  const allPermutations = permute(courtIndices);
-  
-  // Find permutation(s) with minimum players staying
-  let minStaying = Infinity;
-  const bestPermutations: number[][] = [];
-  
-  for (const perm of allPermutations) {
-    const staying = countPlayersStaying(perm);
-    if (staying < minStaying) {
-      minStaying = staying;
-      bestPermutations.length = 0;
-      bestPermutations.push(perm);
-    } else if (staying === minStaying) {
-      bestPermutations.push(perm);
-    }
-  }
-
-  // Tiebreaker: Use round number (history length) to alternate deterministically
-  // This ensures consistent rotation even when statistics are balanced
+  // Tiebreaker: round number (history length of the first player) cycles through tied permutations
   const roundNumber = playerCourtHistory.values().next().value?.length || 0;
-  
-  // For 2 courts: alternate between [0,1] and [1,0] based on round parity
-  // For more courts: cycle through permutations
-  let bestPermutation: number[];
-  
-  if (bestPermutations.length === 1) {
-    bestPermutation = bestPermutations[0];
+
+  let perm: number[];
+  if (n > 16) {
+    // Never happens with real courts; keep it linear just in case
+    const used = new Set<number>();
+    perm = w.map(row => {
+      let best = -1;
+      row.forEach((cost, c) => { if (!used.has(c) && (best < 0 || cost < row[best])) best = c; });
+      used.add(best);
+      return best;
+    });
   } else {
-    // Multiple tied permutations - use round number to pick deterministically
-    // This creates a predictable alternation pattern
-    const permIndex = roundNumber % bestPermutations.length;
-    bestPermutation = bestPermutations[permIndex];
+    // f[mask] = min cost of placing matches popcount(mask)..n-1 on the courts not in mask;
+    // cnt[mask] = how many optimal ways there are to do it
+    const full = (1 << n) - 1;
+    const f = new Float64Array(1 << n);
+    const cnt = new Float64Array(1 << n);
+    cnt[full] = 1;
+    const popcount = (x: number) => { let c = 0; for (; x; x &= x - 1) c++; return c; };
+    for (let mask = full - 1; mask >= 0; mask--) {
+      const k = popcount(mask);
+      let best = Infinity, ways = 0;
+      for (let c = 0; c < n; c++) {
+        if (mask & (1 << c)) continue;
+        const next = mask | (1 << c);
+        const cost = w[k][c] + f[next];
+        if (cost < best) { best = cost; ways = cnt[next]; }
+        else if (cost === best) ways += cnt[next];
+      }
+      f[mask] = best;
+      cnt[mask] = ways;
+    }
+    // Walk the optimal permutations in lexicographic order to the chosen index
+    let t = roundNumber % cnt[0];
+    perm = [];
+    for (let k = 0, mask = 0; k < n; k++) {
+      for (let c = 0; c < n; c++) {
+        if (mask & (1 << c)) continue;
+        const next = mask | (1 << c);
+        if (w[k][c] + f[next] !== f[mask]) continue;
+        if (t < cnt[next]) { perm.push(c); mask = next; break; }
+        t -= cnt[next];
+      }
+    }
   }
 
-  // Apply the best permutation
   return matches.map((match, idx) => ({
     ...match,
-    courtIndex: bestPermutation[idx],
-    id: match.id.replace(/c\d+$/, `c${bestPermutation[idx]}`)
+    courtIndex: perm[idx],
+    id: match.id.replace(/c\d+$/, `c${perm[idx]}`)
   }));
 };
 
@@ -405,10 +397,38 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
         return s;
       };
 
-      // Branch-and-bound search over all pair partitions
-      // Cast keeps the union: it is assigned inside the search closure
-      let bestPartition = null as [number, number][] | null;
-      let bestScore = Infinity;
+      // Branch-and-bound search over all pair partitions. Keeps the first optimal partition in
+      // search order (later ties never replace it), so the pruning below can't change results.
+      const k = pairsToGroup.length;
+      const cost = Array.from({ length: k }, (_, a) => Array.from({ length: k }, (_, b) => a === b ? Infinity : scorePairGroup(a, b)));
+
+      // Greedy partition (first remaining pair with its cheapest partner) as the starting bound.
+      // Scores are integers, so `greedy + 1` still accepts every partition at least as good.
+      let bestPartition: [number, number][] = [];
+      let greedyScore = 0;
+      for (const rest = Array.from({ length: k }, (_, i) => i); rest.length >= 2; ) {
+        const first = rest.shift()!;
+        let bi = 0;
+        rest.forEach((p, i) => { if (cost[first][p] < cost[first][rest[bi]]) bi = i; });
+        greedyScore += cost[first][rest[bi]];
+        bestPartition.push([first, rest.splice(bi, 1)[0]]);
+      }
+      let bestScore = greedyScore + 1;
+
+      // Admissible lower bound for the unmatched pairs: each pair pays at least half its cheapest match
+      const lowerBound = (remaining: number[]) => {
+        let lb = 0;
+        for (const a of remaining) {
+          let min = Infinity;
+          for (const b of remaining) if (cost[a][b] < min) min = cost[a][b];
+          lb += min;
+        }
+        return lb / 2;
+      };
+
+      // Deterministic safety net for very large groups (never reached up to 30 players)
+      const NODE_BUDGET = 400_000;
+      let nodes = 0;
 
       const search = (
         remaining: number[],
@@ -422,24 +442,23 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
           }
           return;
         }
-        if (remaining.length < 2 || score >= bestScore) return;
+        if (++nodes > NODE_BUDGET || remaining.length < 2 || score + lowerBound(remaining) >= bestScore) return;
 
         const first = remaining[0];
         for (let i = 1; i < remaining.length; i++) {
-          const gs = scorePairGroup(first, remaining[i]);
           const next = remaining.filter((_, idx) => idx !== 0 && idx !== i);
           current.push([first, remaining[i]]);
-          search(next, current, score + gs);
+          search(next, current, score + cost[first][remaining[i]]);
           current.pop();
         }
       };
 
       search(
-        Array.from({ length: pairsToGroup.length }, (_, i) => i),
+        Array.from({ length: k }, (_, i) => i),
         [], 0
       );
 
-      if (bestPartition) {
+      {
         for (let mi = 0; mi < bestPartition.length; mi++) {
           const [piA, piB] = bestPartition[mi];
           matches.push({
