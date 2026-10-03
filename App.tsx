@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, Round, LeaderboardEntry, Match, Pair, PairMode } from './types.ts';
 import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
-import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken } from './utils/playerNames.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
@@ -818,7 +818,6 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
-          <LanguageSwitcher />
           {isPerfect && (
               <div className="flex items-center gap-3 bg-emerald-50 text-emerald-700 px-4 py-2 md:px-6 md:py-3 rounded-2xl md:rounded-[1.5rem] border border-emerald-100 shadow-sm">
               <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -1151,6 +1150,7 @@ const App: React.FC = () => {
                   <button onClick={() => importFileRef.current?.click()} className="text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
                     <Upload className="w-3 h-3" /> {t('setup.importYaml')}
                   </button>
+                  <LanguageLink className="text-slate-400 hover:text-slate-200" />
                   <input
                     ref={importFileRef}
                     type="file"

@@ -46,7 +46,7 @@
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile` (validates), `bumpExportMeta`, `exportFilename`. Lazy-loaded by App |
 | `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
-| `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageSwitcher` |
+| `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtName`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
 
 ## Architecture
 
@@ -114,7 +114,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
-- `padel_language` - UI language (`en`/`es`), saved only on explicit choice; default = browser language
+- `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)
 
 ### Cloud Sharing
 

@@ -15,7 +15,7 @@ import {
   Home,
   Eye
 } from 'lucide-react';
-import { useI18n, LanguageSwitcher } from './i18n/I18nContext.tsx';
+import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 
 interface SharedTournamentData {
@@ -132,7 +132,6 @@ const GameViewer: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <LanguageSwitcher />
             <button 
               onClick={() => fetchTournament()} 
               className="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
@@ -388,6 +387,9 @@ const GameViewer: React.FC = () => {
             </div>
           </div>
         )}
+        <div className="flex justify-center pt-4 pb-16">
+          <LanguageLink className="text-slate-400 hover:text-slate-600" />
+        </div>
       </main>
 
       {/* Auto-refresh indicator */}

@@ -17,17 +17,22 @@ interface I18nContextValue {
 
 const isLanguage = (v: unknown): v is Language => typeof v === 'string' && v in LANGUAGES;
 
-// Priority: saved preference > browser language > English
+// Spanish unless English was chosen: ?lang=xx in the URL (saved, e.g. for a TV display link) > saved choice > 'es'
+const DEFAULT_LANGUAGE: Language = 'es';
 const detectLanguage = (): Language => {
-  if (typeof window === 'undefined') return 'en';
+  if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
+  const fromUrl = new URLSearchParams(window.location.search).get('lang');
   try {
+    if (isLanguage(fromUrl)) {
+      localStorage.setItem(STORAGE_KEY, fromUrl);
+      return fromUrl;
+    }
     const saved = localStorage.getItem(STORAGE_KEY);
     if (isLanguage(saved)) return saved;
   } catch {
     // localStorage unavailable
   }
-  const browser = navigator.language?.slice(0, 2).toLowerCase();
-  return isLanguage(browser) ? browser : 'en';
+  return isLanguage(fromUrl) ? fromUrl : DEFAULT_LANGUAGE;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -39,7 +44,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Only explicit choices are saved, so the browser-language default keeps applying until then
+  // Only explicit choices are saved
   const setLang = useCallback((next: Language) => {
     setLangState(next);
     try {
@@ -75,38 +80,23 @@ export const useI18n = () => {
   return ctx;
 };
 
-const SWITCHER_STYLES = {
-  light: {
-    wrapper: 'bg-slate-100 border-slate-200',
-    icon: 'text-slate-400',
-    active: 'bg-white text-slate-900 shadow-sm',
-    inactive: 'text-slate-400 hover:text-slate-600',
-  },
-  dark: {
-    wrapper: 'bg-purple-900 border-purple-700',
-    icon: 'text-purple-500',
-    active: 'bg-purple-600 text-white',
-    inactive: 'text-purple-400 hover:text-purple-200',
-  },
-};
-
-export const LanguageSwitcher: React.FC<{ variant?: 'light' | 'dark'; className?: string }> = ({ variant = 'light', className = '' }) => {
+/** Discreet link to the other language (Spanish is the default; English is rarely needed) */
+export const LanguageLink: React.FC<{ className?: string }> = ({ className = '' }) => {
   const { lang, setLang, t } = useI18n();
-  const s = SWITCHER_STYLES[variant];
   return (
-    <div role="group" aria-label={t('common.language')} className={`inline-flex items-center gap-0.5 p-1 rounded-xl border ${s.wrapper} ${className}`}>
-      <Languages className={`hidden sm:block w-3.5 h-3.5 mx-1 ${s.icon}`} aria-hidden />
-      {(Object.keys(LANGUAGES) as Language[]).map(code => (
+    <>
+      {(Object.keys(LANGUAGES) as Language[]).filter(code => code !== lang).map(code => (
         <button
           key={code}
+          type="button"
+          lang={code}
           onClick={() => setLang(code)}
-          aria-pressed={lang === code}
-          title={LANGUAGES[code].name}
-          className={`px-2 py-1 rounded-lg text-[10px] font-black tracking-wider transition-all ${lang === code ? s.active : s.inactive}`}
+          title={t('common.language')}
+          className={`font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors ${className}`}
         >
-          {LANGUAGES[code].label}
+          <Languages className="w-3 h-3" aria-hidden /> {LANGUAGES[code].name}
         </button>
       ))}
-    </div>
+    </>
   );
 };

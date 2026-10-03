@@ -45,14 +45,14 @@
   
   <!-- Subtitle -->
   <text x="300" y="420" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="white" opacity="0.9">
-    Smart Tournament Manager
+    Gestor de torneos de pádel
   </text>
   
   <!-- Features -->
   <g transform="translate(300, 460)" font-family="Inter, system-ui, sans-serif" font-size="18" fill="white" opacity="0.7">
-    <text x="0" y="0">🎾 Fair Matchups</text>
-    <text x="180" y="0">📊 Live Scoring</text>
-    <text x="360" y="0">🔗 Shareable Links</text>
+    <text x="0" y="0">🎾 Partidos equilibrados</text>
+    <text x="250" y="0">📊 Resultados en directo</text>
+    <text x="500" y="0">🔗 Enlaces para compartir</text>
   </g>
   
   <!-- Ball decoration -->
