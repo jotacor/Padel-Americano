@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, FolderOpen, Plus, Search, Upload } from 'lucide-react';
+import { AlertTriangle, Download, FolderOpen, Plus, Search, Upload } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.tsx';
 import { useLibrary } from '../../hooks/useLibrary.ts';
 import { describeTournament, tournamentStatus, type TournamentStatus, type TournamentSummary } from '../../utils/tournamentSummary.ts';
@@ -15,14 +15,17 @@ interface Props {
   onImport: () => void;
   onRename: (id: string) => void;
   onExport: (id: string) => void;
+  onRepeat: (id: string) => void;
   onDelete: (id: string) => void;
+  onExportAll: () => void;
+  lastBackupAt: string | null;
 }
 
 type Filter = 'all' | 'unfinished' | 'finished';
 interface Row { id: string; summary: TournamentSummary; status: TournamentStatus; date?: string }
 
-const LibraryView: React.FC<Props> = ({ current, highlightId, onOpen, onNew, onImport, onRename, onExport, onDelete }) => {
-  const { t } = useI18n();
+const LibraryView: React.FC<Props> = ({ current, highlightId, onOpen, onNew, onImport, onRename, onExport, onRepeat, onDelete, onExportAll, lastBackupAt }) => {
+  const { t, locale } = useI18n();
   const { entries, unavailable, saveFailed } = useLibrary();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
@@ -65,6 +68,11 @@ const LibraryView: React.FC<Props> = ({ current, highlightId, onOpen, onNew, onI
           <button onClick={onImport} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 active:scale-95 transition-all">
             <Upload className="w-4 h-4" /> {t('library.import')}
           </button>
+          {rows.length > 0 && (
+            <button onClick={onExportAll} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 active:scale-95 transition-all">
+              <Download className="w-4 h-4" /> {t('library.exportAll')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,6 +133,7 @@ const LibraryView: React.FC<Props> = ({ current, highlightId, onOpen, onNew, onI
               onOpen={() => onOpen(r.id)}
               onRename={() => onRename(r.id)}
               onExport={() => onExport(r.id)}
+              onRepeat={() => onRepeat(r.id)}
               onDelete={() => onDelete(r.id)}
             />
           ))}
@@ -132,7 +141,11 @@ const LibraryView: React.FC<Props> = ({ current, highlightId, onOpen, onNew, onI
       )}
 
       {rows.length > 0 && (
-        <p className="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">{rows.length === 1 ? t('library.onDeviceOne') : t('library.onDevice', { n: rows.length })}</p>
+        <p className="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          {rows.length === 1 ? t('library.onDeviceOne') : t('library.onDevice', { n: rows.length })}
+          {' · '}
+          {lastBackupAt ? t('library.lastBackup', { date: new Date(lastBackupAt).toLocaleDateString(locale) }) : t('library.neverBackedUp')}
+        </p>
       )}
     </div>
   );

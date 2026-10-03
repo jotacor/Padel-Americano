@@ -32,6 +32,8 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Tournaments tab** — Every tournament is saved on the device automatically; open, continue, rename, export or delete them; filter finished/unfinished and search
 - ✅ **Finish = archive** — Finishing a tournament keeps it (with its champion or leader); several leagues can run in parallel with "New"
 - ✅ **Safe import** — Importing a file never overwrites a saved tournament without asking (or imports it as a copy)
+- ✅ **Backups as YAML files** — "Export all" downloads a `.zip` with one YAML per tournament; "Import" takes several `.yaml` files or zips at once
+- ✅ **Repeat** — Set up a new tournament with the players and settings of an old one
 
 ### Sharing & Cloud Sync
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)

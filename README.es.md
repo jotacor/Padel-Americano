@@ -32,6 +32,8 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Pestaña Torneos** — Cada torneo se guarda solo en el dispositivo; ábrelos, continúalos, renómbralos, expórtalos o elimínalos; filtra finalizados/sin finalizar y busca
 - ✅ **Finalizar = archivar** — Al finalizar un torneo se conserva (con su campeón o líder); con "Nuevo" puedes llevar varias ligas a la vez
 - ✅ **Importar sin riesgos** — Importar un archivo nunca sobrescribe un torneo guardado sin preguntar (o lo importa como copia)
+- ✅ **Copias de seguridad en YAML** — "Exportar todo" descarga un `.zip` con un YAML por torneo; "Importar" acepta varios `.yaml` o zips a la vez
+- ✅ **Repetir** — Prepara un torneo nuevo con los jugadores y ajustes de uno anterior
 
 ### Compartir y sincronización en la nube
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)

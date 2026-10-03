@@ -8,7 +8,8 @@ import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
 import LibraryView from './components/library/LibraryView.tsx';
-import { autosave, cancelAutosave, flushAutosave, getTournament, removeTournament, saveTournament } from './utils/library/localLibrary.ts';
+import { autosave, cancelAutosave, flushAutosave, getTournament, listTournaments, removeTournament, saveTournament } from './utils/library/localLibrary.ts';
+import { planImport } from './utils/library/planImport.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -56,6 +57,9 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard' | 'library'>('setup');
   // Card to highlight in Tournaments (e.g. the one just finished)
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(() => {
+    try { return localStorage.getItem('padel_last_backup_at'); } catch { return null; }
+  });
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
@@ -487,6 +491,96 @@ const App: React.FC = () => {
     else await saveTournament({ ...target, name }).catch(() => alert(t('library.saveFailed')));
   };
 
+  /** New tournament set up like an old one: same players, courts, mode, pairs and options; no rounds */
+  const repeatTournament = async (id: string) => {
+    const source = tournament?.id === id ? tournament : await getTournament(id).catch(() => undefined);
+    if (!source) return;
+    if (tournament) {
+      if (!window.confirm(t('confirm.newTournament', { name: tournament.name }))) return;
+      await flushAutosave().catch(() => undefined);
+      await shareSync.detach(tournament);
+      closeTournament();
+    } else if (players.length > 0 && !window.confirm(t('confirm.openReplacesSetup'))) {
+      return;
+    }
+    setPlayers(source.players.map(p => ({ ...p, isActive: true })));
+    setCourtNames(source.courtNames ?? []);
+    setEventMode(source.mode === 'event');
+    if (source.numCourts) {
+      if (source.mode === 'event') setEventNumCourts(source.numCourts);
+      else setClassicCourts(source.numCourts);
+    }
+    setPairMode(source.pairMode ?? 'rotating');
+    setPairs(source.pairs ?? []);
+    if (source.mode === 'event') {
+      const mm = leagueMatchmaking(source);
+      setLeagueSkill(mm.skill);
+      setLeagueRanking(mm.ranking);
+    } else {
+      setPrioritizeSkill(!!source.prioritizeSkill);
+    }
+    setPairingWith(null);
+    setActiveTab('setup');
+  };
+
+  /** Add several YAML files / zips to the library (never overwrites: changed ones come in as copies) */
+  const libraryImportRef = useRef<HTMLInputElement>(null);
+  const importToLibrary = async (files: File[]) => {
+    const [{ readImportFiles }, { parseTournamentFile }] = await Promise.all([import('./utils/library/bundle.ts'), loadTournamentFile()]);
+    const { files: texts, errors } = await readImportFiles(files);
+    const parsed: Tournament[] = [];
+    texts.forEach(f => {
+      const r = parseTournamentFile(f.text);
+      if (r.ok) parsed.push(r.tournament);
+      else errors.push({ name: f.name, detail: r.detail ?? r.error });
+    });
+    await flushAutosave().catch(() => undefined);
+    const savedIds = new Set((await listTournaments().catch(() => [])).map(e => e.id));
+    const existing = new Map<string, Tournament>();
+    for (const id of new Set(parsed.map(p => p.id))) {
+      if (!savedIds.has(id)) continue;
+      const saved = await getTournament(id).catch(() => undefined);
+      if (saved) existing.set(id, saved);
+    }
+    const actions = planImport(parsed, existing, () => crypto.randomUUID(), t('library.copySuffix'));
+    let added = 0;
+    for (const a of actions) {
+      if (a.kind === 'skip') continue;
+      try {
+        await saveTournament(a.tournament);
+        added++;
+      } catch {
+        errors.push({ name: a.tournament.name, detail: t('library.saveFailed') });
+      }
+    }
+    const skipped = actions.filter(a => a.kind === 'skip').length;
+    const report = t('library.importReport', { added, skipped, failed: errors.length });
+    alert([report, ...errors.map(e => `• ${e.name}: ${e.detail}`)].join('\n'));
+  };
+
+  /** Every saved tournament as YAML files in one .zip (doesn't bump export revisions) */
+  const exportAll = async () => {
+    await flushAutosave().catch(() => undefined);
+    const entries = await listTournaments().catch(() => []);
+    const all: Tournament[] = [];
+    for (const e of entries) {
+      const saved = tournament?.id === e.id ? tournament : await getTournament(e.id).catch(() => undefined);
+      if (saved) all.push(saved);
+    }
+    if (!all.length) return;
+    const [{ zipTournaments }, { serializeTournament }] = await Promise.all([import('./utils/library/bundle.ts'), loadTournamentFile()]);
+    const blob = await zipTournaments(all, serializeTournament);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `padel-torneos-${new Date().toISOString().slice(0, 10)}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const now = new Date().toISOString();
+    setLastBackupAt(now);
+    try { localStorage.setItem('padel_last_backup_at', now); } catch { /* storage unavailable */ }
+  };
+
   const clearAllData = async () => {
     if (window.confirm(t('confirm.clearAll'))) {
       await shareSync.end();
@@ -761,6 +855,19 @@ const App: React.FC = () => {
             const file = e.target.files?.[0];
             e.target.value = '';
             if (file) importTournament(file);
+          }}
+        />
+        <input
+          ref={libraryImportRef}
+          type="file"
+          accept=".yaml,.yml,.zip"
+          multiple
+          className="hidden"
+          data-testid="library-import-files"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) importToLibrary(files);
           }}
         />
         <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -1268,10 +1375,13 @@ const App: React.FC = () => {
             highlightId={highlightId}
             onOpen={openFromLibrary}
             onNew={newTournament}
-            onImport={() => importFileRef.current?.click()}
+            onImport={() => libraryImportRef.current?.click()}
             onRename={renameTournament}
             onExport={async id => exportTournament(tournament?.id === id ? tournament : await getTournament(id).catch(() => undefined))}
+            onRepeat={repeatTournament}
             onDelete={deleteFromLibrary}
+            onExportAll={exportAll}
+            lastBackupAt={lastBackupAt}
           />
         )}
 

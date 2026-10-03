@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, Download, Ellipsis, Link2, Pencil, Play, Trash2, Trophy, Users } from 'lucide-react';
+import { CalendarDays, Download, Ellipsis, Link2, Pencil, Play, Repeat, Trash2, Trophy, Users } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.tsx';
 import type { TournamentStatus, TournamentSummary } from '../../utils/tournamentSummary.ts';
 
@@ -11,6 +11,7 @@ interface Props {
   onOpen: () => void;
   onRename: () => void;
   onExport: () => void;
+  onRepeat: () => void;
   onDelete: () => void;
 }
 
@@ -20,7 +21,7 @@ const STATUS_STYLE: Record<TournamentStatus, string> = {
   finished: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
-const TournamentCard: React.FC<Props> = ({ summary: s, status, date, highlighted, onOpen, onRename, onExport, onDelete }) => {
+const TournamentCard: React.FC<Props> = ({ summary: s, status, date, highlighted, onOpen, onRename, onExport, onRepeat, onDelete }) => {
   const { t, locale } = useI18n();
   const [showActions, setShowActions] = useState(false);
   const isLeague = s.mode === 'event';
@@ -87,12 +88,15 @@ const TournamentCard: React.FC<Props> = ({ summary: s, status, date, highlighted
       </div>
 
       {showActions && (
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-1 sm:gap-2">
           <button onClick={onRename} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">
             <Pencil className="w-4 h-4" /> {t('library.rename')}
           </button>
           <button onClick={onExport} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">
             <Download className="w-4 h-4" /> {t('library.export')}
+          </button>
+          <button onClick={onRepeat} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">
+            <Repeat className="w-4 h-4" /> {t('library.repeat')}
           </button>
           <button onClick={onDelete} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-50">
             <Trash2 className="w-4 h-4" /> {t('library.delete')}

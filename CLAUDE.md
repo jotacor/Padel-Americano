@@ -126,6 +126,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
 - IndexedDB `padel-americano`: saved tournaments (the open one is also kept in `padel_tournament` and mirrored by the autosave)
+- `padel_last_backup_at` - last "Export all" (backup reminder in Tournaments)
 - `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)
 
 ### Cloud Sharing
@@ -145,6 +146,7 @@ All state lives in `App.tsx` using React hooks.
 - **New** pauses the open one (stays "unfinished"); **Open** loads any saved one (`applyTournament`, also used by import) — finished ones stay editable to fix scores
 - **Delete** asks; deleting the open, shared one also deletes the link. "Clear all data" keeps saved tournaments
 - Import never overwrites silently: same id + different content → confirm replace, Cancel = copy with new id and " (copia)"
+- Tournaments tab "Import" takes several `.yaml/.yml/.zip` (`utils/library/bundle.ts`, fflate lazy-loaded; zip entries > 5 MB rejected) and plans with `planImport` (add / skip identical / copy changed — never overwrite); "Export all" = zip of YAML without bumping revisions, stores `padel_last_backup_at` (footer reminder); "Repeat" pre-fills Setup from a tournament (players, courts, mode, pairs, options)
 - Status is derived (`tournamentStatus`): open / finished (`finishedAt` or final played) / unfinished
 
 ### Export / Import (YAML)
