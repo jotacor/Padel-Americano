@@ -163,7 +163,7 @@ npm run preview  # Preview production build locally (no /api)
 
 ## Deployment
 
-The app is deployed on **Cloudflare Pages** at [padelme.io](https://padelme.io).
+The app is deployed on **Cloudflare Pages** (Git integration: build `npm run build`, output `dist`, Node from `.nvmrc`).
 
 - Push to `main` → deploys to production
 - Create a PR → generates a preview deployment
