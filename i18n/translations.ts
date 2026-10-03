@@ -101,7 +101,6 @@ const en = {
   'setup.tournamentInfo': 'Tournament Info',
   'setup.athletes': 'Athletes',
   'setup.active': 'Active',
-  'setup.courtNames': 'Court Names',
   'setup.startEvent': 'START',
   'setup.generate': 'START',
   'setup.goToMatches': 'GO TO MATCHES',
@@ -291,7 +290,6 @@ const es: Translations = {
   'setup.tournamentInfo': 'Info del Torneo',
   'setup.athletes': 'Jugadores',
   'setup.active': 'Activos',
-  'setup.courtNames': 'Nombres de Pistas',
   'setup.startEvent': 'INICIAR',
   'setup.generate': 'INICIAR',
   'setup.goToMatches': 'IR A PARTIDOS',
@@ -386,14 +384,3 @@ const es: Translations = {
 };
 
 export const translations: Record<Language, Translations> = { en, es };
-
-// Default court names ("Court 3", "Pista 3") in any supported language
-const DEFAULT_COURT_RE = new RegExp(
-  `^(${Object.values(translations).map(tr => tr['common.court'].replace(' {n}', '')).join('|')}) (\\d+)$`
-);
-
-/** Number in a default court name ("Pista 3" → 3), or null for custom names. */
-export const defaultCourtNumber = (name: string): number | null => {
-  const m = name.match(DEFAULT_COURT_RE);
-  return m ? Number(m[2]) : null;
-};

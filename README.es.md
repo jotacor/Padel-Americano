@@ -18,7 +18,6 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
 - ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
 - ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos
-- ✅ **Nombres de pista personalizados** — Pon nombre a las pistas (p. ej., "Pista Central", "Pista A") para llamarlas fácilmente
 - ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
 - ✅ **Puntos por partido** — Partidos a 11, 15 o 21 puntos (impares: sin empates; 11 por defecto, o libre): escribes un marcador y el otro se rellena (13 → 8); teclado numérico, Enter salta al siguiente marcador; aviso si un resultado no suma
 - ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
@@ -62,7 +61,7 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Los enlaces
 ### Flujo del torneo
 
 1. **Configuración** — Añade jugadores con un nivel (mínimo 4; 8/12/16 para un equilibrio Whist "perfecto"), elige un modo y la modalidad de parejas
-2. **Configurar pistas** — Elige cuántas pistas tienes y renómbralas según tu club (Tab para pasar entre campos)
+2. **Configurar pistas** — Elige cuántas pistas tienes (Pista 1, 2, 3…)
 3. **Empezar** — *Aleatorio* crea todas las rondas de entrada; *Liga* las genera de una en una
 4. **Jugar** — Navega por las rondas e introduce los resultados tras cada partido
 5. **Ampliar** — Añade más rondas con el botón "+" si hay tiempo

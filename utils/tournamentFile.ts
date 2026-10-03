@@ -46,7 +46,7 @@ export const serializeTournament = (t: Tournament): string => {
     ' Import it from Setup → Import to see results or keep playing.',
     ' Each export of the same tournament bumps `revision` and appends to `history`.',
   ].join('\n');
-  // Short scalar lists inline: teamA: [ a, b ], byes: [], courtNames: [ ... ]
+  // Short scalar lists inline: teamA: [ a, b ], byes: []
   visit(doc, { Seq(_, node) { if (isSeq(node) && node.items.every(isScalar)) node.flow = true; } });
   return doc.toString({ lineWidth: 0 });
 };

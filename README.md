@@ -18,7 +18,6 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
 - ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
-- ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts
 - ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
 - ✅ **Points per match** — Matches to 11, 15 or 21 points (odd: no ties; 11 by default, or free): type one score and the other fills in (13 → 8); numeric keypad, Enter jumps to the next score; a warning if a result doesn't add up
 - ✅ **Winner Highlighting** — Completed matches show winning team in green
@@ -62,7 +61,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. Sharing, di
 ### Tournament Flow
 
 1. **Setup** — Add players with a skill level (4+ required; 8/12/16 for "perfect" Whist balance), pick a mode and pair modality
-2. **Configure Courts** — Pick how many courts you have and rename them for your venue (Tab between inputs)
+2. **Configure Courts** — Pick how many courts you have (Court 1, 2, 3…)
 3. **Start** — *Random* creates all rounds up front; *League* generates them one at a time
 4. **Play** — Navigate through rounds, enter scores after each match
 5. **Extend** — Add more rounds with "+" button if time permits

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Languages } from 'lucide-react';
-import { LANGUAGES, Language, TranslationKey, translations, defaultCourtNumber } from './translations.ts';
+import { LANGUAGES, Language, TranslationKey, translations } from './translations.ts';
 
 const STORAGE_KEY = 'padel_language';
 
@@ -11,8 +11,8 @@ interface I18nContextValue {
   locale: string;
   setLang: (lang: Language) => void;
   t: (key: TranslationKey, params?: Params) => string;
-  /** Court label for display: localizes default names ("Court 2" ↔ "Pista 2"), keeps custom ones. */
-  courtName: (name: string | undefined, index: number) => string;
+  /** "Pista 2" / "Court 2" for court index 1 */
+  courtLabel: (index: number) => string;
 }
 
 const isLanguage = (v: unknown): v is Language => typeof v === 'string' && v in LANGUAGES;
@@ -60,15 +60,11 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return template.replace(/\{(\w+)\}/g, (match, p) => (p in params ? String(params[p]) : match));
   }, [lang]);
 
-  const courtName = useCallback((name: string | undefined, index: number) => {
-    if (!name) return t('common.court', { n: index + 1 });
-    const n = defaultCourtNumber(name);
-    return n === null ? name : t('common.court', { n });
-  }, [t]);
+  const courtLabel = useCallback((index: number) => t('common.court', { n: index + 1 }), [t]);
 
   const value = useMemo(
-    () => ({ lang, locale: LANGUAGES[lang].locale, setLang, t, courtName }),
-    [lang, setLang, t, courtName]
+    () => ({ lang, locale: LANGUAGES[lang].locale, setLang, t, courtLabel }),
+    [lang, setLang, t, courtLabel]
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

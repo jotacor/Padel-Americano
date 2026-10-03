@@ -1,4 +1,4 @@
-// Tournament shape validation, shared by YAML import, the saved-tournaments library and (later) the server.
+// Tournament shape validation, shared by YAML import and (later) the server.
 // Pure functions, no dependencies: throws Error("<path>: <problem>") on invalid data.
 import type { Tournament, Player, Round, Match, Pair, ExportMeta, ExportHistoryEntry } from '../types.ts';
 
@@ -104,7 +104,6 @@ export const validateTournament = (v: unknown, meta?: ExportMeta): Tournament =>
     players,
     rounds: arr(v.rounds, 'tournament.rounds').map((r, i) => toRound(r, `tournament.rounds[${i}]`, ids)),
     isStarted: opt(v.isStarted, bool, 'tournament.isStarted') ?? true,
-    courtNames: opt(v.courtNames, (c, p) => arr(c, p).map((n, i) => typeof n === 'string' ? n : fail(`${p}[${i}]: expected string`)), 'tournament.courtNames'),
     mode: (mode ?? undefined) as Tournament['mode'],
     numCourts: opt(v.numCourts, int, 'tournament.numCourts'),
     pairMode: (pairMode ?? undefined) as Tournament['pairMode'],

@@ -58,7 +58,7 @@ const SKILL_COLORS = {
 const MAX_COURTS = 10;
 
 const App: React.FC = () => {
-  const { t, lang, locale, courtName } = useI18n();
+  const { t, locale, courtLabel } = useI18n();
   const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -66,7 +66,6 @@ const App: React.FC = () => {
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
-  const [courtNames, setCourtNames] = useState<string[]>([]);
   
   // League ("event") mode
   const [eventMode, setEventMode] = useState(false);
@@ -122,20 +121,6 @@ const App: React.FC = () => {
     : tournament ? (tournament.numCourts ?? maxClassicCourts)
     : Math.min(classicCourts ?? maxClassicCourts, maxClassicCourts);
 
-  // Initialize court names when court count changes
-  useEffect(() => {
-    setCourtNames(prev => {
-      if (numCourts === 0) return [];
-      if (prev.length === numCourts) return prev;
-      
-      const newNames = [...prev];
-      while (newNames.length < numCourts) {
-        newNames.push(t('common.court', { n: newNames.length + 1 }));
-      }
-      return newNames.slice(0, numCourts);
-    });
-  }, [numCourts]);
-
   useEffect(() => {
     // Corrupted saved values must not leave a blank screen
     const parseSaved = <T,>(key: string): T | null => {
@@ -150,7 +135,7 @@ const App: React.FC = () => {
     };
     const savedPlayers = parseSaved<Player[]>('padel_players');
     const savedTournament = parseSaved<Tournament>('padel_tournament');
-    const savedCourtNames = parseSaved<string[]>('padel_court_names');
+    localStorage.removeItem('padel_court_names'); // court names were removed
     const savedEventMode = localStorage.getItem('padel_event_mode');
     const savedEventCourts = localStorage.getItem('padel_event_courts');
     const savedPairMode = localStorage.getItem('padel_pair_mode');
@@ -161,7 +146,6 @@ const App: React.FC = () => {
     if (savedPairMode === 'fixed') setPairMode('fixed');
     if (Array.isArray(savedPairs)) setPairs(savedPairs);
     if (Array.isArray(savedPlayers)) setPlayers(savedPlayers);
-    if (Array.isArray(savedCourtNames)) setCourtNames(savedCourtNames);
     if (savedEventMode === 'true') setEventMode(true);
     if (savedEventCourts) setEventNumCourts(parseInt(savedEventCourts) || 4);
     const savedPoints = localStorage.getItem('padel_points_per_match');
@@ -171,7 +155,6 @@ const App: React.FC = () => {
     if (savedClassicCourts > 0) setClassicCourts(savedClassicCourts);
     if (savedTournament && Array.isArray(savedTournament.players) && Array.isArray(savedTournament.rounds)) {
       setTournament(savedTournament);
-      if (savedTournament.courtNames) setCourtNames(savedTournament.courtNames);
       if (savedTournament.mode === 'event') setEventMode(true);
       if (savedTournament.numCourts) setEventNumCourts(savedTournament.numCourts);
       if (savedTournament.pairMode) setPairMode(savedTournament.pairMode);
@@ -180,11 +163,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Keep default court names ("Court 1" ↔ "Pista 1") in the selected language; custom names untouched
-  useEffect(() => {
-    setCourtNames(prev => prev.map((name, idx) => courtName(name, idx)));
-  }, [lang]);
-
   useEffect(() => {
     localStorage.setItem('padel_players', JSON.stringify(players));
   }, [players]);
@@ -192,12 +170,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (tournament) localStorage.setItem('padel_tournament', JSON.stringify(tournament));
   }, [tournament]);
-
-  useEffect(() => {
-    if (courtNames.length > 0) {
-      localStorage.setItem('padel_court_names', JSON.stringify(courtNames));
-    }
-  }, [courtNames]);
 
   useEffect(() => {
     localStorage.setItem('padel_event_mode', eventMode.toString());
@@ -454,7 +426,6 @@ const App: React.FC = () => {
         players: tournamentPlayers,
         rounds: [],
         isStarted: true,
-        courtNames: [...courtNames],
         mode: 'event',
         ...(setupPoints && { pointsPerMatch: setupPoints }),
         createdAt: new Date().toISOString(),
@@ -476,7 +447,6 @@ const App: React.FC = () => {
         players: tournamentPlayers,
         rounds,
         isStarted: true,
-        courtNames: [...courtNames],
         mode: 'classic',
         ...(setupPoints && { pointsPerMatch: setupPoints }),
         createdAt: new Date().toISOString(),
@@ -490,15 +460,6 @@ const App: React.FC = () => {
     setActiveTab('rounds');
   };
 
-  const updateCourtName = (index: number, name: string) => {
-    setCourtNames(prev => {
-      const updated = [...prev];
-      updated[index] = name;
-      return updated;
-    });
-  };
-
-  const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
   const resetTournament = async () => {
     if (window.confirm(t('confirm.endTournament'))) {
@@ -548,7 +509,6 @@ const App: React.FC = () => {
       }
       setTournament(null);
       setPlayers([]);
-      setCourtNames([]);
       setEventMode(false);
       setPairMode('rotating');
       setPairs([]);
@@ -559,7 +519,6 @@ const App: React.FC = () => {
       setSetupPoints(DEFAULT_POINTS);
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
-      localStorage.removeItem('padel_court_names');
       localStorage.removeItem('padel_share_state');
       localStorage.removeItem('padel_event_mode');
       localStorage.removeItem('padel_event_courts');
@@ -620,7 +579,6 @@ const App: React.FC = () => {
     const imported = result.tournament;
     setTournament(imported);
     setPlayers(imported.players);
-    setCourtNames(imported.courtNames ?? []);
     setEventMode(imported.mode === 'event');
     if (imported.numCourts) {
       if (imported.mode === 'event') setEventNumCourts(imported.numCourts);
@@ -668,7 +626,6 @@ const App: React.FC = () => {
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound],
-        courtNames: [...courtNames],
       });
     } else {
       const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
@@ -1130,45 +1087,6 @@ const App: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Court Names Configuration */}
-                {numCourts > 0 && (!tournament || tournament.mode === 'event') && (
-                  <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('setup.courtNames')}</h3>
-                    <div className="space-y-2">
-                      {courtNames.map((name, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="text-slate-600 text-xs font-bold w-5">{idx + 1}</span>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => updateCourtName(idx, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === 'Tab') {
-                                if (idx < courtNames.length - 1) {
-                                  e.preventDefault();
-                                  const nextInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input');
-                                  nextInput?.focus();
-                                }
-                              }
-                            }}
-                            placeholder={t('common.court', { n: idx + 1 })}
-                            className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm font-bold focus:outline-none ${isEvent ? 'focus:border-purple-500' : 'focus:border-indigo-500'} placeholder:text-slate-600`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {tournament?.courtNames && tournament.courtNames.length > 0 && tournament.mode !== 'event' && (
-                  <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('common.courts')}</h3>
-                    <div className="space-y-1 text-sm text-slate-400">
-                      {tournament.courtNames.map((name, idx) => (
-                        <div key={idx}>{courtName(name, idx)}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="space-y-4">
                 {!tournament ? (
@@ -1287,7 +1205,7 @@ const App: React.FC = () => {
                         <div className={`px-6 md:px-12 py-3 md:py-5 border-b flex justify-between items-center font-black text-[9px] md:text-[10px] uppercase tracking-widest ${match.id.includes('championship') ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' : 'bg-slate-50/50 border-slate-100 text-slate-400'}`}>
                           <span className="flex items-center gap-2">
                             {match.id.includes('championship') && <Trophy className="w-4 h-4 text-yellow-500" />}
-                            {match.id.includes('championship') ? t('common.finals') : getCourtName(match.courtIndex)}
+                            {match.id.includes('championship') ? t('common.finals') : courtLabel(match.courtIndex)}
                           </span>
                           {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={12}/> {t('common.done')}</span>}
                         </div>
