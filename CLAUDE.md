@@ -40,6 +40,7 @@
 | `functions/types.ts` | Shared API types, ID generation, `readTournamentBody` (512 KB → 413, malformed → 400) |
 | `functions/secret.ts` | Share write token: 128-bit random, stored as `sha256:<hex>`; legacy 4-digit PIN hashes still accepted |
 | `hooks/useShareSync.ts` | Organizer sharing: create/delete, one PUT in flight, debounce 1.2 s, retries 2/5/15/30 s (+ on online/visible), 404 → expired alert, 401/403 → revoked; share bound to `tournamentId` |
+| `utils/shareText.ts` | WhatsApp texts: `roundText` (line-up, results, resting) and `standingsText` (current ranking mode + live link); sent with `navigator.share` or clipboard + toast |
 | `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |

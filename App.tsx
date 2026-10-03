@@ -8,6 +8,7 @@ import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
 import { applyScoreInput, DEFAULT_POINTS, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
+import { roundText, standingsText } from './utils/shareText.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, minMatchesToQualify, pairOfEntry, rankingModeOf, type RankingMode } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -38,6 +39,7 @@ import {
   Unlink,
   Download,
   Undo2,
+  Send,
   Upload
 } from 'lucide-react';
 
@@ -81,6 +83,7 @@ const App: React.FC = () => {
   
   // Live sharing (KV, 24 h after the last update)
   const [showShareModal, setShowShareModal] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   
 
   const isEvent = eventMode || tournament?.mode === 'event';
@@ -644,6 +647,26 @@ const App: React.FC = () => {
     setCurrentRoundIndex(Math.max(0, rounds.length - 1));
   };
 
+  /** Round line-up / standings as text for WhatsApp: share sheet, or clipboard where there is none */
+  const sendText = async (text: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(t('share.copied'));
+      setTimeout(() => setToast(null), 2500);
+    } catch {
+      window.prompt('', text);
+    }
+  };
+  const textCtx = { t, courtName, locale };
+
   // Keyboard navigation for rounds
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1118,13 +1141,16 @@ const App: React.FC = () => {
                   </div>
                   <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={() => setCurrentRoundIndex(i => i + 1)} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
                 </div>
-                {canUndoRound && currentRoundIndex === tournament.rounds.length - 1 && (
-                  <div className="flex justify-center -mt-2 md:-mt-4">
+                <div className="flex justify-center gap-6 -mt-2 md:-mt-4">
+                  <button onClick={() => sendText(roundText(tournament, currentRoundIndex, textCtx))} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
+                    <Send className="w-3.5 h-3.5" /> {t('share.sendRound')}
+                  </button>
+                  {canUndoRound && currentRoundIndex === tournament.rounds.length - 1 && (
                     <button onClick={undoRound} className="flex items-center gap-2 text-slate-400 hover:text-rose-500 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
                       <Undo2 className="w-3.5 h-3.5" /> {t('rounds.undoRound')}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="grid gap-4 md:gap-8">
                   {(tournament.rounds[currentRoundIndex]?.matches || [])
                     .slice()
@@ -1339,6 +1365,16 @@ const App: React.FC = () => {
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
                 <div className="flex items-center gap-3">
                   <span className="hidden lg:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t(byAverage ? 'lb.sortedByAvg' : 'lb.sortedBy')}</span>
+                  {tournament && (
+                    <button
+                      onClick={() => sendText(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
+                      title={t('share.sendStandings')}
+                      aria-label={t('share.sendStandings')}
+                      className="p-2 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    >
+                      <Send className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  )}
                   <div className="flex gap-1 p-1 bg-slate-100 rounded-xl" title={t('lb.modeHint')}>
                     {(['total', 'average'] as const).map(mode => (
                       <button
@@ -1479,6 +1515,11 @@ const App: React.FC = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+        {toast && (
+          <div role="status" className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl z-[110]">
+            {toast}
           </div>
         )}
       </main>
