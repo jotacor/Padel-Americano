@@ -1,27 +1,18 @@
 #!/usr/bin/env node
-// Local dev: Vite (HMR, :3000) + `wrangler pages dev` (Pages Functions + local KV, :8788).
-// Vite proxies /api/* to wrangler (see vite.config.ts). Ctrl-C stops both.
+// Local dev: Vite (HMR, :3000) + the API server (server/index.ts, :8788, restarts on change).
+// Vite proxies /api/* to it (see vite.config.ts); data in ./data. Ctrl-C stops both.
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const apiPort = process.env.API_PORT || '8788';
-// Empty asset dir for wrangler: Vite serves the frontend, wrangler only the Functions.
-const assetsDir = path.join(root, '.wrangler', 'dev-assets');
-mkdirSync(assetsDir, { recursive: true });
-const env = { ...process.env, API_PORT: apiPort, FORCE_COLOR: process.env.FORCE_COLOR ?? '1' };
+const env = { ...process.env, API_PORT: apiPort, PORT: apiPort, FORCE_COLOR: process.env.FORCE_COLOR ?? '1' };
 
 const procs = [
-  {
-    name: 'api',
-    color: 35,
-    bin: 'node_modules/wrangler/bin/wrangler.js',
-    args: ['pages', 'dev', assetsDir, '--ip', '127.0.0.1', '--port', apiPort, '--show-interactive-dev-session=false'],
-  },
-  { name: 'web', color: 36, bin: 'node_modules/vite/bin/vite.js', args: process.argv.slice(2) },
+  { name: 'api', color: 35, args: ['--watch', 'server/index.ts'] },
+  { name: 'web', color: 36, args: ['node_modules/vite/bin/vite.js', ...process.argv.slice(2)] },
 ];
 
 const isWin = process.platform === 'win32';
@@ -30,11 +21,11 @@ let exitCode = 0;
 
 for (const p of procs) {
   const prefix = `\x1b[${p.color}m[${p.name}]\x1b[0m `;
-  p.child = spawn(process.execPath, [path.join(root, p.bin), ...p.args], {
+  p.child = spawn(process.execPath, p.args, {
     cwd: root,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: !isWin, // own process group, so we can kill grandchildren (workerd, esbuild)
+    detached: !isWin, // own process group, so we can kill grandchildren (esbuild)
   });
   for (const [stream, out] of [[p.child.stdout, process.stdout], [p.child.stderr, process.stderr]]) {
     createInterface({ input: stream }).on('line', (line) => out.write(prefix + line + '\n'));

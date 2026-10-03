@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateToken, hashSecret, verifySecret } from './secret';
+import { generateToken, hashSecret, verifySecret } from './secret.ts';
 
 describe('share write secret', () => {
   it('generates 128-bit url-safe tokens', () => {

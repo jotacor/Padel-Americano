@@ -11,8 +11,9 @@
     "dev:vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p functions",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "start": "node server/index.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -23,7 +24,6 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260122.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -33,7 +33,6 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^5.0.3",
-    "wrangler": "^4.60.0"
+    "vitest": "^5.0.3"
   }
 }
