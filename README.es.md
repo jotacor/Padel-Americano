@@ -7,7 +7,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
-![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Pages-F38020?logo=cloudflare)
+![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)
 
 ## Características
 
@@ -29,10 +29,10 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual
 - ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
 
-### Compartir y sincronización en la nube
+### Compartir
 - ✅ **Copiar ronda y clasificación** — "Copiar ronda" y "Copiar clasificación" dejan el texto en el portapapeles (`ANA-LUIS vs MARTA-JUAN`) para pegarlo donde quieras
 - ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
-- ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con la nube, los espectadores ven las actualizaciones automáticamente
+- ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con el servidor, los espectadores ven las actualizaciones automáticamente
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
 - ✅ **Limpieza automática** — Los enlaces compartidos caducan 24 horas después del último cambio
 - ✅ **Sincronización fiable** — Reintenta con mala cobertura y avisa si el enlace no está al día; el visor abre en la ronda que se está jugando
@@ -53,7 +53,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 # Instalar dependencias
 npm install
 
-# Iniciar el servidor de desarrollo (Vite + Pages Functions + KV local)
+# Iniciar el servidor de desarrollo (Vite + servidor de la API)
 npm run dev
 ```
 
@@ -134,13 +134,13 @@ El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
 ## Desarrollo
 
 ```bash
-npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C detiene ambos
+npm run dev      # Vite (HMR, :3000) + servidor de la API (server/index.ts, :8788, se reinicia al cambiar); Ctrl-C detiene ambos
 npm run dev:vite # Solo Vite (sin /api — compartir no funcionará)
-npm run build    # Build de producción
-npm run preview  # Previsualizar el build de producción en local (sin /api)
+npm run build    # Build de producción (dist/)
+npm start        # Servidor de producción: dist/ + /api en :8788
 ```
 
-`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta las Pages Functions en `wrangler pages dev` y Vite redirige `/api` hacia él. Los datos de KV persisten en `.wrangler/state/` (bórralo para reiniciar). Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta el servidor de la API y Vite redirige `/api` hacia él. Los torneos compartidos se guardan como ficheros JSON en `./data` (bórralo para reiniciar). Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
 
 ## Estructura del proyecto
 
@@ -153,33 +153,21 @@ npm run preview  # Previsualizar el build de producción en local (sin /api)
 ├── utils/
 │   ├── scheduler.ts     # Calendario del torneo + rondas adicionales
 │   └── tournamentFile.ts # Exportar/importar YAML + validación
-├── functions/           # Cloudflare Pages Functions (API serverless)
-│   ├── api/
-│   │   ├── game.ts      # POST /api/game - crear torneo compartido
-│   │   └── game/[id]/index.ts # GET/PUT/DELETE /api/game/:id
-│   ├── types.ts         # Tipos de la API
+├── server/              # Servidor Node (sin dependencias en ejecución)
+│   ├── index.ts         # Entrada: PORT, DATA_DIR, DIST_DIR
+│   ├── app.ts           # /api/game (crear/leer/actualizar/borrar compartidos) + ficheros estáticos con fallback SPA
+│   ├── store.ts         # Un fichero JSON por torneo compartido en DATA_DIR/shares
+│   ├── secret.ts        # Token de escritura (aleatorio, guardado con hash)
 │   └── words.ts         # Palabras en español para IDs de compartir (p. ej. /game/bala-zapato)
 ├── index.tsx            # Punto de entrada React + rutas
 ├── index.html           # Esqueleto HTML + meta tags OG
-├── scripts/dev.mjs      # Desarrollo local: Vite + wrangler pages dev
-├── wrangler.toml        # Configuración de Cloudflare (bindings KV)
+├── scripts/dev.mjs      # Desarrollo local: Vite + servidor de la API
 └── CLAUDE.md            # Archivo de contexto para agentes de IA
 ```
 
 ## Despliegue
 
-La app está desplegada en **Cloudflare Pages** (integración con Git: build `npm run build`, salida `dist`, Node según `.nvmrc`).
-
-- Push a `main` → despliega a producción
-- Crear una PR → genera un despliegue de vista previa
-
-### Configuración de Cloudflare
-
-No hace falta ninguna variable de entorno. El namespace KV `TOURNAMENTS` (binding en `wrangler.toml`) guarda los torneos compartidos.
-
-### Docker (autoalojado)
-
-La imagen ejecuta la app completa — frontend, Pages Functions `/api/*` y un almacén KV local — con `wrangler pages dev` (el mismo runtime `workerd` que Cloudflare).
+Un único contenedor Docker sirve todo (frontend + API) y guarda los torneos compartidos como ficheros en `/data`. Apunta tu dominio a él (p. ej. con el proxy de Cloudflare) y pon HTTPS delante.
 
 **Docker Compose** (lo más sencillo):
 
@@ -191,33 +179,32 @@ docker compose down            # detener (los datos se conservan en el volumen p
 
 Opcional: `HOST_PORT=8080` (puerto del host, 8788 por defecto) en un archivo `.env` junto a `docker-compose.yml` (ignorado por git).
 
-Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`).
+Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`). Portainer: crea un stack con `docker-compose.yml`, cambiando el volumen por una carpeta del host si lo prefieres (p. ej. `/mnt/pool/apps/padel:/data`).
 
 **Docker simple:**
 
 ```bash
-docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
   -v padel-data:/data \
-  padel-americano
+  jotacor/padelamericano:latest
 ```
 
 Abre [http://localhost:8788](http://localhost:8788).
 
 | Opción | Descripción |
 |--------|-------------|
-| `-v padel-data:/data` | Conserva los torneos compartidos (KV) entre reinicios; siguen caducando 24 h después del último cambio |
+| `-v padel-data:/data` | Los torneos compartidos (`/data/shares/*.json`) sobreviven a reinicios; cada uno caduca 24 h después de su último cambio |
 | `-e PORT` | Puerto interno (por defecto `8788`) |
 
-**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).
+Hace falta HTTPS para copiar al portapapeles fuera de localhost: usa un proxy inverso o el proxy de Cloudflare delante del contenedor.
 
-Los argumentos extra se pasan a `wrangler pages dev` (p. ej. `docker run ... padel-americano --log-level debug`). Ponlo detrás de un proxy inverso para HTTPS (necesario para copiar al portapapeles en hosts que no sean localhost).
+**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).
 
 ## Contribuir
 
 1. Crea una rama de funcionalidad: `git checkout -b feature/tu-funcionalidad`
-2. Haz cambios y pruébalos en local
-3. Abre una PR — Cloudflare generará un enlace de vista previa
+2. Haz cambios y pruébalos en local (`npm run dev`, `npm test`)
+3. Abre una PR — el CI comprueba tipos, tests y build
 4. Fusiona tras la revisión
 
 ## Licencia

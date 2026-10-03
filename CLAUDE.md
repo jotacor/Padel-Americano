@@ -10,7 +10,7 @@
 1. Create a feature branch (`feature/...`, `fix/...`)
 2. Commit and push to the branch
 3. Open a PR via `gh pr create`
-4. Test on the Cloudflare Pages preview deployment
+4. Test locally (`npm run dev`) or with the Docker image; CI must be green
 5. Merge only after preview is verified
 
 ## Tech Stack
@@ -20,9 +20,9 @@
 - **Styling**: Tailwind CSS (via CDN in index.html)
 - **Icons**: Lucide React
 - **Routing**: React Router DOM
-- **Deployment**: Cloudflare Pages
-- **Backend**: Cloudflare Pages Functions (serverless)
-- **Storage**: Cloudflare Workers KV (shared tournaments, expire 24 h after the last update)
+- **Deployment**: Docker image `jotacor/padelamericano` (self-hosted: TrueNAS/Portainer), domain through Cloudflare DNS proxy
+- **Backend**: `server/` — plain Node (built-ins only, runs TypeScript directly: `node server/index.ts`)
+- **Storage**: files in `DATA_DIR` (`/data` in Docker): one JSON per shared tournament in `shares/`, expiring 24 h after the last update
 
 ## Key Files
 
@@ -34,16 +34,16 @@
 | `LeaderboardDisplay.tsx` | Standalone auto-refreshing leaderboard display |
 | `GameViewer.tsx` | Read-only tournament viewer (polling) |
 | `index.tsx` | React entry point + routing |
-| `index.html` | HTML shell with Tailwind CDN, OG meta tags |
-| `functions/api/game.ts` | POST - create shared tournament |
-| `functions/api/game/[id]/index.ts` | GET/PUT/DELETE - shared tournament CRUD |
-| `functions/types.ts` | Shared API types, ID generation, `readTournamentBody` (512 KB → 413, malformed → 400) |
-| `functions/secret.ts` | Share write token: 128-bit random, stored as `sha256:<hex>`; legacy 4-digit PIN hashes still accepted |
+| `index.html` | HTML shell with Tailwind CDN, OG meta tags (Spanish) |
+| `server/index.ts` | Server entry (env `PORT` 8788, `DATA_DIR`, `DIST_DIR`), hourly sweep of expired shares |
+| `server/app.ts` | `/api/game` POST, `/api/game/:id` GET/PUT/DELETE (body ≤ 512 KB → 413, malformed → 400), `/api/health`; static `dist/` with SPA fallback, immutable cache for `/assets/*`, absolute `og:image` |
+| `server/store.ts` | File store: `shares/<id>.json`, atomic writes, ids validated (no path traversal), expiry |
+| `server/secret.ts` | Share write token: 128-bit random, stored as `sha256:<hex>`; legacy 4-digit PIN hashes still accepted |
 | `hooks/useShareSync.ts` | Organizer sharing: create/delete, one PUT in flight, debounce 1.2 s, retries 2/5/15/30 s (+ on online/visible), 404 → expired alert, 401/403 → revoked; share bound to `tournamentId` |
 | `utils/shareText.ts` | Texts to copy: `roundText` ("Pista 1: ANA-LUIS vs MARTA-JUAN (7-4)", resting) and `standingsText` (+ live link) → "Copiar ronda" / "Copiar clasificación" (clipboard + toast) |
 | `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
-| `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
+| `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
@@ -126,7 +126,7 @@ All state lives in `App.tsx` using React hooks.
 ### Cloud Sharing
 
 - Organizer creates shared tournament → POST `/api/game`
-- Share IDs: two different Spanish words from `functions/words.ts` (`bala-zapato`, ~320 words → ~100k combos); POST retries 5× if the KV key exists, then appends a number (`bala-zapato-7`). IDs are opaque strings everywhere (old 6-char IDs still work) — keep words `^[a-z]{3,7}$`, no ñ/accents, no duplicates
+- Share IDs: two different Spanish words from `server/words.ts` (`bala-zapato`, ~320 words → ~100k combos); POST retries 5× if the id exists, then appends a number (`bala-zapato-7`). IDs are opaque strings everywhere (old 6-char IDs still work) — keep words `^[a-z]{3,7}$`, no ñ/accents, no duplicates
 - Share modal shows viewer link (`/game/:id`) and leaderboard display link (`/display/:id`, TV/screen) in both modes
 - Auto-syncs on every change → PUT `/api/game/:id` (`useShareSync`: debounced, one request at a time, retries, visible status); organizer is the only writer
 - Viewers poll → GET `/api/game/:id` every 5s while visible (`usePolling`); a failed poll keeps the last data; the viewer follows the live round (`liveRoundIndex`) until navigated by hand
@@ -155,15 +155,16 @@ Tiebreaker order: Total Points → Match Wins → Point Differential
 
 ```bash
 npm install    # Install dependencies
-npm run dev    # Vite :3000 (HMR) + wrangler pages dev :8788 (Functions + local KV), /api proxied; Ctrl-C stops both
+npm run dev    # Vite :3000 (HMR) + API server :8788 (node --watch server/index.ts, data in ./data), /api proxied; Ctrl-C stops both
+npm start      # Production server (dist/ + /api)
 npm run dev:vite # Vite only, no /api
 npm run build  # Production build
 npm run preview # Preview production build
 ```
 
-Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
+Local dev: `scripts/dev.mjs` spawns both; shared tournaments in `./data` (gitignored).
 
-**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines. `docker-compose.yml` = build + volume `padel-data:/data` + optional `HOST_PORT` from `.env`. CI `.github/workflows/docker.yml`: only on push to `main` → build + push `jotacor/padelamericano:{latest,sha8}` (secret `DOCKER_PASSWORD`).
+**Docker** (`Dockerfile`): build stage `npm ci && npm run build`; runtime `node:24-alpine` with only `dist/`, `server/` and `types.ts` (no node_modules), `CMD node server/index.ts`, volume `/data`, healthcheck `/api/health`. Server code must stay erasable TypeScript (no enums/parameter properties, `import type`, `.ts` extensions) and use only Node built-ins. `docker-compose.yml` = build + volume `padel-data:/data` + optional `HOST_PORT` from `.env`. CI `.github/workflows/docker.yml`: only on push to `main` → build + push `jotacor/padelamericano:{latest,sha8}` (secret `DOCKER_PASSWORD`).
 
 ## Conventions
 
@@ -171,13 +172,12 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 - Championship detection uses `match.id.includes('championship')`
 - League mode detected via `tournament.mode === 'event'`
 - Player names are uppercase (`cleanName` uppercases; `upperNames`/`withUpperNames` normalize saved/imported data) and unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
-- Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
+- Viewer/display views communicate only through the server API (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Courts have no names: always "Pista N"/"Court N" via `courtLabel(index)`
 - Share token stored in `padel_share_state` (with `tournamentId`), never displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
 
-## Cloudflare Pages configuration
+## Hosting
 
-- No environment variables. KV Namespace binding: `TOURNAMENTS`, ids in `wrangler.toml` (account Jotacor): production `padel-americano`, previews `[env.preview]` → `padel-americano-preview` (Pages ignores `preview_id`; every binding must be redeclared under `env.preview`)
-- Build: Pages Git integration, `npm run build` → `dist`, Node version from `.nvmrc`
+- No Cloudflare Pages/Workers/KV: the container is the whole app; Cloudflare is only DNS/proxy for `padel.jotacor.com`
 - No AI features: the AI nickname generator was removed (players have only a name)

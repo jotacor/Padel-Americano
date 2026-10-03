@@ -25,6 +25,8 @@ dist-ssr
 
 # Wrangler local state / secrets
 .wrangler
+# Local server data (shared tournaments)
+/data
 .dev.vars*
 
 # Docker Compose settings / secrets

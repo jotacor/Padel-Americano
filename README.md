@@ -7,7 +7,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
-![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Pages-F38020?logo=cloudflare)
+![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)
 
 ## Features
 
@@ -29,10 +29,10 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Championship Results** — Shows winning team, runner-up, and individual rankings
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
-### Sharing & Cloud Sync
+### Sharing
 - ✅ **Copy round & standings** — "Copy round" and "Copy standings" put the text on the clipboard (`ANA-LUIS vs MARTA-JUAN`) to paste wherever you like
 - ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
-- ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
+- ✅ **Real-time Sync** — Scores sync to the server, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
 - ✅ **Auto-cleanup** — Shared links expire 24 hours after the last change
 - ✅ **Reliable sync** — Retries on bad signal and shows when the link is out of date; viewers open on the round being played
@@ -53,7 +53,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 # Install dependencies
 npm install
 
-# Start dev server (Vite + Pages Functions + local KV)
+# Start dev server (Vite + API server)
 npm run dev
 ```
 
@@ -134,13 +134,13 @@ Two options in League setup, combinable:
 ## Development
 
 ```bash
-npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C stops both
+npm run dev      # Vite (HMR, :3000) + API server (server/index.ts, :8788, restarts on change); Ctrl-C stops both
 npm run dev:vite # Vite only (no /api — sharing won't work)
-npm run build    # Production build
-npm run preview  # Preview production build locally (no /api)
+npm run build    # Production build (dist/)
+npm start        # Production server: dist/ + /api on :8788
 ```
 
-`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the Pages Functions in `wrangler pages dev` and Vite proxies `/api` to it. KV data persists in `.wrangler/state/` (delete to reset). Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the API server and Vite proxies `/api` to it. Shared tournaments are saved as JSON files in `./data` (delete to reset). Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
 
 ## Project Structure
 
@@ -153,33 +153,21 @@ npm run preview  # Preview production build locally (no /api)
 ├── utils/
 │   ├── scheduler.ts     # Tournament scheduling + additional rounds
 │   └── tournamentFile.ts # YAML export/import + validation
-├── functions/           # Cloudflare Pages Functions (serverless API)
-│   ├── api/
-│   │   ├── game.ts      # POST /api/game - create shared tournament
-│   │   └── game/[id]/index.ts # GET/PUT/DELETE /api/game/:id
-│   ├── types.ts         # API types
+├── server/              # Node server (no runtime dependencies)
+│   ├── index.ts         # Entry: PORT, DATA_DIR, DIST_DIR
+│   ├── app.ts           # /api/game (create/read/update/delete shares) + static files with SPA fallback
+│   ├── store.ts         # One JSON file per shared tournament in DATA_DIR/shares
+│   ├── secret.ts        # Write token (random, stored hashed)
 │   └── words.ts         # Spanish words for share IDs (e.g. /game/bala-zapato)
 ├── index.tsx            # React entry point + routing
 ├── index.html           # HTML shell + OG meta tags
-├── scripts/dev.mjs      # Local dev: Vite + wrangler pages dev
-├── wrangler.toml        # Cloudflare config (KV bindings)
+├── scripts/dev.mjs      # Local dev: Vite + API server
 └── CLAUDE.md            # AI agent context file
 ```
 
 ## Deployment
 
-The app is deployed on **Cloudflare Pages** (Git integration: build `npm run build`, output `dist`, Node from `.nvmrc`).
-
-- Push to `main` → deploys to production
-- Create a PR → generates a preview deployment
-
-### Cloudflare configuration
-
-No environment variables are needed. The KV namespace `TOURNAMENTS` (binding in `wrangler.toml`) stores shared tournaments.
-
-### Docker (self-hosted)
-
-The image runs the full app — frontend, `/api/*` Pages Functions and a local KV store — with `wrangler pages dev` (same `workerd` runtime as Cloudflare).
+A single Docker container serves everything (frontend + API) and keeps shared tournaments as files in `/data`. Point your domain to it (e.g. through Cloudflare's proxy) and put HTTPS in front.
 
 **Docker Compose** (simplest):
 
@@ -191,33 +179,32 @@ docker compose down            # stop (data kept in the padel-data volume; add -
 
 Optional: `HOST_PORT=8080` (host port, default 8788) in a `.env` file next to `docker-compose.yml` (gitignored).
 
-Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`).
+Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`). Portainer: create a stack with `docker-compose.yml`, replacing the volume with a host folder if you prefer (e.g. `/mnt/pool/apps/padel:/data`).
 
 **Plain Docker:**
 
 ```bash
-docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
   -v padel-data:/data \
-  padel-americano
+  jotacor/padelamericano:latest
 ```
 
 Open [http://localhost:8788](http://localhost:8788).
 
 | Option | Description |
 |--------|-------------|
-| `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire 24 h after the last change |
+| `-v padel-data:/data` | Shared tournaments (`/data/shares/*.json`) survive restarts; each expires 24 h after its last change |
 | `-e PORT` | Internal port (default `8788`) |
 
-**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
+HTTPS is required for clipboard copy outside localhost: use a reverse proxy or Cloudflare's proxy in front of the container.
 
-Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-americano --log-level debug`). Put it behind a reverse proxy for HTTPS (needed for clipboard copy on non-localhost hosts).
+**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
 
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and test locally
-3. Open a PR — Cloudflare will generate a preview link
+2. Make changes and test locally (`npm run dev`, `npm test`)
+3. Open a PR — CI runs typecheck, tests and build
 4. Merge after review
 
 ## License
