@@ -23,7 +23,6 @@
 - **Deployment**: Cloudflare Pages
 - **Backend**: Cloudflare Pages Functions (serverless)
 - **Storage**: Cloudflare Workers KV (24hr TTL, shared tournaments)
-- **AI**: Anthropic Claude Haiku (nickname generation via `/api/nicknames`)
 
 ## Key Files
 
@@ -38,8 +37,6 @@
 | `index.html` | HTML shell with Tailwind CDN, OG meta tags |
 | `functions/api/game.ts` | POST - create shared tournament |
 | `functions/api/game/[id].ts` | GET/PUT/DELETE - shared tournament CRUD |
-| `functions/api/nicknames.ts` | POST - AI nickname generation; GET - `{ enabled }` (key configured?) |
-| `utils/nicknames.ts` | `useNicknamesAvailable()` hook — hides nickname UI when no API key |
 | `functions/types.ts` | Shared API types, PIN hashing, ID generation |
 | `functions/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
@@ -150,9 +147,9 @@ npm run build  # Production build
 npm run preview # Preview production build
 ```
 
-Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`; `ANTHROPIC_API_KEY` via `.dev.vars` (gitignored).
+Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`.
 
-**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`, `ANTHROPIC_API_KEY` passed as binding. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines. `docker-compose.yml` = build + volume `padel-data:/data` + optional `ANTHROPIC_API_KEY`/`HOST_PORT` from `.env`. CI `.github/workflows/docker.yml`: only on push to `main` → build + push `jotacor/padelamericano:{latest,sha8}` (secret `DOCKER_PASSWORD`).
+**Docker** (`Dockerfile` + `docker-entrypoint.sh`): multi-stage build, runtime = `wrangler pages dev dist` on port 8788, KV persisted in `/data`. Wrangler version pinned from `package-lock.json`. If Functions import new root-level files/dirs, add them to the runtime `COPY` lines. `docker-compose.yml` = build + volume `padel-data:/data` + optional `HOST_PORT` from `.env`. CI `.github/workflows/docker.yml`: only on push to `main` → build + push `jotacor/padelamericano:{latest,sha8}` (secret `DOCKER_PASSWORD`).
 
 ## Conventions
 
@@ -162,11 +159,10 @@ Local dev: `scripts/dev.mjs` spawns both; KV state in `.wrangler/state/`; `ANTHR
 - Player names must be unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path; API returns 409 on duplicates
 - Viewer/display views communicate only through KV (no localStorage) — except the per-device `padel_language` UI preference
 - **i18n**: never hardcode UI text; add key to `en` in `i18n/translations.ts` and same key to `es` (TS errors if missing), use `t('key', { param })`. Unknown keys are type errors. Use `locale` for `toLocale*String()`. Default court names ("Court N"/"Pista N") localized via `courtName()`; custom names kept
-- AI nicknames follow UI language (`lang` sent to `/api/nicknames`)
 - PIN stored internally for cloud sync but not displayed to users
 - Hardcoded schedules in `SCHEDULE_8` and `SCHEDULE_16` are verified optimal
 
-## Environment Variables (Cloudflare Pages)
+## Cloudflare Pages configuration
 
-- `ANTHROPIC_API_KEY` - For AI nickname generation (set in both Production and Preview). If unset, nickname options are hidden in the UI
-- KV Namespace binding: `TOURNAMENTS`
+- No environment variables. KV Namespace binding: `TOURNAMENTS`
+- No AI features: the AI nickname generator was removed (players have only a name)

@@ -140,9 +140,6 @@ const LeaderboardDisplay: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="font-black text-white text-sm italic uppercase truncate">{entry.playerName}</span>
                     </div>
-                    {entry.playerNickname && (
-                      <div className="text-purple-400 font-semibold text-[10px] truncate">"{entry.playerNickname}"</div>
-                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="font-bold text-[10px]">
                         <span className="text-emerald-400">{t('common.wins', { n: entry.wins })}</span>
@@ -202,9 +199,6 @@ const LeaderboardDisplay: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-white text-lg italic uppercase">{entry.playerName}</span>
-                        {entry.playerNickname && (
-                          <span className="text-purple-400 font-semibold text-sm">"{entry.playerNickname}"</span>
-                        )}
                       </div>
                     </td>
                     {showSkill && (
