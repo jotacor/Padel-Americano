@@ -80,7 +80,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **A
 - Matchmaking flags (stored on tournament, read via `leagueMatchmaking()`): `prioritizeSkill` (**undefined = true** for legacy Leagues; By skill always sets it) and `prioritizeRanking` ("Prioritize standings" checkbox). `utils/ranking.ts`: `playerStrengths()` (percentile of points won/played → 1..3, blended with prior skill by matches played), `generateRankedRound()` (rotating: similar-strength groups of 4 + even split, local search), `repeatCost()` (excess-over-least-met², recency) also used by `generateFixedPairsRound(..., { strength, ranked })`. Neither option = League Classic (`generateLeagueClassicRound`). Weights in `MATCH_WEIGHTS` were tuned by simulation (12–24 players); too high `level`/`balance` freezes groups
 - `isActive` toggle for round-by-round player pool management
 - Courts (`tournament.numCourts`, default 4, max `MAX_COURTS`) changeable between rounds from the setup panel
-- Purple accent theme (`bg-purple-600`, `bg-purple-950`)
+- Same indigo theme as Americano (`tc` in App.tsx is mode-independent); only the TV display (`/display`) is purple, in every mode
 
 **Pair modality** (both modes): `tournament.pairMode` = `'rotating'` (default, Americano) or `'fixed'` (manager pairs players in setup; `tournament.pairs: [id, id][]`).
 - Americano Classic + fixed: full round robin between pairs (`generateFixedPairsSchedule`); Americano By skill + fixed: per-round matching by pair skill

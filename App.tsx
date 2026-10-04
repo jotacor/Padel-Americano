@@ -145,15 +145,16 @@ const App: React.FC = () => {
   const minForFinals = isFixed ? 2 : 4;
   
   // Theme classes
+  // One color theme for every mode (the Americano indigo)
   const tc = {
-    primary: isEvent ? 'bg-purple-600' : 'bg-indigo-600',
-    primaryHover: isEvent ? 'hover:bg-purple-700' : 'hover:bg-indigo-700',
-    primaryText: isEvent ? 'text-purple-600' : 'text-indigo-600',
-    primaryLight: isEvent ? 'bg-purple-50' : 'bg-indigo-50',
-    primaryBorder: isEvent ? 'border-purple-200' : 'border-indigo-200',
-    activeTab: isEvent ? 'text-purple-600 bg-purple-50' : 'text-indigo-600 bg-indigo-50',
-    focusBorder: isEvent ? 'focus:border-purple-600' : 'focus:border-indigo-600',
-    shadow: isEvent ? 'shadow-purple-100' : 'shadow-indigo-100',
+    primary: 'bg-indigo-600',
+    primaryHover: 'hover:bg-indigo-700',
+    primaryText: 'text-indigo-600',
+    primaryLight: 'bg-indigo-50',
+    primaryBorder: 'border-indigo-200',
+    activeTab: 'text-indigo-600 bg-indigo-50',
+    focusBorder: 'focus:border-indigo-600',
+    shadow: 'shadow-indigo-100',
   };
 
   // Calculate number of courts based on mode
@@ -823,9 +824,9 @@ const App: React.FC = () => {
 
               {/* Event mode banner when tournament is running */}
               {tournament?.mode === 'event' && (
-                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                  <span className="text-purple-700 font-bold text-sm">{t('setup.eventModeActive')}</span>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                  <span className="text-indigo-700 font-bold text-sm">{t('setup.eventModeActive')}</span>
                 </div>
               )}
 
@@ -906,7 +907,7 @@ const App: React.FC = () => {
                   const inactive = tournament?.mode === 'event' && p.isActive === false;
                   return (
                   <div key={p.id} className={`flex items-center gap-3 border-2 rounded-2xl pl-2 pr-2 py-2 transition-all group ${colors.card} ${
-                    pairingWith === p.id ? `ring-2 ring-offset-1 ${isEvent ? 'ring-purple-400' : 'ring-indigo-400'}` : ''
+                    pairingWith === p.id ? `ring-2 ring-offset-1 ring-indigo-400` : ''
                   } ${inactive ? 'opacity-40 grayscale' : ''}`}>
                     <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black text-sm text-white ${colors.dot}`}>{idx + 1}</span>
                     <div className="min-w-0 flex-1">
@@ -950,7 +951,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Right panel */}
-            <div className={`${isEvent ? 'bg-purple-950' : 'bg-slate-900'} rounded-3xl md:rounded-[3rem] p-6 md:p-8 xl:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
+            <div className={`bg-slate-900 rounded-3xl md:rounded-[3rem] p-6 md:p-8 xl:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
               <div className="space-y-6">
                 {/* Tournament name: for the next tournament, or renames the open one (also used in the export file name) */}
                 <div>
@@ -991,7 +992,7 @@ const App: React.FC = () => {
                         onClick={() => setEventMode(true)}
                         className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
                           eventMode
-                            ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300'
+                            ? 'bg-white/10 border-2 border-white/20 text-white'
                             : 'border-2 border-transparent text-slate-500 hover:border-white/10'
                         }`}
                       >
@@ -1011,7 +1012,7 @@ const App: React.FC = () => {
                             aria-pressed={bySkill === option}
                             className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
                               bySkill === option
-                                ? (isEvent ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300' : 'bg-white/10 border-2 border-white/20 text-white')
+                                ? 'bg-white/10 border-2 border-white/20 text-white'
                                 : 'border-2 border-transparent text-slate-500 hover:border-white/10'
                             }`}
                           >
@@ -1034,7 +1035,7 @@ const App: React.FC = () => {
                             onClick={() => { setPairMode(mode); setPairingWith(null); }}
                             className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
                               pairMode === mode
-                                ? (isEvent ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300' : 'bg-white/10 border-2 border-white/20 text-white')
+                                ? 'bg-white/10 border-2 border-white/20 text-white'
                                 : 'border-2 border-transparent text-slate-500 hover:border-white/10'
                             }`}
                           >
@@ -1137,10 +1138,10 @@ const App: React.FC = () => {
           <div className="space-y-6 md:space-y-10">
             {/* Event mode: Generate Next Round button */}
             {tournament.mode === 'event' && !playoff.started && (tournament.rounds.length === 0 || currentRoundComplete) && (
-              <div className={`bg-gradient-to-r ${isEvent ? 'from-purple-50 to-violet-50 border-purple-200' : 'from-indigo-50 to-blue-50 border-indigo-200'} rounded-3xl p-6 md:p-8 border flex flex-col md:flex-row items-center justify-between gap-4`}>
+              <div className={`bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 rounded-3xl p-6 md:p-8 border flex flex-col md:flex-row items-center justify-between gap-4`}>
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                    <Zap className={`w-5 h-5 ${isEvent ? 'text-purple-500' : 'text-indigo-500'}`} />
+                    <Zap className="w-5 h-5 text-indigo-500" />
                     {tournament.rounds.length === 0 ? t('rounds.generateFirst') : t('rounds.generateNext')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
