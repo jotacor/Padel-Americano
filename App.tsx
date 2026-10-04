@@ -24,7 +24,6 @@ import {
   Play, 
   ChevronRight, 
   ChevronLeft,
-  ChevronDown,
   Trash,
   Info,
   Award,
@@ -561,22 +560,36 @@ const App: React.FC = () => {
     const perRound = isFixed ? Math.floor(n / 2) : Math.floor(n / 4);
     return numCourts && perRound > numCourts ? Math.ceil(fullRounds * perRound / numCourts) : fullRounds;
   })();
-  // − and + together, the number on the right (aligned with the other numbers of the panel)
-  const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => (
+  // − and + together, the value on the right (aligned with the other numbers of the panel)
+  const renderStepperControl = (
+    display: React.ReactNode,
+    onDec: (() => void) | null, // null = disabled
+    onInc: (() => void) | null,
+    labels: [TranslationKey, TranslationKey]
+  ) => (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-1.5">
-        <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={t('setup.fewerCourts')}
+        <button type="button" onClick={() => onDec?.()} disabled={!onDec} aria-label={t(labels[0])}
           className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
           <Minus className="w-4 h-4" strokeWidth={3} />
         </button>
-        <button type="button" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label={t('setup.moreCourts')}
+        <button type="button" onClick={() => onInc?.()} disabled={!onInc} aria-label={t(labels[1])}
           className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
           <Plus className="w-4 h-4" strokeWidth={3} />
         </button>
       </div>
-      <span className="text-3xl md:text-4xl font-black tabular-nums">{value}</span>
+      <span className="min-w-[5rem] md:min-w-[6rem] text-right text-3xl md:text-4xl font-black tabular-nums" aria-live="polite">{display}</span>
     </div>
   );
+  const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => renderStepperControl(
+    value,
+    value > min ? () => onChange(value - 1) : null,
+    value < max ? () => onChange(value + 1) : null,
+    ['setup.fewerCourts', 'setup.moreCourts']
+  );
+  // Points per match: 11 → 15 → 21 → Libre (plus an older custom value, e.g. 24, if the tournament has it)
+  const pointsSteps: (number | null)[] = [...[...new Set([...POINTS_OPTIONS, ...(pointsPerMatch ? [pointsPerMatch] : [])])].sort((a, b) => a - b), null];
+  const pointsStep = pointsSteps.indexOf(pointsPerMatch);
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
   /** Text (round line-up, standings) on the clipboard, to paste wherever you like */
@@ -924,18 +937,12 @@ const App: React.FC = () => {
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
                   <div className="flex justify-between items-center pt-4">
                     <span className="text-slate-400 font-bold">{t('setup.pointsPerMatch')}</span>
-                    <div className="relative flex items-center">
-                    <ChevronDown className="pointer-events-none absolute left-0 w-4 h-4 text-slate-500" strokeWidth={3} />
-                    <select
-                      value={pointsPerMatch ?? ''}
-                      onChange={(e) => setPointsPerMatch(e.target.value ? Number(e.target.value) : null)}
-                      aria-label={t('setup.pointsPerMatch')}
-                      className="appearance-none bg-transparent pl-6 text-right text-3xl md:text-4xl font-black text-white outline-none cursor-pointer hover:text-slate-200 focus-visible:underline [&>option]:text-base [&>option]:bg-slate-800"
-                    >
-                      {[...new Set([...POINTS_OPTIONS, ...(pointsPerMatch ? [pointsPerMatch] : [])])].sort((a, b) => a - b).map(n => <option key={n} value={n}>{n}</option>)}
-                      <option value="">{t('setup.pointsFree')}</option>
-                    </select>
-                    </div>
+                    {renderStepperControl(
+                      pointsPerMatch ?? t('setup.pointsFree'),
+                      pointsStep > 0 ? () => setPointsPerMatch(pointsSteps[pointsStep - 1]) : null,
+                      pointsStep < pointsSteps.length - 1 ? () => setPointsPerMatch(pointsSteps[pointsStep + 1]) : null,
+                      ['setup.fewerPoints', 'setup.morePoints']
+                    )}
                   </div>
                   {(tournament || !isEvent) && (
                     <div className="flex justify-between items-center pt-4">
