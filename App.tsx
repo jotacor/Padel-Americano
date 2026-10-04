@@ -99,6 +99,9 @@ const readSavedState = () => {
   };
 };
 
+// Tournament info panel values (Jugadores, Pistas, Puntuación, Rondas…): one size so "3 sets" fits too
+const PANEL_VALUE = 'text-xl lg:text-lg xl:text-2xl font-black';
+
 const App: React.FC = () => {
   const { t, locale, courtLabel } = useI18n();
   const [saved] = useState(readSavedState);
@@ -647,8 +650,8 @@ const App: React.FC = () => {
           <Plus className="w-4 h-4" strokeWidth={3} />
         </button>
       </div>
-      {/* Longer values ("3 sets", "Libre") smaller so they fit on one line; same width keeps the buttons aligned */}
-      <span className={`w-16 text-right font-black tabular-nums whitespace-nowrap ${String(display).length > 3 ? 'text-xl lg:text-lg xl:text-2xl' : String(display).length > 2 ? 'text-2xl lg:text-xl xl:text-3xl' : 'text-3xl md:text-4xl'}`} aria-live="polite">{display}</span>
+      {/* Same width keeps the buttons aligned */}
+      <span className={`w-16 text-right tabular-nums whitespace-nowrap ${PANEL_VALUE}`} aria-live="polite">{display}</span>
     </div>
   );
   const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => renderStepperControl(
@@ -1047,15 +1050,15 @@ const App: React.FC = () => {
                 )}
                 
                 <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest">{t('setup.tournamentInfo')}</h3>
-                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className="text-3xl md:text-4xl font-black">{players.length}</span></div>
+                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className={`${PANEL_VALUE}`}>{players.length}</span></div>
                 {isFixed && (
-                  <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className="text-3xl md:text-4xl font-black">{currentPairs.length}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className={`${PANEL_VALUE}`}>{currentPairs.length}</span></div>
                 )}
                 
                 {isEvent && (
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-bold">{t('setup.active')}</span>
-                    <span className="text-3xl md:text-4xl font-black text-emerald-400">{activePlayers.length}</span>
+                    <span className={`${PANEL_VALUE} text-emerald-400`}>{activePlayers.length}</span>
                   </div>
                 )}
                 <div className="space-y-2 pb-6 md:pb-8 border-b border-slate-800">
@@ -1066,7 +1069,7 @@ const App: React.FC = () => {
                       ? renderStepper(numCourts, 1, MAX_COURTS, setLeagueCourts)
                       : !tournament
                       ? renderStepper(numCourts, maxClassicCourts ? 1 : 0, maxClassicCourts, v => setClassicCourts(v >= maxClassicCourts ? null : v))
-                      : <span className="text-3xl md:text-4xl font-black">{numCourts}</span>}
+                      : <span className={`${PANEL_VALUE}`}>{numCourts}</span>}
                   </div>
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
                   <div className="flex justify-between items-center pt-4">
@@ -1081,7 +1084,7 @@ const App: React.FC = () => {
                   {(tournament || !isEvent) && (
                     <div className="flex justify-between items-center pt-4">
                       <span className="text-slate-400 font-bold">{t('common.rounds')}</span>
-                      <span className="text-3xl md:text-4xl font-black">{tournament ? tournament.rounds.length : estimatedClassicRounds}</span>
+                      <span className={`${PANEL_VALUE}`}>{tournament ? tournament.rounds.length : estimatedClassicRounds}</span>
                     </div>
                   )}
                 </div>
