@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bumpExportMeta, exportFilename, parseTournamentFile, serializeTournament, summarizeTournament } from './tournamentFile.ts';
 import { generateAmericanoSchedule } from './scheduler.ts';
+import { ymd } from './dates.ts';
 import { makePlayers } from './testing.ts';
 import type { Tournament } from '../types.ts';
 
@@ -28,7 +29,7 @@ describe('YAML export/import', () => {
     expect(parsed.ok && parsed.tournament.exportMeta?.revision).toBe(2);
     const v3 = parsed.ok ? bumpExportMeta(parsed.tournament) : null;
     expect(v3?.exportMeta?.history.map(h => h.revision)).toEqual([1, 2, 3]);
-    expect(exportFilename(v2, 'americano')).toBe(`padel-americano-${new Date().toISOString().slice(0, 10)}-v2.yaml`); // automatic name: left out
+    expect(exportFilename(v2, 'americano')).toBe(`padel-americano-${ymd()}-v2.yaml`); // automatic name: left out; local date like the app
     const named = { ...v2, name: 'Liga de los Martes', mode: 'event' as const, createdAt: new Date(2026, 9, 4, 20).toISOString() };
     expect(exportFilename(named, 'liga')).toBe('padel-liga-de-los-martes-2026-10-04-v2.yaml');
     expect(exportFilename({ ...named, name: 'Martes' }, 'liga')).toBe('padel-liga-martes-2026-10-04-v2.yaml');
