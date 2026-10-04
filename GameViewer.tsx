@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Tournament, LeaderboardEntry } from './types';
 import { 
@@ -16,7 +16,11 @@ import {
   Eye
 } from 'lucide-react';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
-import { computeLeaderboard } from './utils/leaderboard.ts';
+import { computeLeaderboard, formatDiff } from './utils/leaderboard.ts';
+import { liveRoundIndex } from './utils/rounds.ts';
+import { setsText } from './utils/scoring.ts';
+import { isFinal, isPlayoffMatch, matchTitle, roundBadge } from './utils/playoff.ts';
+import { usePolling } from './hooks/usePolling.ts';
 
 interface SharedTournamentData {
   id: string;
@@ -29,7 +33,7 @@ const POLL_INTERVAL = 5000; // 5 seconds
 
 const GameViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { t, locale, courtName } = useI18n();
+  const { t, locale, courtLabel } = useI18n();
   const [data, setData] = useState<SharedTournamentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,41 +42,41 @@ const GameViewer: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<'rounds' | 'leaderboard' | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  // Follow the round being played until the viewer navigates by hand
+  const followLive = useRef(true);
+  const goToRound = (update: (i: number) => number) => {
+    followLive.current = false;
+    setCurrentRoundIndex(update);
+  };
+
   const fetchTournament = async () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        if (response.status === 404) {
-          setError(t('viewer.notFoundOrExpired'));
-        } else {
-          setError(t('viewer.failedToLoad'));
-        }
+        // Expired → error screen; other failures keep showing the last data
+        if (response.status === 404) setError(t('viewer.notFoundOrExpired'));
+        else if (!data) setError(t('viewer.failedToLoad'));
         return;
       }
-      const result = await response.json();
+      const result: SharedTournamentData = await response.json();
       setData(result);
       setError(null);
       setLastUpdated(new Date());
+      const rounds = result.tournament.rounds.length;
+      setCurrentRoundIndex(i => followLive.current ? liveRoundIndex(result.tournament) : Math.min(i, Math.max(0, rounds - 1)));
     } catch (err) {
-      setError(t('viewer.failedToConnect'));
+      if (!data) setError(t('viewer.failedToConnect'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTournament();
-    
-    // Poll for updates
-    const interval = setInterval(fetchTournament, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [id]);
+  usePolling(fetchTournament, POLL_INTERVAL, id);
 
   const tournament = data?.tournament;
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
-  const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
   const PlayerName = ({ name, baseClass }: { name: string, baseClass: string }) => (
     <span className={baseClass}>{name}</span>
@@ -173,15 +177,15 @@ const GameViewer: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center justify-between">
               <button 
                 disabled={currentRoundIndex === 0} 
-                onClick={() => setCurrentRoundIndex(i => i - 1)} 
+                onClick={() => goToRound(i => i - 1)} 
                 className="p-3 rounded-xl text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-0"
               >
                 <ChevronLeft className="w-6 h-6" strokeWidth={3} />
               </button>
               <div className="text-center">
-                {tournament.rounds[currentRoundIndex]?.matches.some(m => m.id.includes('championship')) ? (
+                {roundBadge(tournament.rounds[currentRoundIndex], t) ? (
                   <div className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 mb-1">
-                    <Trophy className="w-3 h-3" /> {t('common.finals')}
+                    <Trophy className="w-3 h-3" /> {roundBadge(tournament.rounds[currentRoundIndex], t)}
                   </div>
                 ) : (
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">{t('common.round')}</span>
@@ -189,10 +193,13 @@ const GameViewer: React.FC = () => {
                 <div className="text-3xl font-black text-slate-900">
                   {currentRoundIndex + 1}<span className="text-slate-300 text-base font-bold">/ {tournament.rounds.length}</span>
                 </div>
+                {(tournament.scoring === 'sets' || tournament.pointsPerMatch) && (
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</div>
+                )}
               </div>
               <button 
                 disabled={currentRoundIndex === tournament.rounds.length - 1} 
-                onClick={() => setCurrentRoundIndex(i => i + 1)} 
+                onClick={() => goToRound(i => i + 1)} 
                 className="p-3 rounded-xl text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-0"
               >
                 <ChevronRight className="w-6 h-6" strokeWidth={3} />
@@ -213,13 +220,13 @@ const GameViewer: React.FC = () => {
                 return (
                   <div key={match.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className={`px-4 py-2 border-b flex justify-between items-center text-[9px] font-black uppercase tracking-widest ${
-                      match.id.includes('championship') 
+                      isFinal(match) || isPlayoffMatch(match)
                         ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' 
                         : 'bg-slate-50/50 border-slate-100 text-slate-400'
                     }`}>
                       <span className="flex items-center gap-1">
-                        {match.id.includes('championship') && <Trophy className="w-3 h-3 text-yellow-500" />}
-                        {match.id.includes('championship') ? t('common.finals') : getCourtName(match.courtIndex)}
+                        {(isFinal(match) || isPlayoffMatch(match)) && <Trophy className="w-3 h-3 text-yellow-500" />}
+                        {matchTitle(match, t, courtLabel)}
                       </span>
                       {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={10}/> {t('common.done')}</span>}
                     </div>
@@ -246,6 +253,7 @@ const GameViewer: React.FC = () => {
                         <PlayerName name={getP(match.teamB[1])} baseClass={`text-base font-black italic block ${teamBWon ? winnerClass : 'text-slate-900'}`} />
                       </div>
                     </div>
+                    {match.sets?.length ? <div className="-mt-2 pb-3 text-center text-xs font-black tracking-wider text-slate-400">{setsText(match.sets)}</div> : null}
                   </div>
                 );
               })}
@@ -318,7 +326,7 @@ const GameViewer: React.FC = () => {
                     </div>
                   </div>
                   
-                  {tournament.pairMode !== 'fixed' && <div className="border-t-2 border-yellow-300 pt-4">
+                  {tournament.pairMode !== 'fixed' && !isPlayoffMatch(championshipMatch) && <div className="border-t-2 border-yellow-300 pt-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center mb-3">{t('champ.individualRankings')}</div>
                     <div className="grid grid-cols-4 gap-2">
                       {allFinalists.map((entry, idx) => (
@@ -348,7 +356,8 @@ const GameViewer: React.FC = () => {
                       <th className="px-4 py-3">#</th>
                       <th className="px-4 py-3">{t(tournament.pairMode === 'fixed' ? 'lb.pair' : 'common.player')}</th>
                       <th className="px-4 py-3 text-center">{t('viewer.wlt')}</th>
-                      <th className="px-4 py-3 text-right">{t('common.pts')}</th>
+                      <th className="px-2 py-3 text-right">{t('lb.diff')}</th>
+                      <th className="px-4 py-3 text-right">{t(tournament.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -375,6 +384,9 @@ const GameViewer: React.FC = () => {
                             <span className="text-slate-200">-</span>
                             <span className="text-slate-400">{entry.ties}</span>
                           </div>
+                        </td>
+                        <td className="px-2 py-4 text-right">
+                          <span className={`font-black text-sm ${entry.pointDifferential > 0 ? 'text-emerald-500' : entry.pointDifferential < 0 ? 'text-rose-400' : 'text-slate-400'}`}>{formatDiff(entry.pointDifferential)}</span>
                         </td>
                         <td className="px-4 py-4 text-right">
                           <span className="font-black text-2xl text-slate-900 italic">{entry.totalPoints}</span>

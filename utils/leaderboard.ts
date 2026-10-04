@@ -1,14 +1,14 @@
-import { Tournament, LeaderboardEntry, Pair } from '../types.ts';
+import type { Tournament, LeaderboardEntry, Pair } from '../types.ts';
 import { pairKey } from './fixedPairs.ts';
 
 const sortEntries = (entries: LeaderboardEntry[]) => entries.sort((a, b) =>
-  b.totalPoints - a.totalPoints ||
   b.wins - a.wins ||
+  b.totalPoints - a.totalPoints ||
   b.pointDifferential - a.pointDifferential
 );
 
 /**
- * Standings. Tiebreakers: total points → wins → point differential.
+ * Standings: wins → total points → point differential (the match won is what counts).
  * Fixed pairs: one entry per pair (playerId = pairKey, name "Ana & Luis").
  */
 export const computeLeaderboard = (tournament: Tournament | null | undefined): LeaderboardEntry[] => {
@@ -52,3 +52,6 @@ export const computeLeaderboard = (tournament: Tournament | null | undefined): L
 /** The pair behind a fixed-pairs leaderboard entry */
 export const pairOfEntry = (tournament: Tournament, entry: LeaderboardEntry): Pair | undefined =>
   tournament.pairs?.find(p => pairKey(p) === entry.playerId);
+
+/** Point difference with sign: "+5", "-3", "0" */
+export const formatDiff = (n: number): string => (n > 0 ? `+${n}` : String(n));

@@ -7,7 +7,7 @@ services:
     ports:
       - "${HOST_PORT:-8788}:8788"
     volumes:
-      - padel-data:/data # shared tournaments (KV), survive restarts
+      - padel-data:/data # shared tournaments (JSON files), survive restarts
     restart: unless-stopped
 
 volumes:

@@ -12,10 +12,14 @@ export interface Match {
   courtIndex: number;
   teamA: [string, string]; // Player IDs
   teamB: [string, string]; // Player IDs
-  scoreA: number | null;
+  scoreA: number | null; // points; best-of-3 sets: sets won
   scoreB: number | null;
   isCompleted: boolean;
+  sets?: SetScore[]; // best-of-3 sets only: games per set as entered (up to 3)
 }
+
+/** Games of each team in one set, as entered (null = empty) */
+export type SetScore = [number | null, number | null];
 
 export interface Round {
   index: number;
@@ -29,13 +33,17 @@ export interface Tournament {
   players: Player[];
   rounds: Round[];
   isStarted: boolean;
-  courtNames?: string[];
   mode?: 'classic' | 'event';
   numCourts?: number;
   pairMode?: PairMode;
   pairs?: Pair[]; // fixed pairs (player IDs), only when pairMode === 'fixed'
   prioritizeSkill?: boolean; // Random + rotating: skill-balanced rounds instead of Whist rotation. League: balance by declared skill (undefined = true, legacy)
   prioritizeRanking?: boolean; // League: re-match every round by current standings (utils/ranking.ts)
+  pointsPerMatch?: number; // matches to a fixed total (11/15/21): auto-fills the other score
+  scoring?: 'sets'; // best of 3 tennis sets (pointsPerMatch absent); neither = free scoring (older tournaments)
+  createdAt?: string; // ISO; set when the tournament starts (absent on older data)
+  updatedAt?: string; // ISO; reserved for server-side saving
+  finishedAt?: string; // ISO; set by "Finalizar"
   exportMeta?: ExportMeta; // YAML export versioning (utils/tournamentFile.ts)
 }
 

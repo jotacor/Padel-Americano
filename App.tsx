@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Player, Tournament, LeaderboardEntry, Pair, PairMode } from './types.ts';
-import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
+import { Player, Tournament, LeaderboardEntry, Pair, PairMode, Round } from './types.ts';
+import { generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
+import { buildClassicSchedule, classicRoundCount, nextClassicRound } from './utils/classicSchedule.ts';
+import { generateLeagueClassicRound } from './utils/leagueClassic.ts';
+import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatch, matchTitle, PLAYOFF_PAIRS, PLAYOFF_PLAYERS, playoffState, roundBadge } from './utils/playoff.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
-import { cleanName, isNameTaken } from './utils/playerNames.ts';
-import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
-import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
+import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
+import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, scoringOf, type Scoring, type Side } from './utils/scoring.ts';
+import { useShareSync } from './hooks/useShareSync.ts';
+import { liveRoundIndex } from './utils/rounds.ts';
+import { ymd } from './utils/dates.ts';
+import ShareModal from './components/ShareModal.tsx';
+import InfoView from './components/InfoView.tsx';
+import { roundText, standingsText } from './utils/shareText.ts';
+import { copyText, newId } from './utils/browser.ts';
+import { generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
+import { computeLeaderboard, formatDiff, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
 import { 
   Users, 
@@ -23,78 +34,113 @@ import {
   ShieldCheck,
   Zap,
   Share2,
-  Copy,
   Check,
   Loader2,
   Link as LinkIcon,
-  X,
   UserPlus,
   UserMinus,
   Minus,
-  Monitor,
   Shuffle,
+  BookOpen,
+  Scale,
+  Repeat,
   Link2,
   Unlink,
   Download,
+  Copy,
+  Undo2,
   Upload
 } from 'lucide-react';
-
-interface ShareState {
-  isSharing: boolean;
-  shareId: string | null;
-  pin: string | null;
-  shareUrl: string | null;
-  isSyncing: boolean;
-  lastSynced: Date | null;
-}
 
 const SKILL_COLORS = {
   low: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-300' },
   medium: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500', card: 'bg-amber-50 border-amber-200 hover:border-amber-300' },
   high: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500', card: 'bg-rose-50 border-rose-200 hover:border-rose-300' },
 };
+// Player cards when skill isn't used (Americano Classic)
+const NEUTRAL_COLORS = { dot: 'bg-slate-400', card: 'bg-slate-50 border-slate-100 hover:border-slate-200' };
 
 const MAX_COURTS = 10;
+const DEFAULT_COURTS = 4; // both modes: the club's courts, not players ÷ 4
+
+/**
+ * Saved setup + open tournament, read once to initialize state (not in an effect: React StrictMode runs
+ * effects twice in dev, so the save effects would overwrite the storage with empty state before loading).
+ */
+const readSavedState = () => {
+  const parseSaved = <T,>(key: string): T | null => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) as T : null;
+    } catch (e) {
+      console.error(`Ignoring corrupted ${key}`, e); // must not leave a blank screen
+      return null;
+    }
+  };
+  const get = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
+  try { localStorage.removeItem('padel_court_names'); } catch { /* court names were removed */ }
+  const players = parseSaved<Player[]>('padel_players');
+  const pairs = parseSaved<Pair[]>('padel_pairs');
+  const rawTournament = parseSaved<Tournament>('padel_tournament');
+  const tournament = rawTournament && Array.isArray(rawTournament.players) && Array.isArray(rawTournament.rounds) ? withUpperNames(rawTournament) : null;
+  const points = get('padel_points_per_match');
+  const classicCourts = parseInt(get('padel_classic_courts') ?? '');
+  return {
+    players: Array.isArray(players) ? upperNames(players) : [],
+    tournament,
+    eventMode: tournament ? tournament.mode === 'event' : get('padel_event_mode') === 'true',
+    eventNumCourts: tournament?.numCourts || parseInt(get('padel_event_courts') ?? '') || 4,
+    classicCourts: classicCourts > 0 ? classicCourts : DEFAULT_COURTS,
+    // 'free' (removed option) and anything unknown → default points
+    setupScoring: (points === 'sets' ? 'sets' : parseInt(points ?? '') > 0 ? parseInt(points!) : DEFAULT_POINTS) as number | 'sets',
+    pairMode: (tournament?.pairMode ?? (get('padel_pair_mode') === 'fixed' ? 'fixed' : 'rotating')) as PairMode,
+    pairs: tournament?.pairs ?? (Array.isArray(pairs) ? pairs : []),
+    prioritizeSkill: get('padel_prioritize_skill') === 'true',
+    leagueRanking: get('padel_prioritize_ranking') === 'true',
+    leagueClassic: get('padel_league_classic') === 'true',
+    setupName: get('padel_tournament_name') ?? '',
+  };
+};
+
+// Tournament info panel values (Jugadores, Pistas, Puntuación, Rondas…): one size so "3 sets" fits too
+const PANEL_VALUE = 'text-xl lg:text-lg xl:text-2xl font-black';
 
 const App: React.FC = () => {
-  const { t, lang, locale, courtName } = useI18n();
-  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>('setup');
-  const [players, setPlayers] = useState<Player[]>([]);
+  const { t, locale, courtLabel } = useI18n();
+  const [saved] = useState(readSavedState);
+  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard' | 'info'>(saved.tournament ? 'rounds' : 'setup');
+  const [players, setPlayers] = useState<Player[]>(saved.players);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [newPlayerSkill, setNewPlayerSkill] = useState<'low' | 'medium' | 'high'>('medium');
-  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(saved.tournament);
+  const shareSync = useShareSync(tournament);
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
-  const [courtNames, setCourtNames] = useState<string[]>([]);
   
   // League ("event") mode
-  const [eventMode, setEventMode] = useState(false);
-  const [eventNumCourts, setEventNumCourts] = useState(4);
+  const [eventMode, setEventMode] = useState(saved.eventMode);
+  const [eventNumCourts, setEventNumCourts] = useState(saved.eventNumCourts);
   // Random: courts the club gives us; null = all that fit (players ÷ 4)
-  const [classicCourts, setClassicCourts] = useState<number | null>(null);
+  const [classicCourts, setClassicCourts] = useState<number>(saved.classicCourts);
+  // Matches to a fixed points total (null = free scoring); the open tournament's value wins
+  const [setupScoring, setSetupScoring] = useState<number | 'sets'>(saved.setupScoring);
 
   // Pairs: rotating (Americano) or fixed (manager picks partners)
-  const [pairMode, setPairMode] = useState<PairMode>('rotating');
-  const [pairs, setPairs] = useState<Pair[]>([]);
+  const [pairMode, setPairMode] = useState<PairMode>(saved.pairMode);
+  const [pairs, setPairs] = useState<Pair[]>(saved.pairs);
   const [pairingWith, setPairingWith] = useState<string | null>(null);
   // Random + rotating: trade perfect Whist rotation for skill-even matches
-  const [prioritizeSkill, setPrioritizeSkill] = useState(false);
+  const [prioritizeSkill, setPrioritizeSkill] = useState(saved.prioritizeSkill);
   // League matchmaking: declared skill (default, legacy behavior) and/or current standings
-  const [leagueSkill, setLeagueSkill] = useState(true);
-  const [leagueRanking, setLeagueRanking] = useState(false);
+  const [leagueRanking, setLeagueRanking] = useState(saved.leagueRanking);
+  // League variant: Classic (round robin, no skill/standings) or By skill (the two options above)
+  const [leagueClassic, setLeagueClassic] = useState(saved.leagueClassic);
+  // Name for the next tournament (empty = automatic "Liga - fecha"); the open tournament's name is edited in place
+  const [setupName, setSetupName] = useState(saved.setupName);
   
-  // Sharing state
-  const [shareState, setShareState] = useState<ShareState>({
-    isSharing: false,
-    shareId: null,
-    pin: null,
-    shareUrl: null,
-    isSyncing: false,
-    lastSynced: null,
-  });
+  // Live sharing (KV, 24 h after the last update)
   const [showShareModal, setShowShareModal] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedDisplayUrl, setCopiedDisplayUrl] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   
 
   const isEvent = eventMode || tournament?.mode === 'event';
@@ -102,82 +148,23 @@ const App: React.FC = () => {
   const minForFinals = isFixed ? 2 : 4;
   
   // Theme classes
+  // One color theme for every mode (the Americano indigo)
   const tc = {
-    primary: isEvent ? 'bg-purple-600' : 'bg-indigo-600',
-    primaryHover: isEvent ? 'hover:bg-purple-700' : 'hover:bg-indigo-700',
-    primaryText: isEvent ? 'text-purple-600' : 'text-indigo-600',
-    primaryLight: isEvent ? 'bg-purple-50' : 'bg-indigo-50',
-    primaryBorder: isEvent ? 'border-purple-200' : 'border-indigo-200',
-    activeTab: isEvent ? 'text-purple-600 bg-purple-50' : 'text-indigo-600 bg-indigo-50',
-    focusBorder: isEvent ? 'focus:border-purple-600' : 'focus:border-indigo-600',
-    shadow: isEvent ? 'shadow-purple-100' : 'shadow-indigo-100',
+    primary: 'bg-indigo-600',
+    primaryHover: 'hover:bg-indigo-700',
+    primaryText: 'text-indigo-600',
+    primaryLight: 'bg-indigo-50',
+    primaryBorder: 'border-indigo-200',
+    activeTab: 'text-indigo-600 bg-indigo-50',
+    focusBorder: 'focus:border-indigo-600',
+    shadow: 'shadow-indigo-100',
   };
 
   // Calculate number of courts based on mode
   const maxClassicCourts = Math.floor((tournament?.players ?? players).length / 4);
   const numCourts = isEvent ? eventNumCourts
     : tournament ? (tournament.numCourts ?? maxClassicCourts)
-    : Math.min(classicCourts ?? maxClassicCourts, maxClassicCourts);
-
-  // Initialize court names when court count changes
-  useEffect(() => {
-    setCourtNames(prev => {
-      if (numCourts === 0) return [];
-      if (prev.length === numCourts) return prev;
-      
-      const newNames = [...prev];
-      while (newNames.length < numCourts) {
-        newNames.push(t('common.court', { n: newNames.length + 1 }));
-      }
-      return newNames.slice(0, numCourts);
-    });
-  }, [numCourts]);
-
-  useEffect(() => {
-    // Corrupted saved values must not leave a blank screen
-    const parseSaved = <T,>(key: string): T | null => {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw) as T;
-      } catch (e) {
-        console.error(`Ignoring corrupted ${key}`, e);
-        return null;
-      }
-    };
-    const savedPlayers = parseSaved<Player[]>('padel_players');
-    const savedTournament = parseSaved<Tournament>('padel_tournament');
-    const savedCourtNames = parseSaved<string[]>('padel_court_names');
-    const savedEventMode = localStorage.getItem('padel_event_mode');
-    const savedEventCourts = localStorage.getItem('padel_event_courts');
-    const savedPairMode = localStorage.getItem('padel_pair_mode');
-    if (localStorage.getItem('padel_prioritize_skill') === 'true') setPrioritizeSkill(true);
-    if (localStorage.getItem('padel_league_prioritize_skill') === 'false') setLeagueSkill(false);
-    if (localStorage.getItem('padel_prioritize_ranking') === 'true') setLeagueRanking(true);
-    const savedPairs = parseSaved<Pair[]>('padel_pairs');
-    if (savedPairMode === 'fixed') setPairMode('fixed');
-    if (Array.isArray(savedPairs)) setPairs(savedPairs);
-    if (Array.isArray(savedPlayers)) setPlayers(savedPlayers);
-    if (Array.isArray(savedCourtNames)) setCourtNames(savedCourtNames);
-    if (savedEventMode === 'true') setEventMode(true);
-    if (savedEventCourts) setEventNumCourts(parseInt(savedEventCourts) || 4);
-    const savedClassicCourts = parseInt(localStorage.getItem('padel_classic_courts') ?? '');
-    if (savedClassicCourts > 0) setClassicCourts(savedClassicCourts);
-    if (savedTournament && Array.isArray(savedTournament.players) && Array.isArray(savedTournament.rounds)) {
-      setTournament(savedTournament);
-      if (savedTournament.courtNames) setCourtNames(savedTournament.courtNames);
-      if (savedTournament.mode === 'event') setEventMode(true);
-      if (savedTournament.numCourts) setEventNumCourts(savedTournament.numCourts);
-      if (savedTournament.pairMode) setPairMode(savedTournament.pairMode);
-      if (savedTournament.pairs) setPairs(savedTournament.pairs);
-      setActiveTab('rounds');
-    }
-  }, []);
-
-  // Keep default court names ("Court 1" ↔ "Pista 1") in the selected language; custom names untouched
-  useEffect(() => {
-    setCourtNames(prev => prev.map((name, idx) => courtName(name, idx)));
-  }, [lang]);
+    : classicCourts;
 
   useEffect(() => {
     localStorage.setItem('padel_players', JSON.stringify(players));
@@ -188,12 +175,6 @@ const App: React.FC = () => {
   }, [tournament]);
 
   useEffect(() => {
-    if (courtNames.length > 0) {
-      localStorage.setItem('padel_court_names', JSON.stringify(courtNames));
-    }
-  }, [courtNames]);
-
-  useEffect(() => {
     localStorage.setItem('padel_event_mode', eventMode.toString());
   }, [eventMode]);
 
@@ -202,151 +183,41 @@ const App: React.FC = () => {
   }, [eventNumCourts]);
 
   useEffect(() => {
-    if (classicCourts) localStorage.setItem('padel_classic_courts', String(classicCourts));
-    else localStorage.removeItem('padel_classic_courts');
-  }, [classicCourts]);
+    if (setupName) localStorage.setItem('padel_tournament_name', setupName);
+    else localStorage.removeItem('padel_tournament_name');
+  }, [setupName]);
+
+  useEffect(() => {
+    localStorage.setItem('padel_classic_courts', String(classicCourts));
+    // 'free' is stored explicitly: absent means the default (11)
+    localStorage.setItem('padel_points_per_match', String(setupScoring));
+  }, [classicCourts, setupScoring]);
 
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
     localStorage.setItem('padel_prioritize_skill', String(prioritizeSkill));
-    localStorage.setItem('padel_league_prioritize_skill', String(leagueSkill));
     localStorage.setItem('padel_prioritize_ranking', String(leagueRanking));
+    localStorage.setItem('padel_league_classic', String(leagueClassic));
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
-  }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking]);
-
-  // Load share state from localStorage
-  useEffect(() => {
-    const savedShare = localStorage.getItem('padel_share_state');
-    if (savedShare) {
-      try {
-        const parsed = JSON.parse(savedShare);
-        setShareState(prev => ({
-          ...prev,
-          isSharing: parsed.isSharing,
-          shareId: parsed.shareId,
-          pin: parsed.pin,
-          shareUrl: parsed.shareUrl,
-        }));
-      } catch (e) {
-        console.error("Failed to load share state", e);
-      }
-    }
-  }, []);
-
-  // Save share state to localStorage
-  useEffect(() => {
-    if (shareState.isSharing) {
-      localStorage.setItem('padel_share_state', JSON.stringify({
-        isSharing: shareState.isSharing,
-        shareId: shareState.shareId,
-        pin: shareState.pin,
-        shareUrl: shareState.shareUrl,
-      }));
-    } else {
-      localStorage.removeItem('padel_share_state');
-    }
-  }, [shareState.isSharing, shareState.shareId, shareState.pin, shareState.shareUrl]);
-
-  // Sync tournament to cloud when it changes (if sharing is active)
-  useEffect(() => {
-    if (!shareState.isSharing || !shareState.shareId || !shareState.pin || !tournament) return;
-    const { shareId, pin } = shareState;
-    
-    const syncToCloud = async () => {
-      setShareState(prev => ({ ...prev, isSyncing: true }));
-      try {
-        const response = await fetch(`/api/game/${shareId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Tournament-Pin': pin,
-          },
-          body: JSON.stringify({ tournament }),
-        });
-        
-        if (response.ok) {
-          setShareState(prev => ({ ...prev, lastSynced: new Date() }));
-        } else {
-          console.error('Failed to sync:', await response.text());
-        }
-      } catch (error) {
-        console.error('Sync error:', error);
-      } finally {
-        setShareState(prev => ({ ...prev, isSyncing: false }));
-      }
-    };
-
-    const timer = setTimeout(syncToCloud, 500);
-    return () => clearTimeout(timer);
-  }, [tournament, shareState.isSharing, shareState.shareId, shareState.pin]);
+  }, [pairMode, pairs, prioritizeSkill, leagueRanking, leagueClassic]);
 
   const startSharing = async () => {
     if (!tournament) return;
-    
-    setShareState(prev => ({ ...prev, isSyncing: true }));
-    try {
-      const response = await fetch('/api/game', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tournament }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create shared game');
-      }
-      
-      const data = await response.json();
-      const fullUrl = `${window.location.origin}/game/${data.id}`;
-      
-      setShareState({
-        isSharing: true,
-        shareId: data.id,
-        pin: data.pin,
-        shareUrl: fullUrl,
-        isSyncing: false,
-        lastSynced: new Date(),
-      });
-      setShowShareModal(true);
-    } catch (error) {
-      console.error('Failed to start sharing:', error);
-      alert(t('alert.shareFailed'));
-      setShareState(prev => ({ ...prev, isSyncing: false }));
-    }
+    if (await shareSync.start(tournament)) setShowShareModal(true);
+    else alert(t('alert.shareFailed'));
   };
 
   const stopSharing = async () => {
-    if (!shareState.shareId || !shareState.pin) return;
-    
     if (!window.confirm(t('confirm.stopSharing'))) return;
-    
-    try {
-      await fetch(`/api/game/${shareState.shareId}`, {
-        method: 'DELETE',
-        headers: { 'X-Tournament-Pin': shareState.pin },
-      });
-    } catch (error) {
-      console.error('Failed to delete shared game:', error);
-    }
-    
-    setShareState({
-      isSharing: false,
-      shareId: null,
-      pin: null,
-      shareUrl: null,
-      isSyncing: false,
-      lastSynced: null,
-    });
+    await shareSync.end();
   };
 
-  const copyToClipboard = async (text: string, setter: (v: boolean) => void) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setter(true);
-      setTimeout(() => setter(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
+  // The link expired (24 h without updates) or this device lost write access
+  useEffect(() => {
+    if (!shareSync.ended) return;
+    alert(t(shareSync.ended === 'expired' ? 'alert.shareExpired' : 'alert.shareRevoked'));
+    shareSync.dismissEnded();
+  }, [shareSync.ended]);
 
   const addPlayer = () => {
     const name = cleanName(newPlayerName);
@@ -356,7 +227,7 @@ const App: React.FC = () => {
       return;
     }
     const newPlayer: Player = {
-      id: crypto.randomUUID(),
+      id: newId(),
       name,
       skillLevel: newPlayerSkill,
       ...(isEvent && { isActive: true }),
@@ -429,6 +300,7 @@ const App: React.FC = () => {
       if (!eventMode && unpaired.length) return alert(t('alert.unpairedPlayers', { names: unpaired.map(p => p.name).join(', ') }));
     }
     const pairFields = { pairMode, ...(fixed && { pairs: tournamentPairs }) };
+    const scoringFields = setupScoring === 'sets' ? { scoring: 'sets' as const } : { pointsPerMatch: setupScoring };
     
     let tournamentPlayers = [...players];
     
@@ -441,33 +313,32 @@ const App: React.FC = () => {
     if (eventMode) {
       // Event mode: start with no rounds, generate on demand
       setTournament({
-        id: crypto.randomUUID(),
-        name: t('tournament.leagueName', { date: new Date().toLocaleDateString(locale) }),
+        id: newId(),
+        name: setupName.trim() || t('tournament.leagueName', { date: ymd() }),
         players: tournamentPlayers,
         rounds: [],
         isStarted: true,
-        courtNames: [...courtNames],
         mode: 'event',
+        ...scoringFields,
+        createdAt: new Date().toISOString(),
         numCourts: eventNumCourts,
         ...pairFields,
-        prioritizeSkill: leagueSkill,
-        ...(leagueRanking && { prioritizeRanking: true }),
+        prioritizeSkill: !leagueClassic, // League By skill always uses skill (+ standings if chosen); Classic neither
+        ...(!leagueClassic && leagueRanking && { prioritizeRanking: true }),
       });
     } else {
-      const balanced = !fixed && prioritizeSkill;
-      const fullSchedule = fixed
-        ? generateFixedPairsSchedule(tournamentPairs)
-        : balanced ? generateSkillBalancedSchedule(tournamentPlayers) : generateAmericanoSchedule(tournamentPlayers);
-      // Fewer courts than players ÷ 4: same matches spread over more rounds
-      const rounds = packRounds(fullSchedule, numCourts, tournamentPlayers.map(p => p.id));
+      const balanced = prioritizeSkill; // Americano variant: By skill (else Classic)
+      // Nobody rests two rounds in a row (utils/classicSchedule.ts)
+      const rounds = buildClassicSchedule({ players: tournamentPlayers, pairs: tournamentPairs, fixed, balanced }, numCourts);
       setTournament({
-        id: crypto.randomUUID(),
-        name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
+        id: newId(),
+        name: setupName.trim() || t('tournament.classicName', { date: ymd() }),
         players: tournamentPlayers,
         rounds,
         isStarted: true,
-        courtNames: [...courtNames],
         mode: 'classic',
+        ...scoringFields,
+        createdAt: new Date().toISOString(),
         numCourts,
         ...pairFields,
         ...(balanced && { prioritizeSkill: true }),
@@ -478,36 +349,10 @@ const App: React.FC = () => {
     setActiveTab('rounds');
   };
 
-  const updateCourtName = (index: number, name: string) => {
-    setCourtNames(prev => {
-      const updated = [...prev];
-      updated[index] = name;
-      return updated;
-    });
-  };
-
-  const getCourtName = (courtIndex: number): string => courtName(tournament?.courtNames?.[courtIndex], courtIndex);
 
   const resetTournament = async () => {
     if (window.confirm(t('confirm.endTournament'))) {
-      if (shareState.isSharing && shareState.shareId && shareState.pin) {
-        try {
-          await fetch(`/api/game/${shareState.shareId}`, {
-            method: 'DELETE',
-            headers: { 'X-Tournament-Pin': shareState.pin },
-          });
-        } catch (e) {
-          console.error('Failed to delete shared game:', e);
-        }
-        setShareState({
-          isSharing: false,
-          shareId: null,
-          pin: null,
-          shareUrl: null,
-          isSyncing: false,
-          lastSynced: null,
-        });
-      }
+      await shareSync.end();
       setTournament(null);
       localStorage.removeItem('padel_tournament');
       setActiveTab('setup');
@@ -516,37 +361,20 @@ const App: React.FC = () => {
 
   const clearAllData = async () => {
     if (window.confirm(t('confirm.clearAll'))) {
-      if (shareState.isSharing && shareState.shareId && shareState.pin) {
-        try {
-          await fetch(`/api/game/${shareState.shareId}`, {
-            method: 'DELETE',
-            headers: { 'X-Tournament-Pin': shareState.pin },
-          });
-        } catch (e) {
-          console.error('Failed to delete shared game:', e);
-        }
-        setShareState({
-          isSharing: false,
-          shareId: null,
-          pin: null,
-          shareUrl: null,
-          isSyncing: false,
-          lastSynced: null,
-        });
-      }
+      await shareSync.end();
       setTournament(null);
       setPlayers([]);
-      setCourtNames([]);
       setEventMode(false);
       setPairMode('rotating');
       setPairs([]);
       setPrioritizeSkill(false);
-      setLeagueSkill(true);
       setLeagueRanking(false);
-      setClassicCourts(null);
+      setLeagueClassic(false);
+      setClassicCourts(DEFAULT_COURTS);
+      setSetupScoring(DEFAULT_POINTS);
+      setSetupName('');
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
-      localStorage.removeItem('padel_court_names');
       localStorage.removeItem('padel_share_state');
       localStorage.removeItem('padel_event_mode');
       localStorage.removeItem('padel_event_courts');
@@ -554,7 +382,6 @@ const App: React.FC = () => {
       localStorage.removeItem('padel_pair_mode');
       localStorage.removeItem('padel_pairs');
       localStorage.removeItem('padel_prioritize_skill');
-      localStorage.removeItem('padel_league_prioritize_skill');
       localStorage.removeItem('padel_prioritize_ranking');
       setActiveTab('setup');
     }
@@ -570,7 +397,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(new Blob([serializeTournament(updated)], { type: 'application/yaml' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = exportFilename(updated);
+    a.download = exportFilename(updated, t(updated.mode === 'event' ? 'file.modeEvent' : 'file.modeClassic'));
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -593,21 +420,10 @@ const App: React.FC = () => {
       return alert(t('alert.importInvalidYaml'));
     }
     if ((tournament || players.length > 0) && !window.confirm(t('confirm.importReplace'))) return;
-    if (shareState.isSharing && shareState.shareId && shareState.pin) {
-      try {
-        await fetch(`/api/game/${shareState.shareId}`, {
-          method: 'DELETE',
-          headers: { 'X-Tournament-Pin': shareState.pin },
-        });
-      } catch (e) {
-        console.error('Failed to delete shared game:', e);
-      }
-      setShareState({ isSharing: false, shareId: null, pin: null, shareUrl: null, isSyncing: false, lastSynced: null });
-    }
-    const imported = result.tournament;
+    await shareSync.end();
+    const imported = withUpperNames(result.tournament);
     setTournament(imported);
     setPlayers(imported.players);
-    setCourtNames(imported.courtNames ?? []);
     setEventMode(imported.mode === 'event');
     if (imported.numCourts) {
       if (imported.mode === 'event') setEventNumCourts(imported.numCourts);
@@ -617,21 +433,21 @@ const App: React.FC = () => {
     setPairs(imported.pairs ?? []);
     if (imported.mode === 'event') {
       const mm = leagueMatchmaking(imported);
-      setLeagueSkill(mm.skill);
+      const classic = !mm.skill && !mm.ranking;
+      setLeagueClassic(classic);
       setLeagueRanking(mm.ranking);
     } else {
       setPrioritizeSkill(!!imported.prioritizeSkill);
     }
     setPairingWith(null);
     // Resume at the first round with unfinished matches
-    const firstOpen = imported.rounds.findIndex(r => r.matches.some(m => !m.isCompleted));
-    setCurrentRoundIndex(firstOpen >= 0 ? firstOpen : Math.max(0, imported.rounds.length - 1));
+    setCurrentRoundIndex(liveRoundIndex(imported));
     const anyScored = imported.rounds.some(r => r.matches.some(m => m.isCompleted));
     setActiveTab(anyScored ? 'leaderboard' : 'rounds');
   };
 
   const addRound = () => {
-    if (!tournament) return;
+    if (!tournament || !scoresOk(tournament.rounds)) return;
     const newRoundIndex = tournament.rounds.length;
     
     const fixed = tournament.pairMode === 'fixed';
@@ -647,7 +463,9 @@ const App: React.FC = () => {
       const mm = leagueMatchmaking(tournament);
       const strengths = playerStrengths(tournament.players, tournament.rounds, mm);
       const strength = (id: string) => strengths.get(id) ?? 2;
-      const newRound = fixed
+      const newRound = !mm.skill && !mm.ranking
+        ? generateLeagueClassicRound(tournament.players, activeIds, fixed ? tournament.pairs ?? [] : null, tournament.rounds, newRoundIndex, nc)
+        : fixed
         ? generateFixedPairsRound(activePairs, tournament.players, tournament.rounds, newRoundIndex, nc, { strength, ranked: mm.ranking })
         : mm.ranking
         ? generateRankedRound(activePlayers, tournament.players, tournament.rounds, newRoundIndex, nc, strength)
@@ -655,15 +473,13 @@ const App: React.FC = () => {
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound],
-        courtNames: [...courtNames],
       });
     } else {
       const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
-      const newRound = fixed
-        ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, nc)
-        : tournament.prioritizeSkill
-        ? generateEventRound(tournament.players, tournament.players, tournament.rounds, newRoundIndex, nc)
-        : generateAdditionalRound(tournament.players, tournament.rounds, newRoundIndex, nc);
+      const newRound = nextClassicRound(
+        { players: tournament.players, pairs: tournament.pairs ?? [], fixed, balanced: !!tournament.prioritizeSkill },
+        tournament.rounds, nc
+      );
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound]
@@ -673,7 +489,7 @@ const App: React.FC = () => {
   };
 
   const addChampionshipRound = () => {
-    if (!tournament || leaderboard.length < minForFinals) return;
+    if (!tournament || leaderboard.length < minForFinals || !scoresOk(tournament.rounds)) return;
     const newRoundIndex = tournament.rounds.length;
     const newRound = isFixed
       ? generateFixedPairsChampionship(
@@ -696,18 +512,46 @@ const App: React.FC = () => {
     setActiveTab('rounds');
   };
 
-  const updateScore = (roundIdx: number, matchId: string, team: 'A' | 'B', score: string) => {
+  // Side the organizer typed last in each match: the other one may be auto-filled (applyScoreInput)
+  const lastTypedSide = useRef<Record<string, Side>>({});
+  const updateScore = (roundIdx: number, matchId: string, team: Side, score: string) => {
     if (!tournament) return;
-    const val = score === '' ? null : Math.max(0, parseInt(score) || 0);
     const newRounds = tournament.rounds.map((r, ri) => ri === roundIdx ? {
-      ...r, matches: r.matches.map(m => m.id === matchId ? {
-        ...m, 
-        [team === 'A' ? 'scoreA' : 'scoreB']: val, 
-        isCompleted: (team === 'A' ? val : m.scoreA) !== null && (team === 'B' ? val : m.scoreB) !== null
-      } : m)
+      ...r, matches: r.matches.map(m => m.id === matchId
+        ? { ...m, ...applyScoreInput(m, team, score, tournament.pointsPerMatch, lastTypedSide.current[matchId]) }
+        : m)
     } : r);
+    lastTypedSide.current[matchId] = team;
     setTournament({ ...tournament, rounds: newRounds });
   };
+
+  /** Best of 3 sets: games typed in one side of one set */
+  const updateSet = (roundIdx: number, matchId: string, setIdx: number, side: Side, raw: string) => {
+    if (!tournament) return;
+    setTournament({
+      ...tournament,
+      rounds: tournament.rounds.map((r, ri) => ri === roundIdx ? {
+        ...r, matches: r.matches.map(m => m.id === matchId ? { ...m, ...applySetInput(m, setIdx, side, raw) } : m),
+      } : r),
+    });
+  };
+
+  /** Enter in a score → next empty score on the page (or close the keyboard) */
+  const focusNextScore = (current: HTMLInputElement) => {
+    const inputs = [...document.querySelectorAll<HTMLInputElement>('input[data-score]')];
+    const next = inputs.slice(inputs.indexOf(current) + 1).find(i => i.value === '');
+    if (next) next.focus();
+    else current.blur();
+  };
+
+  // Scoring: 11p / 15p / 21p / best of 3 sets (null = free, older tournaments only)
+  const scoring: Scoring = tournament ? scoringOf(tournament) : setupScoring;
+  const hasScores = !!tournament?.rounds.some(r => r.matches.some(m => m.scoreA !== null || m.scoreB !== null || m.sets?.length));
+  const setScoring = (v: Scoring) => {
+    if (v !== null) setSetupScoring(v);
+    if (tournament) setTournament({ ...tournament, pointsPerMatch: typeof v === 'number' ? v : undefined, scoring: v === 'sets' ? 'sets' : undefined });
+  };
+  const scoringLabel = (v: Scoring) => v === 'sets' ? t('scoring.sets') : v === null ? t('setup.pointsFree') : t('scoring.points', { n: v });
 
   const renderOption = (checked: boolean, onChange: (v: boolean) => void, label: TranslationKey, hint: TranslationKey) => (
     <label className="flex items-start gap-3 cursor-pointer group mt-4">
@@ -728,6 +572,36 @@ const App: React.FC = () => {
   const getPlayer = (id: string) => tournament?.players.find(p => p.id === id);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
+  const fmtAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  // Playoff (utils/playoff.ts): from the standings, only players who can play now (League: active ones)
+  const playoffPool = !tournament ? [] : tournament.players
+    .filter(p => tournament.mode !== 'event' || p.isActive !== false).map(p => p.id);
+  const playoffSeeds: string[] | Pair[] = (() => {
+    if (!tournament) return [];
+    const inPool = new Set(playoffPool);
+    if (!isFixed) return leaderboard.map(e => e.playerId).filter(id => inPool.has(id));
+    return leaderboard.map(e => pairOfEntry(tournament, e)).filter((p): p is Pair => !!p && p.every(id => inPool.has(id)));
+  })();
+  const playoff = playoffState(tournament?.rounds ?? []);
+  const hasFinals = !!tournament?.rounds.some(r => r.matches.some(m => isFinal(m) || isPlayoffMatch(m)));
+  const canPlayoff = playoffSeeds.length >= (isFixed ? PLAYOFF_PAIRS : PLAYOFF_PLAYERS);
+  const addPlayoff = () => {
+    if (!tournament || !canPlayoff || hasFinals || !scoresOk(tournament.rounds)) return;
+    const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
+    const semis = generatePlayoffSemifinals(playoffSeeds, playoffPool, tournament.rounds.length, nc);
+    setTournament({ ...tournament, rounds: [...tournament.rounds, ...semis] });
+    setCurrentRoundIndex(tournament.rounds.length);
+    setActiveTab('rounds');
+  };
+  const addPlayoffFinal = () => {
+    if (!tournament || !scoresOk(tournament.rounds)) return;
+    const final = generatePlayoffFinal(tournament.rounds, playoffPool, tournament.rounds.length);
+    if (!final) return;
+    setTournament({ ...tournament, rounds: [...tournament.rounds, final] });
+    setCurrentRoundIndex(tournament.rounds.length);
+    setActiveTab('rounds');
+  };
+
 
   const matchmaking = tournament ? leagueMatchmaking(tournament) : null;
   const matchmakingKey: TranslationKey = !matchmaking ? 'matchmaking.skill'
@@ -750,26 +624,100 @@ const App: React.FC = () => {
     : playable > usedCourts * 4 ? t('setup.restingPerRound', { n: playable - usedCourts * 4 })
     : null;
   // Random before start: full schedule (N−1 rounds, N if odd; pairs for fixed) spread over the chosen courts
-  const estimatedClassicRounds = (() => {
-    const n = isFixed ? currentPairs.length : players.length;
-    const fullRounds = n > 1 ? (n % 2 === 0 ? n - 1 : n) : 0;
-    const perRound = isFixed ? Math.floor(n / 2) : Math.floor(n / 4);
-    return numCourts && perRound > numCourts ? Math.ceil(fullRounds * perRound / numCourts) : fullRounds;
-  })();
-  const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => (
-    <div className="flex items-center gap-3">
-      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={t('setup.fewerCourts')}
-        className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
-        <Minus className="w-4 h-4" strokeWidth={3} />
-      </button>
-      <span className="w-10 text-center text-3xl md:text-4xl font-black tabular-nums">{value}</span>
-      <button type="button" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label={t('setup.moreCourts')}
-        className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
-        <Plus className="w-4 h-4" strokeWidth={3} />
-      </button>
+  const estimatedClassicRounds = classicRoundCount(isFixed ? currentPairs.length : players.length, isFixed, numCourts);
+  // Skill is only used by the League and Americano By skill (Classic ignores it: selector and badges hidden)
+  const usesSkill = tournament
+    ? (tournament.mode === 'event' ? leagueMatchmaking(tournament).skill || !!tournament.prioritizeRanking : !!tournament.prioritizeSkill)
+    : (eventMode ? !leagueClassic : prioritizeSkill);
+  // Variant buttons (Americano: Classic | By skill; League: Classic | By skill with its two options)
+  const bySkill = eventMode ? !leagueClassic : prioritizeSkill;
+  const setBySkill = (v: boolean) => {
+    if (!eventMode) return setPrioritizeSkill(v);
+    setLeagueClassic(!v);
+  };
+  // − and + together, the value on the right (aligned with the other numbers of the panel)
+  const renderStepperControl = (
+    display: React.ReactNode,
+    onDec: (() => void) | null, // null = disabled
+    onInc: (() => void) | null,
+    labels: [TranslationKey, TranslationKey]
+  ) => (
+    <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => onDec?.()} disabled={!onDec} aria-label={t(labels[0])}
+          className="w-8 h-8 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+          <Minus className="w-4 h-4" strokeWidth={3} />
+        </button>
+        <button type="button" onClick={() => onInc?.()} disabled={!onInc} aria-label={t(labels[1])}
+          className="w-8 h-8 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+          <Plus className="w-4 h-4" strokeWidth={3} />
+        </button>
+      </div>
+      {/* Same width keeps the buttons aligned */}
+      <span className={`w-16 text-right tabular-nums whitespace-nowrap ${PANEL_VALUE}`} aria-live="polite">{display}</span>
     </div>
   );
+  const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => renderStepperControl(
+    value,
+    value > min ? () => onChange(value - 1) : null,
+    value < max ? () => onChange(value + 1) : null,
+    ['setup.fewerCourts', 'setup.moreCourts']
+  );
+  // Points per match: 11 → 15 → 21 → Libre (plus an older custom value, e.g. 24, if the tournament has it)
+  const scoringSteps: Scoring[] = [
+    ...[...new Set([...POINTS_OPTIONS, ...(typeof scoring === 'number' ? [scoring] : [])])].sort((a, b) => a - b),
+    'sets',
+    ...(scoring === null ? [null] : []),
+  ];
+  const scoringStep = scoringSteps.indexOf(scoring);
+  // Points ↔ sets can't change once scores are entered (they're stored differently)
+  const canStepTo = (i: number) => i >= 0 && i < scoringSteps.length && (!hasScores || (scoringSteps[i] === 'sets') === (scoring === 'sets'));
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
+
+  /** Text (round line-up, standings) on the clipboard, to paste wherever you like */
+  const copyToClipboard = async (text: string, done: TranslationKey) => {
+    if (!(await copyText(text))) return void window.prompt('', text);
+    showToast(t(done));
+  };
+  const showToast = (message: string, ms = 2500) => {
+    setToast(message);
+    setTimeout(() => setToast(null), ms);
+  };
+  // With points per match, a half-entered result or one not adding up blocks moving on (blank is fine)
+  const scoresOk = (rounds: Round[]): boolean => {
+    if (!tournament) return true;
+    const bad = firstInvalidScore(rounds, scoringOf(tournament));
+    if (!bad) return true;
+    setActiveTab('rounds');
+    setCurrentRoundIndex(bad.roundIndex);
+    const where = { match: matchTitle(bad.match, t, courtLabel), round: bad.roundIndex + 1 };
+    showToast(tournament.scoring === 'sets' ? t('rounds.fixSets', where) : t('rounds.fixScores', { ...where, total: tournament.pointsPerMatch ?? 0 }), 4500);
+    return false;
+  };
+  const nextRound = () => {
+    if (!tournament || currentRoundIndex >= tournament.rounds.length - 1) return;
+    if (scoresOk([tournament.rounds[currentRoundIndex]])) setCurrentRoundIndex(currentRoundIndex + 1);
+  };
+  const copyRound = (text: string) => copyToClipboard(text, 'share.roundCopied');
+  const copyStandings = (text: string) => copyToClipboard(text, 'share.standingsCopied');
+  const textCtx = { t, courtLabel, locale };
+  // Undo the last round while nobody has scored in it (e.g. someone arrived late in a League).
+  // Random: only finals and extra "+" rounds (previous round complete), not the pre-generated schedule.
+  const canUndoRound = (() => {
+    const rounds = tournament?.rounds ?? [];
+    const last = rounds[rounds.length - 1];
+    if (!tournament || !last || last.matches.some(m => m.scoreA !== null || m.scoreB !== null)) return false;
+    if (tournament.mode === 'event') return true;
+    const prev = rounds[rounds.length - 2];
+    return last.matches.some(m => isFinal(m) || isPlayoffMatch(m)) || (!!prev && prev.matches.every(m => m.isCompleted));
+  })();
+  const undoRound = () => {
+    if (!tournament || !canUndoRound) return;
+    if (!window.confirm(t('confirm.undoRound', { n: tournament.rounds.length }))) return;
+    const rounds = tournament.rounds.slice(0, -1);
+    setTournament({ ...tournament, rounds });
+    setCurrentRoundIndex(Math.max(0, rounds.length - 1));
+  };
 
   // Keyboard navigation for rounds
   useEffect(() => {
@@ -779,8 +727,8 @@ const App: React.FC = () => {
       
       if (e.key === 'ArrowLeft' && currentRoundIndex > 0) {
         setCurrentRoundIndex(i => i - 1);
-      } else if (e.key === 'ArrowRight' && currentRoundIndex < tournament.rounds.length - 1) {
-        setCurrentRoundIndex(i => i + 1);
+      } else if (e.key === 'ArrowRight') {
+        nextRound();
       }
     };
     
@@ -794,7 +742,8 @@ const App: React.FC = () => {
         {[
           { tab: 'setup', icon: Settings, label: t('nav.setup') },
           { tab: 'rounds', icon: Layout, label: t('nav.matches'), disabled: !tournament },
-          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament }
+          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament },
+          { tab: 'info', icon: BookOpen, label: t('nav.info'), disabled: false }
         ].map(item => (
           <button 
             key={item.tab}
@@ -820,7 +769,7 @@ const App: React.FC = () => {
                   PADEL<span className={tc.primaryText}>AMERICANO</span>
                 </h1>
               </div>
-              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t('header.tagline')}</p>
+              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t((tournament ? !leagueMatchmaking(tournament).skill && !tournament.prioritizeRanking : leagueClassic) ? 'header.taglineLeagueClassic' : 'header.taglineLeague') : t((tournament ? tournament.prioritizeSkill : prioritizeSkill) ? 'header.taglineSkill' : 'header.taglineClassic')}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
@@ -835,26 +784,31 @@ const App: React.FC = () => {
           )}
             {tournament && (
               <button
-                onClick={() => shareState.isSharing ? setShowShareModal(true) : startSharing()}
-                disabled={shareState.isSyncing}
-                className={`flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold transition-all active:scale-95 ${
-                  shareState.isSharing 
+                onClick={() => shareSync.share ? setShowShareModal(true) : startSharing()}
+                disabled={shareSync.creating}
+                className={`relative flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold transition-all active:scale-95 ${
+                  shareSync.share
                     ? `${tc.primaryLight} ${tc.primaryText} border ${tc.primaryBorder}` 
                     : `${tc.primary} text-white shadow-lg`
                 }`}
               >
-                {shareState.isSyncing ? (
+                {shareSync.creating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : shareState.isSharing ? (
+                ) : shareSync.share ? (
                   <LinkIcon className="w-4 h-4" />
                 ) : (
                   <Share2 className="w-4 h-4" />
                 )}
-                <span className="text-sm">{shareState.isSharing ? t('header.sharing') : t('header.share')}</span>
+                <span className="text-sm">{shareSync.share ? t('header.sharing') : t('header.share')}</span>
+                {shareSync.share && shareSync.status === 'retrying' && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white" title={t('share.retrying')} />
+                )}
               </button>
             )}
           </div>
         </header>
+
+        {activeTab === 'info' && <InfoView />}
 
         {activeTab === 'setup' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -875,9 +829,9 @@ const App: React.FC = () => {
 
               {/* Event mode banner when tournament is running */}
               {tournament?.mode === 'event' && (
-                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                  <span className="text-purple-700 font-bold text-sm">{t('setup.eventModeActive')}</span>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                  <span className="text-indigo-700 font-bold text-sm">{t('setup.eventModeActive')}</span>
                 </div>
               )}
 
@@ -893,8 +847,8 @@ const App: React.FC = () => {
                   <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
                 )}
                 
-                {/* Skill level selector (balances matches in both modes) */}
-                <div className="flex flex-wrap items-center gap-3 px-1">
+                {/* Skill level selector (League and Americano By skill) */}
+                {usesSkill && <div className="flex flex-wrap items-center gap-3 px-1">
                   <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
                   {(['low', 'medium', 'high'] as const).map(level => (
                     <button
@@ -909,7 +863,7 @@ const App: React.FC = () => {
                       {t(`skill.${level}`)}
                     </button>
                   ))}
-                </div>
+                </div>}
               </div>
 
               {/* Fixed pairs */}
@@ -953,18 +907,18 @@ const App: React.FC = () => {
                   <div className="col-span-full py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
                 ) : players.map((p, idx) => {
                   const skill = p.skillLevel ?? 'medium';
-                  const colors = SKILL_COLORS[skill];
+                  const colors = usesSkill ? SKILL_COLORS[skill] : NEUTRAL_COLORS;
                   const partnerId = isFixed ? partnerOf(p.id) : null;
                   const inactive = tournament?.mode === 'event' && p.isActive === false;
                   return (
                   <div key={p.id} className={`flex items-center gap-3 border-2 rounded-2xl pl-2 pr-2 py-2 transition-all group ${colors.card} ${
-                    pairingWith === p.id ? `ring-2 ring-offset-1 ${isEvent ? 'ring-purple-400' : 'ring-indigo-400'}` : ''
+                    pairingWith === p.id ? `ring-2 ring-offset-1 ring-indigo-400` : ''
                   } ${inactive ? 'opacity-40 grayscale' : ''}`}>
                     <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black text-sm text-white ${colors.dot}`}>{idx + 1}</span>
                     <div className="min-w-0 flex-1">
                       <PlayerName name={p.name} baseClass="block truncate font-black text-slate-800 text-base md:text-lg leading-tight" inline />
                       <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                        <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${colors.text}`}>{t(`skill.${skill}`)}</span>
+                        {usesSkill && <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${SKILL_COLORS[skill].text}`}>{t(`skill.${skill}`)}</span>}
                         {partnerId && (
                           <span className="text-[10px] font-bold text-slate-500 truncate">
                             · {t('pairs.partnerOf', { name: players.find(x => x.id === partnerId)?.name ?? '' })}
@@ -972,16 +926,8 @@ const App: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center shrink-0">
-                      {isFixed && canEditPairs && !partnerId && (
-                        <button
-                          onClick={() => selectForPair(p.id)}
-                          title={t('pairs.pairWith')}
-                          className={`p-2 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : 'text-slate-400 hover:text-slate-700 hover:bg-white/70'}`}
-                        >
-                          <Link2 className="w-5 h-5" />
-                        </button>
-                      )}
+                    {/* Actions stacked (remove / sit out on top, pair below) so the name keeps the width */}
+                    <div className="flex flex-col items-center shrink-0">
                       {tournament?.mode === 'event' ? (
                         <button
                           onClick={() => togglePlayerActive(p.id)}
@@ -991,8 +937,17 @@ const App: React.FC = () => {
                           {p.isActive !== false ? <UserPlus className="w-5 h-5" /> : <UserMinus className="w-5 h-5" />}
                         </button>
                       ) : !tournament ? (
-                        <button onClick={() => removePlayer(p.id)} title={t('setup.removePlayer')} className="p-2 rounded-xl text-slate-400/70 hover:text-rose-500 hover:bg-white/70 transition-all"><Trash2 className="w-5 h-5" /></button>
+                        <button onClick={() => removePlayer(p.id)} title={t('setup.removePlayer')} className="p-1.5 rounded-xl text-slate-400/70 hover:text-rose-500 hover:bg-white/70 transition-all"><Trash2 className="w-5 h-5" /></button>
                       ) : null}
+                      {isFixed && canEditPairs && !partnerId && (
+                        <button
+                          onClick={() => selectForPair(p.id)}
+                          title={t('pairs.pairWith')}
+                          className={`p-1.5 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : 'text-slate-400 hover:text-slate-700 hover:bg-white/70'}`}
+                        >
+                          <Link2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   );
@@ -1001,8 +956,27 @@ const App: React.FC = () => {
             </div>
 
             {/* Right panel */}
-            <div className={`${isEvent ? 'bg-purple-950' : 'bg-slate-900'} rounded-3xl md:rounded-[3rem] p-6 md:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
+            <div className={`bg-slate-900 rounded-3xl md:rounded-[3rem] p-6 md:p-8 xl:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
               <div className="space-y-6">
+                {/* Tournament name: for the next tournament, or renames the open one (also used in the export file name) */}
+                <div>
+                  <label htmlFor="tournament-name" className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-3 block">{t('setup.tournamentName')}</label>
+                  <input
+                    id="tournament-name"
+                    type="text"
+                    maxLength={60}
+                    value={tournament ? tournament.name : setupName}
+                    placeholder={t(isEvent ? 'tournament.leagueName' : 'tournament.classicName', { date: ymd() })}
+                    onChange={(e) => tournament ? setTournament({ ...tournament, name: e.target.value }) : setSetupName(e.target.value)}
+                    onBlur={() => {
+                      if (tournament && !tournament.name.trim()) {
+                        const date = ymd(new Date(tournament.createdAt ?? Date.now()));
+                        setTournament({ ...tournament, name: t(tournament.mode === 'event' ? 'tournament.leagueName' : 'tournament.classicName', { date }) });
+                      }
+                    }}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-base font-bold text-white placeholder:text-slate-600 outline-none focus:border-white/30"
+                  />
+                </div>
                 {/* Mode selector - only before tournament starts */}
                 {!tournament && (
                   <div>
@@ -1023,7 +997,7 @@ const App: React.FC = () => {
                         onClick={() => setEventMode(true)}
                         className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
                           eventMode
-                            ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300'
+                            ? 'bg-white/10 border-2 border-white/20 text-white'
                             : 'border-2 border-transparent text-slate-500 hover:border-white/10'
                         }`}
                       >
@@ -1031,6 +1005,31 @@ const App: React.FC = () => {
                         {t('setup.event')}
                       </button>
                     </div>
+                    {/* Variant: Classic (same matches for all, no skill) or By skill — Americano and League */}
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.variant')}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([false, true] as const).map(option => {
+                        const Icon = option ? Scale : Repeat;
+                        return (
+                          <button
+                            key={String(option)}
+                            onClick={() => setBySkill(option)}
+                            aria-pressed={bySkill === option}
+                            className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
+                              bySkill === option
+                                ? 'bg-white/10 border-2 border-white/20 text-white'
+                                : 'border-2 border-transparent text-slate-500 hover:border-white/10'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5 mx-auto mb-1" />
+                            {t(option ? 'setup.variantSkill' : 'setup.variantClassic')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-slate-400 text-xs font-medium mt-2">{t(eventMode
+                      ? (bySkill ? 'setup.variantLeagueSkillHint' : 'setup.variantLeagueClassicHint')
+                      : (bySkill ? 'setup.variantSkillHint' : 'setup.variantClassicHint'))}</p>
                     <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.pairing')}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {(['rotating', 'fixed'] as const).map(mode => {
@@ -1041,7 +1040,7 @@ const App: React.FC = () => {
                             onClick={() => { setPairMode(mode); setPairingWith(null); }}
                             className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
                               pairMode === mode
-                                ? (isEvent ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300' : 'bg-white/10 border-2 border-white/20 text-white')
+                                ? 'bg-white/10 border-2 border-white/20 text-white'
                                 : 'border-2 border-transparent text-slate-500 hover:border-white/10'
                             }`}
                           >
@@ -1051,26 +1050,21 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    {!eventMode && pairMode === 'rotating' && renderOption(prioritizeSkill, setPrioritizeSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillHint')}
-                    {eventMode && (
-                      <>
-                        {renderOption(leagueSkill, setLeagueSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
-                        {renderOption(leagueRanking, setLeagueRanking, 'setup.prioritizeRanking', pairMode === 'fixed' ? 'setup.prioritizeRankingFixedHint' : 'setup.prioritizeRankingHint')}
-                      </>
-                    )}
+                    {/* League By skill: skill always counts; standings optional */}
+                    {eventMode && !leagueClassic && renderOption(leagueRanking, setLeagueRanking, 'setup.prioritizeRanking', 'setup.prioritizeRankingHint')}
                   </div>
                 )}
                 
                 <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest">{t('setup.tournamentInfo')}</h3>
-                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className="text-3xl md:text-4xl font-black">{players.length}</span></div>
+                <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.athletes')}</span><span className={`${PANEL_VALUE}`}>{players.length}</span></div>
                 {isFixed && (
-                  <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className="text-3xl md:text-4xl font-black">{currentPairs.length}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-400 font-bold">{t('setup.pairs')}</span><span className={`${PANEL_VALUE}`}>{currentPairs.length}</span></div>
                 )}
                 
                 {isEvent && (
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-bold">{t('setup.active')}</span>
-                    <span className="text-3xl md:text-4xl font-black text-emerald-400">{activePlayers.length}</span>
+                    <span className={`${PANEL_VALUE} text-emerald-400`}>{activePlayers.length}</span>
                   </div>
                 )}
                 <div className="space-y-2 pb-6 md:pb-8 border-b border-slate-800">
@@ -1080,57 +1074,27 @@ const App: React.FC = () => {
                     {isEvent
                       ? renderStepper(numCourts, 1, MAX_COURTS, setLeagueCourts)
                       : !tournament
-                      ? renderStepper(numCourts, maxClassicCourts ? 1 : 0, maxClassicCourts, v => setClassicCourts(v >= maxClassicCourts ? null : v))
-                      : <span className="text-3xl md:text-4xl font-black">{numCourts}</span>}
+                      ? renderStepper(numCourts, 1, MAX_COURTS, setClassicCourts)
+                      : <span className={`${PANEL_VALUE}`}>{numCourts}</span>}
                   </div>
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
+                  <div className="flex justify-between items-center pt-4">
+                    <span className="text-slate-400 font-bold">{t('setup.scoring')}</span>
+                    {renderStepperControl(
+                      scoringLabel(scoring),
+                      canStepTo(scoringStep - 1) ? () => setScoring(scoringSteps[scoringStep - 1]) : null,
+                      canStepTo(scoringStep + 1) ? () => setScoring(scoringSteps[scoringStep + 1]) : null,
+                      ['setup.fewerPoints', 'setup.morePoints']
+                    )}
+                  </div>
                   {(tournament || !isEvent) && (
                     <div className="flex justify-between items-center pt-4">
                       <span className="text-slate-400 font-bold">{t('common.rounds')}</span>
-                      <span className="text-3xl md:text-4xl font-black">{tournament ? tournament.rounds.length : estimatedClassicRounds}</span>
+                      <span className={`${PANEL_VALUE}`}>{tournament ? tournament.rounds.length : estimatedClassicRounds}</span>
                     </div>
                   )}
                 </div>
                 
-                {/* Court Names Configuration */}
-                {numCourts > 0 && (!tournament || tournament.mode === 'event') && (
-                  <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('setup.courtNames')}</h3>
-                    <div className="space-y-2">
-                      {courtNames.map((name, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="text-slate-600 text-xs font-bold w-5">{idx + 1}</span>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => updateCourtName(idx, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === 'Tab') {
-                                if (idx < courtNames.length - 1) {
-                                  e.preventDefault();
-                                  const nextInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input');
-                                  nextInput?.focus();
-                                }
-                              }
-                            }}
-                            placeholder={t('common.court', { n: idx + 1 })}
-                            className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm font-bold focus:outline-none ${isEvent ? 'focus:border-purple-500' : 'focus:border-indigo-500'} placeholder:text-slate-600`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {tournament?.courtNames && tournament.courtNames.length > 0 && tournament.mode !== 'event' && (
-                  <div className="pt-2">
-                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-4">{t('common.courts')}</h3>
-                    <div className="space-y-1 text-sm text-slate-400">
-                      {tournament.courtNames.map((name, idx) => (
-                        <div key={idx}>{courtName(name, idx)}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="space-y-4">
                 {!tournament ? (
@@ -1141,7 +1105,7 @@ const App: React.FC = () => {
                 ) : (
                   <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> {t('setup.goToMatches')}</button>
                 )}
-                {tournament && <button onClick={resetTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
+                {tournament && <button onClick={resetTournament} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
                 {(players.length > 0 && !tournament) && (
                   <button onClick={clearAllData} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
                     <Trash2 className="w-3 h-3" /> {t('setup.clearAll')}
@@ -1178,11 +1142,11 @@ const App: React.FC = () => {
         {activeTab === 'rounds' && tournament && (
           <div className="space-y-6 md:space-y-10">
             {/* Event mode: Generate Next Round button */}
-            {tournament.mode === 'event' && (tournament.rounds.length === 0 || currentRoundComplete) && (
-              <div className={`bg-gradient-to-r ${isEvent ? 'from-purple-50 to-violet-50 border-purple-200' : 'from-indigo-50 to-blue-50 border-indigo-200'} rounded-3xl p-6 md:p-8 border flex flex-col md:flex-row items-center justify-between gap-4`}>
+            {tournament.mode === 'event' && !playoff.started && (tournament.rounds.length === 0 || currentRoundComplete) && (
+              <div className={`bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 rounded-3xl p-6 md:p-8 border flex flex-col md:flex-row items-center justify-between gap-4`}>
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                    <Zap className={`w-5 h-5 ${isEvent ? 'text-purple-500' : 'text-indigo-500'}`} />
+                    <Zap className="w-5 h-5 text-indigo-500" />
                     {tournament.rounds.length === 0 ? t('rounds.generateFirst') : t('rounds.generateNext')}
                   </h3>
                   <p className="text-slate-600 text-sm mt-1">
@@ -1206,16 +1170,16 @@ const App: React.FC = () => {
                 <div className="bg-white rounded-[2rem] md:rounded-[4rem] shadow-sm border border-slate-200 p-6 md:p-10 flex items-center justify-between">
                   <button disabled={currentRoundIndex === 0} onClick={() => setCurrentRoundIndex(i => i - 1)} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronLeft className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
                   <div className="text-center">
-                    {tournament.rounds[currentRoundIndex]?.matches.some(m => m.id.includes('championship')) ? (
+                    {roundBadge(tournament.rounds[currentRoundIndex], t) ? (
                       <div className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-4 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest inline-flex items-center gap-1 mb-2">
-                        <Trophy className="w-3 h-3 md:w-4 md:h-4" /> {t('champ.round')}
+                        <Trophy className="w-3 h-3 md:w-4 md:h-4" /> {roundBadge(tournament.rounds[currentRoundIndex], t)}
                       </div>
                     ) : (
                     <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-slate-400 block mb-1">{t('common.round')}</span>
                     )}
                     <div className="text-4xl md:text-7xl font-black text-slate-900 flex items-center justify-center gap-2">
                       {currentRoundIndex + 1}<span className="text-slate-300 text-base md:text-2xl font-bold">/ {tournament.rounds.length}</span>
-                      {currentRoundIndex === tournament.rounds.length - 1 && tournament.mode !== 'event' && (
+                      {currentRoundIndex === tournament.rounds.length - 1 && tournament.mode !== 'event' && !playoff.started && (
                         <button 
                           onClick={addRound} 
                           className={`ml-2 p-2 md:p-3 rounded-xl ${tc.primaryLight} hover:opacity-80 ${tc.primaryText} transition-all`}
@@ -1225,8 +1189,21 @@ const App: React.FC = () => {
                         </button>
                       )}
                     </div>
+                    {scoringOf(tournament) !== null && (
+                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</span>
+                    )}
                   </div>
-                  <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={() => setCurrentRoundIndex(i => i + 1)} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
+                  <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={nextRound} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
+                </div>
+                <div className="flex justify-center gap-6 -mt-2 md:-mt-4">
+                  <button onClick={() => copyRound(roundText(tournament, currentRoundIndex, textCtx))} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
+                    <Copy className="w-3.5 h-3.5" /> {t('share.copyRound')}
+                  </button>
+                  {canUndoRound && currentRoundIndex === tournament.rounds.length - 1 && (
+                    <button onClick={undoRound} className="flex items-center gap-2 text-slate-400 hover:text-rose-500 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
+                      <Undo2 className="w-3.5 h-3.5" /> {t('rounds.undoRound')}
+                    </button>
+                  )}
                 </div>
                 <div className="grid gap-4 md:gap-8">
                   {(tournament.rounds[currentRoundIndex]?.matches || [])
@@ -1243,10 +1220,10 @@ const App: React.FC = () => {
                     const p2b = getPlayer(match.teamB[1]);
                     return (
                       <div key={match.id} className="bg-white rounded-3xl md:rounded-[4rem] shadow-sm border border-slate-200 overflow-hidden">
-                        <div className={`px-6 md:px-12 py-3 md:py-5 border-b flex justify-between items-center font-black text-[9px] md:text-[10px] uppercase tracking-widest ${match.id.includes('championship') ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' : 'bg-slate-50/50 border-slate-100 text-slate-400'}`}>
+                        <div className={`px-6 md:px-12 py-3 md:py-5 border-b flex justify-between items-center font-black text-[9px] md:text-[10px] uppercase tracking-widest ${isFinal(match) || isPlayoffMatch(match) ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' : 'bg-slate-50/50 border-slate-100 text-slate-400'}`}>
                           <span className="flex items-center gap-2">
-                            {match.id.includes('championship') && <Trophy className="w-4 h-4 text-yellow-500" />}
-                            {match.id.includes('championship') ? t('common.finals') : getCourtName(match.courtIndex)}
+                            {(isFinal(match) || isPlayoffMatch(match)) && <Trophy className="w-4 h-4 text-yellow-500" />}
+                            {matchTitle(match, t, courtLabel)}
                           </span>
                           {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={12}/> {t('common.done')}</span>}
                         </div>
@@ -1255,16 +1232,73 @@ const App: React.FC = () => {
                             <PlayerName name={p1a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                             <PlayerName name={p2a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
+                          {tournament.scoring === 'sets' ? (
+                            // Best of 3: one row per set (games A – games B); the 3rd only at one set all
+                            <div className="w-full md:col-span-3 flex flex-col items-center gap-2 md:gap-3">
+                              {[0, 1, 2].map(si => {
+                                const set = match.sets?.[si] ?? [null, null];
+                                const disabled = si === 2 && !needsThirdSet(match.sets);
+                                // Each set highlights its own winner (a 2-1 shows the loser's set in green too)
+                                const setWinner: Side | null = isValidSet(set[0], set[1]) ? (set[0]! > set[1]! ? 'A' : 'B') : null;
+                                const setInput = (side: Side) => (
+                                  <input
+                                    type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} enterKeyHint="next" autoComplete="off" data-score={disabled ? undefined : ''}
+                                    aria-label={t('rounds.setScoreFor', { n: si + 1, team: (side === 'A' ? [p1a, p2a] : [p1b, p2b]).map(p => p?.name ?? '?').join(' & ') })}
+                                    value={set[side === 'A' ? 0 : 1] ?? ''}
+                                    disabled={disabled}
+                                    onChange={(e) => updateSet(currentRoundIndex, match.id, si, side, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
+                                    className={`w-12 h-12 md:w-16 md:h-16 text-center text-2xl md:text-3xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-xl md:rounded-2xl ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-30 ${!disabled && setWinner === side ? winnerInputClass : ''}`}
+                                    placeholder="0"
+                                  />
+                                );
+                                return (
+                                  <div key={si} className="flex items-center gap-3 md:gap-4">
+                                    {setInput('A')}
+                                    <span className="w-10 md:w-12 text-center text-slate-300 font-black text-[10px] md:text-xs uppercase tracking-wider shrink-0">{t('rounds.setN', { n: si + 1 })}</span>
+                                    {setInput('B')}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
                           <div className="w-full md:col-span-3 flex items-center justify-center gap-4 md:gap-6">
-                            <input type="number" value={match.scoreA ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'A', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamAWon ? winnerInputClass : ''}`} placeholder="0" />
+                            <input
+                              type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} enterKeyHint="next" autoComplete="off" data-score
+                              aria-label={t('rounds.scoreFor', { team: [p1a, p2a].map(p => p?.name ?? '?').join(' & ') })}
+                              value={match.scoreA ?? ''}
+                              onChange={(e) => updateScore(currentRoundIndex, match.id, 'A', e.target.value)}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
+                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamAWon ? winnerInputClass : ''}`}
+                              placeholder="0"
+                            />
                             <span className="text-slate-200 font-black italic text-sm md:text-xl shrink-0">{t('common.vs')}</span>
-                            <input type="number" value={match.scoreB ?? ''} onChange={(e) => updateScore(currentRoundIndex, match.id, 'B', e.target.value)} className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamBWon ? winnerInputClass : ''}`} placeholder="0" />
+                            <input
+                              type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} enterKeyHint="next" autoComplete="off" data-score
+                              aria-label={t('rounds.scoreFor', { team: [p1b, p2b].map(p => p?.name ?? '?').join(' & ') })}
+                              value={match.scoreB ?? ''}
+                              onChange={(e) => updateScore(currentRoundIndex, match.id, 'B', e.target.value)}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
+                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamBWon ? winnerInputClass : ''}`}
+                              placeholder="0"
+                            />
                           </div>
+                          )}
                           <div className="w-full md:col-span-2 text-center md:text-left space-y-3 md:space-y-4 pl-1">
                             <PlayerName name={p1b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                             <PlayerName name={p2b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                         </div>
+                        {isInvalidScore(match, scoringOf(tournament)) && (
+                          <p className="-mt-3 mb-4 md:-mt-8 md:mb-8 text-center text-xs font-bold text-rose-500">
+                            {tournament.scoring === 'sets' ? t('rounds.invalidSets') : scoreSumMismatch(match, tournament.pointsPerMatch) !== null
+                              ? t('rounds.sumWarning', { sum: scoreSumMismatch(match, tournament.pointsPerMatch) ?? 0, total: tournament.pointsPerMatch ?? 0 })
+                              : t('rounds.missingScore')}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
@@ -1299,96 +1333,23 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Share Modal */}
-        {showShareModal && shareState.isSharing && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 md:p-8" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                  <Share2 className={`w-5 h-5 ${tc.primaryText}`} /> {t('share.title')}
-                </h2>
-                <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Viewer Link */}
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                    <Monitor className="w-3 h-3" /> {t('share.viewerLink')}
-                  </label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value={shareState.shareUrl || ''} 
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-700"
-                    />
-                    <button 
-                      onClick={() => copyToClipboard(shareState.shareUrl || '', setCopiedUrl)}
-                      className={`px-4 rounded-xl font-bold transition-all ${copiedUrl ? 'bg-emerald-500 text-white' : `${tc.primary} text-white`}`}
-                    >
-                      {copiedUrl ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Display Link (TV/screen leaderboard) - both modes */}
-                {shareState.shareId && (
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 flex items-center gap-1.5">
-                      <Trophy className="w-3 h-3" /> {t('share.displayLink')}
-                    </label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={`${window.location.origin}/display/${shareState.shareId}`} 
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-700"
-                      />
-                      <button 
-                        onClick={() => copyToClipboard(`${window.location.origin}/display/${shareState.shareId}`, setCopiedDisplayUrl)}
-                        className={`px-4 rounded-xl font-bold transition-all ${copiedDisplayUrl ? 'bg-emerald-500 text-white' : `${tc.primary} text-white`}`}
-                      >
-                        {copiedDisplayUrl ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-[10px] text-slate-400">{t('share.disclaimer')}</p>
-                
-                {/* Status */}
-                <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${shareState.isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                    <span className="text-sm font-bold text-slate-600">
-                      {shareState.isSyncing ? t('share.syncing') : t('share.synced')}
-                    </span>
-                  </div>
-                  {shareState.lastSynced && (
-                    <span className="text-[10px] text-slate-400">
-                      {t('share.last', { time: shareState.lastSynced.toLocaleTimeString(locale) })}
-                    </span>
-                  )}
-                </div>
-                
-                <button 
-                  onClick={stopSharing}
-                  className="w-full py-3 text-rose-500 hover:bg-rose-50 rounded-xl font-bold text-sm transition-colors"
-                >
-                  {t('share.stop')}
-                </button>
-              </div>
-            </div>
-          </div>
+        {showShareModal && shareSync.share && (
+          <ShareModal
+            share={shareSync.share}
+            status={shareSync.status}
+            lastSynced={shareSync.lastSynced}
+            onClose={() => setShowShareModal(false)}
+            onStop={stopSharing}
+            onRetry={shareSync.retry}
+            primaryClass={tc.primary}
+            primaryText={tc.primaryText}
+          />
         )}
 
         {activeTab === 'leaderboard' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 space-y-6">
-            {/* Final Standings - shows after championship is complete (classic mode only) */}
-            {tournament?.mode !== 'event' && (() => {
+            {/* Final Standings - shows after the final (quick final round or playoff) is complete */}
+            {tournament && (() => {
               const championshipRound = tournament?.rounds.find(r => 
                 r.matches.some(m => m.id.includes('championship'))
               );
@@ -1443,7 +1404,8 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   
-                  {!isFixed && (
+                  {/* Quick final round only: in a playoff the bracket already ranks them */}
+                  {!isFixed && !isPlayoffMatch(championshipMatch) && (
                     <div className="border-t-2 border-yellow-300 pt-5">
                       <div className="text-xs font-black uppercase tracking-widest text-slate-500 text-center mb-4">
                         {t('champ.individualRankingsByPoints')}
@@ -1467,31 +1429,77 @@ const App: React.FC = () => {
               );
             })()}
             
-            {/* Championship Round Button - classic mode only */}
-            {tournament?.mode !== 'event' && leaderboard.length >= minForFinals && !tournament?.rounds.some(r => r.matches.some(m => m.id.includes('championship'))) && (
+            {/* Finish the tournament: quick final round (Random) or playoff (every mode) */}
+            {tournament && !hasFinals && (
+              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 space-y-4">
+                <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
+                  <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('finals.title')}
+                </h3>
+                <div className={`grid gap-3 ${tournament.mode !== 'event' ? 'md:grid-cols-2' : ''}`}>
+                  {tournament.mode !== 'event' && (
+                    <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
+                      <div>
+                        <div className="font-black text-slate-800">{t('finals.quick')}</div>
+                        <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'champ.formatPairs' : 'champ.format')}</p>
+                      </div>
+                      <button onClick={addChampionshipRound} disabled={leaderboard.length < minForFinals}
+                        className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                        <Zap className="w-5 h-5" /> {t('champ.create')}
+                      </button>
+                    </div>
+                  )}
+                  <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
+                    <div>
+                      <div className="font-black text-slate-800">{t('playoff.title')}</div>
+                      <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'playoff.formatPairs' : 'playoff.format')}. {t('playoff.restHint')}.</p>
+                      {!canPlayoff && (
+                        <p className="text-rose-500 text-xs font-bold mt-2">
+                          {isFixed ? t('playoff.needPairs', { n: PLAYOFF_PAIRS }) : t('playoff.needPlayers', { n: PLAYOFF_PLAYERS })}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={addPlayoff} disabled={!canPlayoff}
+                      className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                      <Trophy className="w-5 h-5" /> {t('playoff.create')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Playoff in progress: the final once both semifinals have a winner */}
+            {tournament && playoff.started && !playoff.final && (
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-center md:text-left">
                   <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                    <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('champ.round')}
+                    <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('playoff.title')} · {t('playoff.semifinals')}
                   </h3>
-                  <p className="text-slate-600 text-sm mt-1">
-                    {t(isFixed ? 'champ.formatPairs' : 'champ.format')}
-                  </p>
+                  {!playoff.finalists && (
+                    <p className={`text-sm mt-1 ${playoff.tiedSemi ? 'text-rose-500 font-bold' : 'text-slate-600'}`}>
+                      {t(playoff.tiedSemi ? 'playoff.tiedSemi' : 'playoff.waitSemis')}
+                    </p>
+                  )}
                 </div>
-                <button 
-                  onClick={addChampionshipRound}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <Zap className="w-5 h-5" /> {t('champ.create')}
+                <button onClick={addPlayoffFinal} disabled={!playoff.finalists}
+                  className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                  <Trophy className="w-5 h-5" /> {t('playoff.createFinal')}
                 </button>
               </div>
             )}
-            
+
             <div className="bg-white rounded-3xl md:rounded-[4rem] shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
-                <div className="flex items-center gap-3">
-                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t(tournament?.scoring === 'sets' ? 'lb.sortedBySets' : 'lb.sortedBy')}</span>
+                  {tournament && (
+                    <button
+                      onClick={() => copyStandings(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
+                      className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-1 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> {t('share.copyStandings')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1507,9 +1515,6 @@ const App: React.FC = () => {
                     if (rank === 2) return 'bg-orange-300 text-white';
                     return 'bg-slate-100 text-slate-400';
                   };
-
-                  const player = tournament?.players.find(p => p.id === entry.playerId);
-                  const skill = player?.skillLevel || 'medium';
 
                   return (
                     <div key={entry.playerId} className="flex items-center gap-3 px-4 py-4">
@@ -1528,17 +1533,12 @@ const App: React.FC = () => {
                             <span className="text-slate-300">-</span>
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
-                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
-                          {!isFixed && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {t(`skill.${skill}`)}
-                            </span>
-                          )}
+                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: fmtAvg(entry.avgPoints) })} · {t('lb.diffShort', { n: formatDiff(entry.pointDifferential) })}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-black text-2xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
-                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t('common.pts')}</div>
+                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t(tournament?.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</div>
                       </div>
                     </div>
                   );
@@ -1552,9 +1552,10 @@ const App: React.FC = () => {
                     <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                       <th className="px-12 py-8">{t('lb.rank')}</th>
                       <th className="px-12 py-8">{t(isFixed ? 'lb.pair' : 'lb.athlete')}</th>
-                      {!isFixed && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
-                      <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
+                      <th className="px-12 py-8 text-right">{t(tournament?.scoring === 'sets' ? 'lb.setsWon' : 'lb.totalPoints')}</th>
+                      <th className="px-4 py-8 text-right">{t('lb.diff')}</th>
+                      <th className="pl-4 pr-12 py-8 text-right">{t(tournament?.scoring === 'sets' ? 'lb.setsPerMatch' : 'lb.perMatch')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1580,21 +1581,7 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
                             </div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
-                          {!isFixed && (
-                            <td className="px-8 py-10 text-center">
-                              {(() => {
-                                const player = tournament?.players.find(p => p.id === entry.playerId);
-                                const skill = player?.skillLevel || 'medium';
-                                return (
-                                  <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                                    {t(`skill.${skill}`)}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                          )}
                           <td className="px-12 py-10 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 font-black text-base">
                               <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
@@ -1607,6 +1594,12 @@ const App: React.FC = () => {
                           <td className="px-12 py-10 text-right">
                             <span className="font-black text-6xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
                           </td>
+                          <td className="px-4 py-10 text-right">
+                            <span className={`font-black text-3xl tracking-tighter italic leading-none ${entry.pointDifferential > 0 ? 'text-emerald-500' : entry.pointDifferential < 0 ? 'text-rose-400' : 'text-slate-400'}`}>{formatDiff(entry.pointDifferential)}</span>
+                          </td>
+                          <td className="pl-4 pr-12 py-10 text-right">
+                            <span className="font-black text-3xl tracking-tighter text-slate-400 italic leading-none">{fmtAvg(entry.avgPoints)}</span>
+                          </td>
                         </tr>
                       );
                     })}
@@ -1614,6 +1607,11 @@ const App: React.FC = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+        {toast && (
+          <div role="status" className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-2xl text-sm font-bold shadow-xl z-[110]">
+            {toast}
           </div>
         )}
       </main>

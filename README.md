@@ -2,219 +2,240 @@
 
 🌐 **English** · [Español](README.es.md)
 
-A modern web app for running **Padel Americano** tournaments — the social format where players rotate partners each round so everyone plays with and against different people.
+Web app to run padel tournaments with friends or at the club: add the players, the app makes the matches, you enter the scores and the standings update by themselves. Works on a phone, no accounts, and can be shared live (a link for the players and a screen for the club TV).
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
-![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Pages-F38020?logo=cloudflare)
+![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)
 
 ## Features
 
-### Core Tournament
-- ✅ **Fixed Pairs** — Optional in both modes: pick partners yourself, only opponents rotate
-- ✅ **Two Modes** — *Random* (all rounds pre-generated, Whist logic) and *League* (rounds one at a time, skill-balanced, players can join/sit out between rounds)
-- ✅ **Standings-based Matchmaking** — League option: every round re-matches partners and rivals from the results so far, while everyone still plays everyone
-- ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
-- ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
-- ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
-- ✅ **Custom Court Names** — Label courts (e.g., "Center Court", "Court A") for easy callouts
-- ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
-- ✅ **Winner Highlighting** — Completed matches show winning team in green
+- ✅ **Two modes**: *Americano* (every round ready at the start) and *League* (one round at a time; people can come and go), each with a *Classic* (everyone with and against everyone) or *By skill* variant
+- ✅ **Rotating or fixed pairs**: rotating = a new partner every round; fixed = always the same partner
+- ✅ **Automatic matches**: everyone plays with and against different people; optionally, matches balanced by skill or by standings
+- ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn
+- ✅ **Court rotation**: each player moves around different courts
+- ✅ **Quick scores**: matches to 11, 15 or 21 points (type one score and the other fills in: 7 → 7-4) or best of 3 sets
+- ✅ **Live standings**: wins, points, point difference (DIFF) and points per match
+- ✅ **Finals**: quick *Final round* or a *Playoff* (semifinals + final) among the best
+- ✅ **Extra rounds (+)** and **undo the last round** while it has no scores
+- ✅ **Sharing**: read-only link for the players, standings screen for the TV (scrolls by itself) and texts to paste in WhatsApp ("Copy round", "Copy standings")
+- ✅ **Save to a file**: export and import the tournament (`padel-league-tuesday-2026-10-04-v3.yaml`)
+- ✅ **Info tab**: inside the app, everything you need to run a tournament (modes, variants, pairing, rests, scoring, finals)
+- ✅ **Spanish by default** (English available), names always in capitals, no accounts: everything stays on the device
 
-### Flexible Tournament Management
-- ✅ **Add Rounds On-Demand** — "+" button to extend tournament with fair player rotation
-- ✅ **Championship Round** — Create finals: 1st+3rd vs 2nd+4th place
-- ✅ **Championship Results** — Shows winning team, runner-up, and individual rankings
-- ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
+## How It Works
 
-### Sharing & Cloud Sync
-- ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
-- ✅ **Real-time Sync** — Scores sync to cloud, viewers see updates automatically
-- ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
-- ✅ **Auto-cleanup** — Shared tournaments expire after 24 hours
+### Step by step
 
-### User Experience
-- ✅ **Mobile-First** — Responsive design works great on phones at the courts
-- ✅ **Keyboard Navigation** — Arrow keys to navigate between rounds
-- ✅ **Spanish first** — Spanish by default; English available from a discreet link in Setup and the viewer, or with `?lang=en` in any URL (e.g. the TV display)
-- ✅ **No account needed** — Data stays on the device (localStorage)
-- ✅ **Export / Import (YAML)** — Save a tournament to a human-readable `.yaml` file and load it later to see results or keep playing; each export bumps a `revision` and appends to a `history` log inside the file
-- ✅ **Tie-Breaking** — Sorted by total points → match wins → point differential
+1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant (Classic or By skill), the pairs (rotating or fixed), the courts and the scoring (11, 15 or 21 points, or 3 sets).
+2. **Start**: Americano creates every round; League creates the first one.
+3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
+4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
+5. **Finish**: in *Scores* create the Final round or a Playoff. When the final is over, the champions are shown. *End tournament* (in red, in Setup) closes the tournament.
 
-## Quick Start
+The app's *Info* tab sums all this up, handy during the tournament.
+
+### Choosing a mode
+
+| | **Americano** | **League** |
+|---|---|---|
+| **Rounds** | All ready at the start | One at a time ("Generate round") |
+| **Players** | Fixed for the whole tournament | Add people and mark who is in or sitting out before each round |
+| **Courts** | Chosen at the start | Can change between rounds |
+| **Best for** | A closed group with time to play every round | Open sessions: people arrive late or leave early, unknown number of rounds |
+
+### How matches are made
+
+Americano has two variants:
+
+| | **Classic** | **By skill** |
+|---|---|---|
+| **Goal** | Everyone plays the same, with and against everyone | Matches balanced by skill |
+| **Skill** | Not used | Used every round |
+| **Repeats** | No partnership repeats | Some partners and opponents repeat |
+| **Rests** | The schedule comes first: with fewer courts someone may sit out twice in a row if there's no other way | Never two rests in a row (when fewer rest than play) |
+
+**Americano Classic, rotating pairs**
+- Every player partners each other player at most once and everyone plays **the same number of matches**.
+- With 8, 9, 12, 13, 16, 17, 20, 21… players (multiples of 4 or one more) everyone partners **everyone**; with 8, 12 and 16 everyone also faces everyone exactly twice.
+- With the rest (10, 11, 14, 15…) partnering everyone and playing the same is impossible: everyone plays the same and a few partnerships are missing.
+- Rounds: players − 1 for multiples of 4, otherwise as many rounds as players. 8 players: 7 rounds; 10: 10.
+
+**Americano Classic, fixed pairs**
+- **Round robin**: each pair plays every other pair once, with whatever courts there are. With an odd number of pairs, one rests each round.
+
+**Americano By skill, rotating pairs**
+- Every round matches are **balanced by skill** (Low = 1, Medium = 2, High = 3; a team adds up its two players), avoiding repeated partners and opponents where possible.
+- Those who sat out last round and those with fewer matches play first.
+
+**Americano By skill, fixed pairs**
+- Every round pairs play opponents of **similar level**, avoiding repeated opponents where possible. No round-robin guarantee.
+
+**League Classic**
+- A normal league: **everyone with and against everyone** (fixed pairs: each pair vs every other; rotating: partner everyone), no skill or standings.
+- While everyone is in, it follows the Americano Classic schedule, round by round.
+- If someone is missing, the round is played by those present with matchups not played yet; whoever was missing plays theirs later if there's time. Spare courts: those present with nothing pending play each other.
+- The schedule comes first: someone may sit out two rounds in a row.
+
+**League By skill**
+- Before each round matches are made among the players who are in (active). Those who sat out last round and those with fewer matches play first.
+- Repeated partners and opponents are avoided whenever possible.
+- Matches are balanced by the **skill** you gave each player, so both teams are even.
+- Option **Prioritize standings**: besides skill, it uses the results. Top players play with top players, bottom with bottom, and teams are balanced; it still rotates so everyone meets everyone. Skill matters most at first, results more and more as games are played. It uses the share of points won, not the total, so resting or arriving late isn't punished.
+- **League By skill with fixed pairs**: each round the pairs that played least go first, against pairs of similar level, avoiding repeated opponents. If one member is out, the whole pair sits out. New pairs can be formed during the league.
+
+### Courts and rests
+
+- You choose the courts: 4 by default, up to 10, in both modes. If there are spare courts, it tells you how many go unused.
+- Extra players sit out in turn. In the By skill variants **nobody sits out two rounds in a row** (unless more players rest than play). In the Classic variants the schedule comes first: with all courts it doesn't happen either, with fewer courts only if there's no other way for everyone to play with and against everyone.
+- In Americano Classic, with fewer courts than players ÷ 4, the same matches of the schedule are spread over more rounds.
+- Players move around courts so they aren't always on the same one.
+- **Extra rounds (+)** in Americano: add rounds any time. Those who sat out and those with fewer matches play first, avoiding repeated partners and opponents.
+
+### Scores
+
+- **Scoring**: matches to 11p, 15p or 21p (odd, so no ties), or **3 sets**.
+- With points: type one team's score and the other fills in (to 11: type 7 → 7-4).
+- With 3 sets: best of 3, tennis sets (6-0 to 6-4, 7-5 or 7-6 with a tie-break). If a team wins the first two sets, the third isn't played. In the standings, after wins it's **sets** that count (sets won and set difference), not games.
+- **You can't move to the next round if a score isn't valid** (doesn't add up, impossible sets, or half entered). Blank matches are allowed.
+- In finished matches the winning team is shown in green.
+- **Undo round**: removes the last round if nobody has entered scores (e.g. someone arrived late in a League). In Americano only extra rounds and finals can be undone.
+
+### Standings
+
+- Order: **wins → total points → point difference (DIFF)**. Winning the match counts first.
+- Average points per match is also shown (for information only).
+- With fixed pairs, standings are per pair.
+
+### Finishing the tournament
+
+In *Scores*, "Finish the tournament":
+
+**Quick final round** (Americano only): one round.
+- Rotating pairs: **1st + 3rd vs 2nd + 4th** on Court 1; everyone else plays on the other courts.
+- Fixed pairs: 1st pair vs 2nd pair.
+
+**Playoff** (every mode): semifinals and final, no 3rd-place match. **Everyone else rests.**
+- Rotating pairs: the **top 8** make balanced teams: 1st+8th, 2nd+7th, 3rd+6th and 4th+5th.
+  - Semifinal 1: (1st+8th) vs (4th+5th)
+  - Semifinal 2: (2nd+7th) vs (3rd+6th)
+- Fixed pairs: the **top 4 pairs**. Semifinal 1: 1st vs 4th. Semifinal 2: 2nd vs 3rd.
+- When both semifinals are over, press "Create final": the two winning teams play it.
+- In a League only active players take part. With a single court, each semifinal is its own round.
+
+When the final is over, **Champions** and **Runners-up** are shown in the app, the shared link and the TV screen.
+
+### Sharing
+
+- **Share** creates an easy link (`/game/bala-zapato`) where players see rounds and standings (read-only; opens on the round being played).
+- **Leaderboard display** (`/display/bala-zapato`): for the club TV. If the list doesn't fit, it scrolls down slowly and back up by itself.
+- It updates with every score. The link expires 24 hours after the last change.
+- **Copy round / Copy standings**: copies a text to paste in WhatsApp, e.g. `Court 1: ANA-LUIS vs MARTA-JUAN (7-4)`.
+
+### Saving the tournament
+
+- Everything is saved on the phone or browser itself; no account needed.
+- **Export** downloads a `.yaml` file (e.g. `padel-league-tuesday-2026-10-04-v3.yaml`: mode, name, start date and version). Each export raises the version.
+- **Import** loads a file to see the results or keep playing.
+- Language: Spanish by default; English with the link in Setup or by adding `?lang=en` to the address.
+
+---
+
+## For developers
+
+### Quick Start
 
 **Prerequisites:** Node.js 20.19+
 
 ```bash
-# Install dependencies
-npm install
-
-# Start dev server (Vite + Pages Functions + local KV)
-npm run dev
+npm install   # Install dependencies
+npm run dev   # Vite + API server
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Sharing, display and viewer links all work locally.
+Open [http://localhost:3000](http://localhost:3000). Share, display and viewer links work locally too.
 
-## How It Works
-
-### Tournament Flow
-
-1. **Setup** — Add players with a skill level (4+ required; 8/12/16 for "perfect" Whist balance), pick a mode and pair modality
-2. **Configure Courts** — Pick how many courts you have and rename them for your venue (Tab between inputs)
-3. **Start** — *Random* creates all rounds up front; *League* generates them one at a time
-4. **Play** — Navigate through rounds, enter scores after each match
-5. **Extend** — Add more rounds with "+" button if time permits
-6. **Finals** — Create championship round from leaderboard
-7. **Results** — See team champions and individual rankings
-
-### Tournament Modes
-
-| | **Random** (default) | **Random + "Prioritize initial skill"** | **League** |
-|---|---|---|---|
-| **Rounds** | All generated at start (N−1, or N if odd; more with fewer courts) | All generated at start (same count) | One at a time ("Generate round N") |
-| **Partners** | Whist / Berger rotation: everyone partners everyone once | Chosen each round to balance skill | Chosen each round to balance skill |
-| **Skill level** | Only decides who takes which slot of the schedule. No effect with 8/12/16 (every assignment is equally balanced); helps other sizes | Main criterion: groups of 4 and team splits as even as possible | Initial skill and/or standings, see [League matchmaking](#league-matchmaking) |
-| **Repeats** | None: no repeated partners, opponents spread evenly | Some partners repeat, others never meet (8 players: ~7 of 28 pairs) | Avoided where possible (penalized, not forbidden) |
-| **Match balance** (8 players, mixed skills) | Avg skill gap per match ≈ 1.36 | ≈ 0.64 | Similar to "Prioritize initial skill" |
-| **Roster** | Locked once started | Locked once started | Add players and toggle active/resting between rounds |
-| **Who plays** | Fixed by the schedule (byes rotate) | Fewest matches played first | Fewest matches played first, active players only |
-| **Courts** | You choose (default players ÷ 4). Fewer courts → the same schedule spread over more rounds (all partner/opponent guarantees kept), players rest in turn | Same as Random | You choose (default 4), changeable between rounds; extra players rest |
-| **Extra rounds (+)** | Fair rotation avoiding repeats, skill-even opponents | Same algorithm as League | Next round button |
-| **Finals** | 1st+3rd vs 2nd+4th | 1st+3rd vs 2nd+4th | — |
-| **Best for** | Closed group with time for the full schedule | Mixed-level group where even matches matter more than meeting everyone | Open sessions where people arrive/leave, unknown number of rounds |
-
-Skill levels count as Low = 1, Medium = 2, High = 3 (a team's skill is the sum of both players).
-
-#### League matchmaking
-
-Two options in League setup, combinable:
-
-| | **Prioritize initial skill** (on by default) | **Prioritize standings** |
-|---|---|---|
-| **Based on** | Level set for each player (Low/Medium/High) | Results so far, re-evaluated before every round |
-| **Groups of 4** | Mixed levels, teams as even as possible | Similar strength (top with top, Mexicano-style), teams as even as possible |
-| **Repeats** | Repeated partners/opponents avoided where possible | Allowed against similar-level rivals, but the cost grows (squared) the further a rival is ahead of your least-played one, plus a penalty for the last two rounds → everyone still plays everyone |
-| **Fixed pairs** | Rivals with a similar pair level | Rivals by standings: similar pairs meet more often |
-
-- **Strength from standings** = percentile of points won per point played (not total points, so byes and late arrivals aren't penalized), on the same 1–3 scale as skill.
-- **Both on**: the initial level counts at first and results take over as matches are played (results weigh n/(n+2) after n matches). **Standings only**: everyone starts equal. **Neither**: rotation only.
-- Simulated (both options vs skill only, 12–30 players, 2–5 courts, 10 rounds): rotating pairs → 6–18% smaller skill gap per match when players get ≥8 matches (no difference with few matches each), fewer repeated partners, equal or better opponent coverage. Fixed pairs → ~5–15% smaller gap, opponent coverage within ~6 points of skill only.
-
-**Fixed pairs** (optional in both modes, *Pairs: Fixed*): you pair players yourself and only opponents rotate.
-
-| | **Random + Fixed pairs** | **League + Fixed pairs** |
-|---|---|---|
-| **Schedule** | Full round robin: every pair meets every other pair once | One round at a time: fewest-played pairs first, avoid repeat opponents, balance pair skill (or standings, see above) |
-| **Requirements** | Every player must have a partner | Unpaired players wait; new pairs can be formed mid-league |
-| **Resting** | One pair rests per round if the number of pairs is odd | A pair rests together (toggling one partner toggles both) |
-| **Standings / Finals** | Per pair; finals 1st vs 2nd pair (3rd vs 4th on the next court) | Per pair |
-
-### Scheduling Algorithm
-
-*Random* mode (rotating pairs) uses **Whist Tournament** logic:
-
-| Players | Rounds | Courts | Balance |
-|---------|--------|--------|---------|
-| 8 | 7 | 2 | Partner everyone once, oppose everyone twice |
-| 12 | 11 | 3 | Partner everyone once, oppose everyone twice |
-| 16 | 15 | 4 | Partner everyone once, oppose everyone twice |
-| Other | N-1 | Varies | Berger table rotation (partner everyone once) |
-
-**Court Rotation**: Players automatically rotate between courts each round — the algorithm tracks court history and optimizes assignments.
-
-**Additional Rounds**: When adding rounds on-demand, the algorithm:
-- Prioritizes players who've played fewer matches
-- Avoids recent partner/opponent pairings
-- Handles byes for odd player counts
-
-## Development
+### Development
 
 ```bash
-npm run dev      # Vite (HMR, :3000) + wrangler pages dev (/api/*, :8788); Ctrl-C stops both
+npm run dev      # Vite (HMR, :3000) + API server (server/index.ts, :8788, restarts on change); Ctrl-C stops both
 npm run dev:vite # Vite only (no /api — sharing won't work)
-npm run build    # Production build
-npm run preview  # Preview production build locally (no /api)
+npm test         # Unit tests (vitest)
+npm run build    # Production build (dist/)
+npm start        # Production server: dist/ + /api on :8788
 ```
 
-`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the Pages Functions in `wrangler pages dev` and Vite proxies `/api` to it. KV data persists in `.wrangler/state/` (delete to reset). Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
+`npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) runs the API server and Vite proxies `/api` to it. Shared tournaments are saved as JSON files in `./data` (delete to reset). Override the API port with `API_PORT=8789 npm run dev`; extra args go to Vite (`npm run dev -- --port 3001`).
 
-## Project Structure
+### Project Structure
 
 ```
 ├── App.tsx              # Main React component (UI + state)
-├── GameViewer.tsx       # Read-only viewer for shared tournaments
+├── GameViewer.tsx       # Read-only viewer (/game/:id)
+├── LeaderboardDisplay.tsx # Leaderboard display (/display/:id)
 ├── types.ts             # TypeScript interfaces
+├── components/          # Shared UI pieces (share modal, Info tab, …)
+├── hooks/               # useShareSync (live sharing), usePolling (viewers), useAutoScroll (TV)
 ├── utils/
-│   ├── scheduler.ts     # Tournament scheduling + additional rounds
+│   ├── scheduler.ts     # Whist/Berger schedule, League rounds, extra rounds, packing into courts
+│   ├── classicSchedule.ts # Americano schedule (Classic / By skill)
+│   ├── ranking.ts       # League by standings
+│   ├── fixedPairs.ts    # Fixed pairs
+│   ├── playoff.ts       # Playoff (semifinals + final)
+│   ├── leaderboard.ts   # Standings
 │   └── tournamentFile.ts # YAML export/import + validation
-├── functions/           # Cloudflare Pages Functions (serverless API)
-│   ├── api/
-│   │   ├── game.ts      # POST /api/game - create shared tournament
-│   │   └── game/[id]/index.ts # GET/PUT/DELETE /api/game/:id
-│   ├── types.ts         # API types
+├── server/              # Node server (no runtime dependencies)
+│   ├── index.ts         # Entry: PORT, DATA_DIR, DIST_DIR
+│   ├── app.ts           # /api/game (create/read/update/delete shares) + static files with SPA fallback
+│   ├── store.ts         # One JSON file per shared tournament in DATA_DIR/shares
+│   ├── secret.ts        # Write token (random, stored hashed)
 │   └── words.ts         # Spanish words for share IDs (e.g. /game/bala-zapato)
 ├── index.tsx            # React entry point + routing
 ├── index.html           # HTML shell + OG meta tags
-├── scripts/dev.mjs      # Local dev: Vite + wrangler pages dev
-├── wrangler.toml        # Cloudflare config (KV bindings)
-└── CLAUDE.md            # AI agent context file
+├── scripts/dev.mjs      # Local dev: Vite + API server
+└── CLAUDE.md            # Detailed technical context (algorithms, conventions)
 ```
 
-## Deployment
+### Deployment
 
-The app is deployed on **Cloudflare Pages** (Git integration: build `npm run build`, output `dist`, Node from `.nvmrc`).
-
-- Push to `main` → deploys to production
-- Create a PR → generates a preview deployment
-
-### Cloudflare configuration
-
-No environment variables are needed. The KV namespace `TOURNAMENTS` (binding in `wrangler.toml`) stores shared tournaments.
-
-### Docker (self-hosted)
-
-The image runs the full app — frontend, `/api/*` Pages Functions and a local KV store — with `wrangler pages dev` (same `workerd` runtime as Cloudflare).
+A single Docker container serves everything (frontend + API) and stores shared tournaments as files in `/data`. Point your domain at it (e.g. through Cloudflare's proxy) and put HTTPS in front.
 
 **Docker Compose** (simplest):
 
 ```bash
 docker compose up -d --build   # → http://localhost:8788
 docker compose logs -f         # logs
-docker compose down            # stop (data kept in the padel-data volume; add -v to wipe it)
+docker compose down            # stop (data kept in the padel-data volume; add -v to delete it)
 ```
 
 Optional: `HOST_PORT=8080` (host port, default 8788) in a `.env` file next to `docker-compose.yml` (gitignored).
 
-Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`).
+Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`). Portainer: create a stack from `docker-compose.yml`, swapping the volume for a host folder if you prefer (e.g. `/mnt/pool/apps/padel:/data`).
 
 **Plain Docker:**
 
 ```bash
-docker build -t padel-americano .
 docker run -d --name padel -p 8788:8788 \
   -v padel-data:/data \
-  padel-americano
+  jotacor/padelamericano:latest
 ```
 
 Open [http://localhost:8788](http://localhost:8788).
 
 | Option | Description |
 |--------|-------------|
-| `-v padel-data:/data` | Persists shared tournaments (KV) across restarts; still expire after 24h |
+| `-v padel-data:/data` | Shared tournaments (`/data/shares/*.json`) survive restarts; each expires 24 h after its last change |
 | `-e PORT` | Internal port (default `8788`) |
 
-**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): every push to `main` builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub (PRs don't trigger it). Needs the repo secret `DOCKER_PASSWORD` (a Docker Hub access token).
+**CI**: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs typecheck, tests and build on every push to `main`; [`.github/workflows/docker.yml`](.github/workflows/docker.yml) builds the image and pushes `jotacor/padelamericano:latest` and `:<short-sha>` to Docker Hub. Requires the repository secret `DOCKER_PASSWORD` (a Docker Hub access token).
 
-Extra arguments are passed to `wrangler pages dev` (e.g. `docker run ... padel-americano --log-level debug`). Put it behind a reverse proxy for HTTPS (needed for clipboard copy on non-localhost hosts).
+### Contributing
 
-## Contributing
+1. Create a branch: `git checkout -b feature/your-feature`
+2. Make changes and test locally (`npm run dev`, `npm run typecheck`, `npm test`)
+3. Merge after review
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and test locally
-3. Open a PR — Cloudflare will generate a preview link
-4. Merge after review
-
-## License
+### License
 
 MIT

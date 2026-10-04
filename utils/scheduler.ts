@@ -1,4 +1,4 @@
-import { Player, Match, Round } from '../types.ts';
+import type { Player, Match, Round } from '../types.ts';
 
 /**
  * Mathematically Perfect Whist Tournament Logic
@@ -9,6 +9,20 @@ import { Player, Match, Round } from '../types.ts';
  * - Track which courts each player has been on
  * - Optimize court assignments to maximize variety
  */
+
+// 6 and 7 players (1 court): everyone plays 4 matches, never rests twice in a row, no partnership
+// repeats. The circle method can't do both for these sizes (found by exhaustive search).
+// Each entry: [teamA, teamB] by player slot.
+const SMALL_SCHEDULES: Record<number, [[number, number], [number, number]][]> = {
+  6: [
+    [[0, 1], [2, 3]], [[0, 4], [1, 5]], [[0, 2], [1, 3]],
+    [[2, 4], [3, 5]], [[0, 5], [1, 4]], [[2, 5], [3, 4]],
+  ],
+  7: [
+    [[0, 1], [2, 3]], [[0, 4], [5, 6]], [[1, 2], [3, 4]], [[0, 5], [1, 6]],
+    [[2, 4], [3, 5]], [[0, 6], [1, 3]], [[2, 5], [4, 6]],
+  ],
+};
 
 // Hardcoded verified schedule for 8 players from user image
 // Format: { t1: [court1_teamA_p1, court1_teamA_p2, court1_teamB_p1, court1_teamB_p2], 
@@ -57,93 +71,85 @@ const WHIST_SEEDS: Record<number, number[][]> = {
 /**
  * Optimize court assignments to maximize variety for each player.
  * Players should play on different courts as much as possible.
- * 
- * The Whist schedule is perfectly balanced, so statistical approaches
- * often result in ties. We use a simple, deterministic approach:
- * 
- * 1. Try to minimize players staying on the same court as last round
- * 2. When tied (common with balanced schedules), use round parity to alternate
+ *
+ * Picks the court permutation minimizing how many players stay on their last court.
+ * Ties (common with balanced schedules) are broken by round number: among the optimal
+ * permutations in lexicographic order, take index `roundNumber % count` — so courts
+ * alternate predictably.
+ *
+ * Exact dynamic programming over subsets of courts (n·2ⁿ steps instead of n! permutations),
+ * giving exactly the permutation the old exhaustive search picked.
  */
 export const optimizeCourtAssignments = (
   matches: Match[],
   playerCourtHistory: Map<string, number[]>
 ): Match[] => {
-  if (matches.length <= 1) return matches;
+  const n = matches.length;
+  if (n <= 1) return matches;
 
-  const getPlayersInMatch = (m: Match) => [...m.teamA, ...m.teamB];
-  const numCourts = matches.length;
-  
-  /**
-   * Count players who would stay on the same court as their last round
-   * Lower is better (we want movement)
-   */
-  const countPlayersStaying = (perm: number[]): number => {
-    let staying = 0;
-    for (let matchIdx = 0; matchIdx < matches.length; matchIdx++) {
-      const courtIdx = perm[matchIdx];
-      for (const playerId of getPlayersInMatch(matches[matchIdx])) {
-        const history = playerCourtHistory.get(playerId) || [];
-        if (history.length > 0 && history[history.length - 1] === courtIdx) {
-          staying++;
-        }
-      }
+  // w[i][c] = players of match i whose last court was c (the cost of putting match i on court c)
+  const w = matches.map(m => {
+    const row = new Array<number>(n).fill(0);
+    for (const id of [...m.teamA, ...m.teamB]) {
+      const history = playerCourtHistory.get(id);
+      const last = history?.length ? history[history.length - 1] : -1;
+      if (last >= 0 && last < n) row[last]++;
     }
-    return staying;
-  };
+    return row;
+  });
 
-  // Generate all permutations of court indices
-  const permute = (arr: number[]): number[][] => {
-    if (arr.length <= 1) return [arr];
-    const result: number[][] = [];
-    for (let i = 0; i < arr.length; i++) {
-      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-      for (const perm of permute(rest)) {
-        result.push([arr[i], ...perm]);
-      }
-    }
-    return result;
-  };
-
-  const courtIndices = Array.from({ length: numCourts }, (_, i) => i);
-  const allPermutations = permute(courtIndices);
-  
-  // Find permutation(s) with minimum players staying
-  let minStaying = Infinity;
-  const bestPermutations: number[][] = [];
-  
-  for (const perm of allPermutations) {
-    const staying = countPlayersStaying(perm);
-    if (staying < minStaying) {
-      minStaying = staying;
-      bestPermutations.length = 0;
-      bestPermutations.push(perm);
-    } else if (staying === minStaying) {
-      bestPermutations.push(perm);
-    }
-  }
-
-  // Tiebreaker: Use round number (history length) to alternate deterministically
-  // This ensures consistent rotation even when statistics are balanced
+  // Tiebreaker: round number (history length of the first player) cycles through tied permutations
   const roundNumber = playerCourtHistory.values().next().value?.length || 0;
-  
-  // For 2 courts: alternate between [0,1] and [1,0] based on round parity
-  // For more courts: cycle through permutations
-  let bestPermutation: number[];
-  
-  if (bestPermutations.length === 1) {
-    bestPermutation = bestPermutations[0];
+
+  let perm: number[];
+  if (n > 16) {
+    // Never happens with real courts; keep it linear just in case
+    const used = new Set<number>();
+    perm = w.map(row => {
+      let best = -1;
+      row.forEach((cost, c) => { if (!used.has(c) && (best < 0 || cost < row[best])) best = c; });
+      used.add(best);
+      return best;
+    });
   } else {
-    // Multiple tied permutations - use round number to pick deterministically
-    // This creates a predictable alternation pattern
-    const permIndex = roundNumber % bestPermutations.length;
-    bestPermutation = bestPermutations[permIndex];
+    // f[mask] = min cost of placing matches popcount(mask)..n-1 on the courts not in mask;
+    // cnt[mask] = how many optimal ways there are to do it
+    const full = (1 << n) - 1;
+    const f = new Float64Array(1 << n);
+    const cnt = new Float64Array(1 << n);
+    cnt[full] = 1;
+    const popcount = (x: number) => { let c = 0; for (; x; x &= x - 1) c++; return c; };
+    for (let mask = full - 1; mask >= 0; mask--) {
+      const k = popcount(mask);
+      let best = Infinity, ways = 0;
+      for (let c = 0; c < n; c++) {
+        if (mask & (1 << c)) continue;
+        const next = mask | (1 << c);
+        const cost = w[k][c] + f[next];
+        if (cost < best) { best = cost; ways = cnt[next]; }
+        else if (cost === best) ways += cnt[next];
+      }
+      f[mask] = best;
+      cnt[mask] = ways;
+    }
+    // Walk the optimal permutations in lexicographic order to the chosen index
+    let t = roundNumber % cnt[0];
+    perm = [];
+    for (let k = 0, mask = 0; k < n; k++) {
+      for (let c = 0; c < n; c++) {
+        if (mask & (1 << c)) continue;
+        const next = mask | (1 << c);
+        if (w[k][c] + f[next] !== f[mask]) continue;
+        if (t < cnt[next]) { perm.push(c); mask = next; break; }
+        t -= cnt[next];
+      }
+    }
   }
 
-  // Apply the best permutation
   return matches.map((match, idx) => ({
     ...match,
-    courtIndex: bestPermutation[idx],
-    id: match.id.replace(/c\d+$/, `c${bestPermutation[idx]}`)
+    courtIndex: perm[idx],
+    id: match.id.replace(/c\d+$/, `c${perm[idx]}`)
   }));
 };
 
@@ -234,6 +240,84 @@ const assignSlotsBySkill = (template: Round[], players: Player[]): Player[] => {
   return best.map(i => players[i]);
 };
 
+/**
+ * 4c+2 and 4c+3 players: each circle round has an odd number of partner pairs, so one pair rests.
+ * Picks that pair in every round (backtracking) so everyone rests the same number of times and no
+ * partnership repeats:
+ * - 4c+3 (odd, n rounds): the resting pairs form a 2-factor (each player in exactly 2) → 3 rests each
+ *   (2 + the circle bye).
+ * - 4c+2 (even, n−1 rounds): they form a Hamiltonian path v1…vn; one extra round then plays
+ *   (v2v3)(v4v5)… with v1 and vn resting → 2 rests each.
+ * Returns null if the search fails (then the last pair rests, as before).
+ */
+const restingPairs = (rounds: [number, number][][], numPlayers: number): { picks: number[]; path?: number[] } | null => {
+  const isPath = numPlayers % 2 === 0;
+  const deg = new Array<number>(numPlayers).fill(0);
+  // Rounds left in which each player still has a pair (needed for the 2-factor pruning)
+  const appearances = new Array<number>(numPlayers).fill(0);
+  rounds.forEach(ps => ps.forEach(([a, b]) => { appearances[a]++; appearances[b]++; }));
+  const parent = Array.from({ length: numPlayers }, (_, i) => i);
+  const find = (x: number): number => (parent[x] === x ? x : find(parent[x]));
+  const picks: number[] = new Array(rounds.length).fill(-1);
+  let budget = 0;
+  // Tie-breaks: plain order first, then deterministic pseudo-random orders on retries
+  let tie: number[][] = rounds.map(ps => ps.map((_, i) => i));
+  const canPick = (a: number, b: number) => deg[a] < 2 && deg[b] < 2 && (!isPath || find(a) !== find(b));
+
+  // Depth-first, always on the round with the fewest valid pairs left (fails fast)
+  const search = (done: number): boolean => {
+    if (done === rounds.length) return isPath || deg.every(d => d === 2);
+    if (--budget < 0) return false;
+    let r = -1, options: number[] = [];
+    for (let k = 0; k < rounds.length; k++) {
+      if (picks[k] >= 0) continue;
+      const opts = rounds[k].map((_, i) => i).filter(i => canPick(...rounds[k][i]));
+      if (r < 0 || opts.length < options.length) { r = k; options = opts; }
+      if (!opts.length) return false;
+    }
+    options.sort((x, y) => {
+      const [a, b] = rounds[r][x], [c, d] = rounds[r][y];
+      return deg[a] + deg[b] - deg[c] - deg[d] || tie[r][x] - tie[r][y];
+    });
+    rounds[r].forEach(([a, b]) => { appearances[a]--; appearances[b]--; });
+    for (const i of options) {
+      const [a, b] = rounds[r][i];
+      const ra = find(a), rb = find(b);
+      deg[a]++; deg[b]++;
+      if (isPath) parent[ra] = rb;
+      // 2-factor: everyone must still be able to reach degree 2 with the rounds left
+      const feasible = isPath || deg.every((d, x) => 2 - d <= appearances[x]);
+      picks[r] = i;
+      if (feasible && search(done + 1)) return true;
+      picks[r] = -1;
+      if (isPath) parent[ra] = ra;
+      deg[a]--; deg[b]--;
+    }
+    rounds[r].forEach(([a, b]) => { appearances[a]++; appearances[b]++; });
+    return false;
+  };
+  let seed = 12345;
+  const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  let found = false;
+  for (let attempt = 0; attempt < 30 && !found; attempt++) {
+    if (attempt) tie = rounds.map(ps => ps.map(() => rand()));
+    budget = 5_000;
+    found = search(0);
+  }
+  if (!found) return null;
+  if (!isPath) return { picks };
+
+  // Walk the path from one end
+  const adj = Array.from({ length: numPlayers }, () => [] as number[]);
+  picks.forEach((i, r) => { const [a, b] = rounds[r][i]; adj[a].push(b); adj[b].push(a); });
+  const path = [adj.findIndex(n => n.length === 1)];
+  while (path.length < numPlayers) {
+    const cur = path[path.length - 1];
+    path.push(adj[cur].find(x => x !== path[path.length - 2])!);
+  }
+  return { picks, path };
+};
+
 const buildSlotSchedule = (players: Player[]): Round[] => {
   const numPlayers = players.length;
   if (numPlayers < 4) return [];
@@ -242,6 +326,20 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
   const playerCourtHistory = new Map<string, number[]>();
 
   // 1. Specialized Whist Schedules for Perfect Balance
+  if (SMALL_SCHEDULES[numPlayers]) {
+    return SMALL_SCHEDULES[numPlayers].map(([a, b], r) => {
+      const playing = new Set([...a, ...b]);
+      return {
+        index: r,
+        matches: [{
+          id: `r${r}-c0`, roundIndex: r, courtIndex: 0,
+          teamA: [players[a[0]].id, players[a[1]].id], teamB: [players[b[0]].id, players[b[1]].id],
+          scoreA: null, scoreB: null, isCompleted: false,
+        }],
+        byes: players.filter((_, i) => !playing.has(i)).map(p => p.id),
+      };
+    });
+  }
   if (numPlayers === 8) {
     const rounds: Round[] = [];
     
@@ -353,25 +451,26 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
   const pidToIdx = new Map<string, number>();
   players.forEach((p, i) => pidToIdx.set(p.id, i));
 
+  // Circle method: partner pairs of each round (player indices)
   const indices = Array.from({ length: n }, (_, i) => i);
-
+  const circle: { pairs: [number, number][]; byes: number[] }[] = [];
   for (let r = 0; r < n - 1; r++) {
-    const validPairs: [string, string][] = [];
-    const roundByes: string[] = [];
-
+    const pairs: [number, number][] = [];
+    const byes: number[] = [];
     for (let i = 0; i < n / 2; i++) {
-      const idx1 = indices[i];
-      const idx2 = indices[n - 1 - i];
-      const p1 = idx1 < numPlayers ? players[idx1] : null;
-      const p2 = idx2 < numPlayers ? players[idx2] : null;
-      if (p1 && p2) {
-        validPairs.push([p1.id, p2.id]);
-      } else {
-        if (p1) roundByes.push(p1.id);
-        if (p2) roundByes.push(p2.id);
-      }
+      const a = indices[i], b = indices[n - 1 - i];
+      if (a < numPlayers && b < numPlayers) pairs.push([a, b]);
+      else byes.push(a < numPlayers ? a : b);
     }
+    circle.push({ pairs, byes });
+    indices.splice(1, 0, indices.pop()!);
+  }
 
+  // 4c+2 / 4c+3 players: an odd number of pairs per round, so one pair rests each round. Which one is
+  // chosen so that everyone rests equally (same matches for all) — see restingPairs()
+  const resting = circle[0].pairs.length % 2 ? restingPairs(circle.map(c => c.pairs), numPlayers) : null;
+
+  const buildRound = (r: number, validPairs: [string, string][], roundByes: string[]) => {
     const numMatchesPossible = Math.floor(validPairs.length / 2);
     let matches: Match[] = [];
 
@@ -405,10 +504,38 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
         return s;
       };
 
-      // Branch-and-bound search over all pair partitions
-      // Cast keeps the union: it is assigned inside the search closure
-      let bestPartition = null as [number, number][] | null;
-      let bestScore = Infinity;
+      // Branch-and-bound search over all pair partitions. Keeps the first optimal partition in
+      // search order (later ties never replace it), so the pruning below can't change results.
+      const k = pairsToGroup.length;
+      const cost = Array.from({ length: k }, (_, a) => Array.from({ length: k }, (_, b) => a === b ? Infinity : scorePairGroup(a, b)));
+
+      // Greedy partition (first remaining pair with its cheapest partner) as the starting bound.
+      // Scores are integers, so `greedy + 1` still accepts every partition at least as good.
+      let bestPartition: [number, number][] = [];
+      let greedyScore = 0;
+      for (const rest = Array.from({ length: k }, (_, i) => i); rest.length >= 2; ) {
+        const first = rest.shift()!;
+        let bi = 0;
+        rest.forEach((p, i) => { if (cost[first][p] < cost[first][rest[bi]]) bi = i; });
+        greedyScore += cost[first][rest[bi]];
+        bestPartition.push([first, rest.splice(bi, 1)[0]]);
+      }
+      let bestScore = greedyScore + 1;
+
+      // Admissible lower bound for the unmatched pairs: each pair pays at least half its cheapest match
+      const lowerBound = (remaining: number[]) => {
+        let lb = 0;
+        for (const a of remaining) {
+          let min = Infinity;
+          for (const b of remaining) if (cost[a][b] < min) min = cost[a][b];
+          lb += min;
+        }
+        return lb / 2;
+      };
+
+      // Deterministic safety net for very large groups (never reached up to 30 players)
+      const NODE_BUDGET = 400_000;
+      let nodes = 0;
 
       const search = (
         remaining: number[],
@@ -422,24 +549,23 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
           }
           return;
         }
-        if (remaining.length < 2 || score >= bestScore) return;
+        if (++nodes > NODE_BUDGET || remaining.length < 2 || score + lowerBound(remaining) >= bestScore) return;
 
         const first = remaining[0];
         for (let i = 1; i < remaining.length; i++) {
-          const gs = scorePairGroup(first, remaining[i]);
           const next = remaining.filter((_, idx) => idx !== 0 && idx !== i);
           current.push([first, remaining[i]]);
-          search(next, current, score + gs);
+          search(next, current, score + cost[first][remaining[i]]);
           current.pop();
         }
       };
 
       search(
-        Array.from({ length: pairsToGroup.length }, (_, i) => i),
+        Array.from({ length: k }, (_, i) => i),
         [], 0
       );
 
-      if (bestPartition) {
+      {
         for (let mi = 0; mi < bestPartition.length; mi++) {
           const [piA, piB] = bestPartition[mi];
           matches.push({
@@ -474,15 +600,23 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
       }
     }
 
-    if (validPairs.length % 2 !== 0) {
-      const lastPair = validPairs[validPairs.length - 1];
-      roundByes.push(...lastPair);
-    }
 
     rounds.push({ index: r, matches, byes: roundByes });
+  };
 
-    const last = indices.pop()!;
-    indices.splice(1, 0, last);
+  const id = (i: number) => players[i].id;
+  circle.forEach((c, r) => {
+    const rest = resting ? resting.picks[r] : (c.pairs.length % 2 ? c.pairs.length - 1 : -1);
+    buildRound(r,
+      c.pairs.filter((_, i) => i !== rest).map(([a, b]) => [id(a), id(b)] as [string, string]),
+      [...c.byes, ...(rest >= 0 ? c.pairs[rest] : [])].map(id));
+  });
+  // 4c+2: one more round with the pairs that rested together (path v1…vn: v1 and vn rest)
+  if (resting?.path) {
+    const v = resting.path;
+    const pairs: [string, string][] = [];
+    for (let i = 1; i + 1 < v.length - 1; i += 2) pairs.push([id(v[i]), id(v[i + 1])]);
+    buildRound(n - 1, pairs, [id(v[0]), id(v[v.length - 1])]);
   }
 
   return rounds;
@@ -542,10 +676,9 @@ export const generateAdditionalRound = (
     });
   });
   
-  // Sort players by match count (ascending) to prioritize those who've played less
-  const sortedPlayers = [...players].sort((a, b) => 
-    (matchCount[a.id] || 0) - (matchCount[b.id] || 0)
-  );
+  // Whoever rested last round plays, then those who've played less
+  const rested = restedLastRound(existingRounds);
+  const sortedPlayers = playOrder(players, p => rested.has(p.id), p => matchCount[p.id] || 0);
   
   // Select players for this round (prioritize those with fewer matches)
   const selectedPlayers = sortedPlayers.slice(0, playersPerRound);
@@ -650,6 +783,16 @@ export const shuffle = <T>(arr: T[]): T[] => {
   return a;
 };
 
+/** Players (or pairs, by any of their ids) who rested in the last round */
+export const restedLastRound = (rounds: Round[]): Set<string> => new Set(rounds[rounds.length - 1]?.byes ?? []);
+
+/**
+ * Who plays first: whoever rested last round (nobody rests two rounds in a row), then fewest
+ * matches played. Stable: ties keep the given order (shuffle it first for random ties).
+ */
+export const playOrder = <T>(items: T[], rested: (x: T) => boolean, played: (x: T) => number): T[] =>
+  [...items].sort((a, b) => Number(rested(b)) - Number(rested(a)) || played(a) - played(b));
+
 /**
  * Generate a skill-balanced event round.
  * Used in "event mode" where rounds are generated one at a time
@@ -717,19 +860,11 @@ export const generateEventRound = (
     });
   });
   
-  // Select players: fewest matches first, Fisher-Yates shuffle within same count
-  const byCount = new Map<number, Player[]>();
-  activePlayers.forEach(p => {
-    const c = matchCount[p.id] || 0;
-    if (!byCount.has(c)) byCount.set(c, []);
-    byCount.get(c)!.push(p);
-  });
-  const sortedCounts = [...byCount.keys()].sort((a, b) => a - b);
-  let selected: Player[] = [];
-  for (const c of sortedCounts) {
-    selected.push(...shuffle(byCount.get(c)!));
-  }
-  selected = selected.slice(0, playersPerRound);
+  // Select players: whoever rested last round, then fewest matches; random within the same count
+  const rested = restedLastRound(existingRounds);
+  let selected = playOrder(shuffle(activePlayers), p => rested.has(p.id), p => matchCount[p.id] || 0);
+  // Only full groups of 4 play: cut here so whoever rests is among those who played most
+  selected = selected.slice(0, Math.min(playersPerRound, Math.floor(activePlayers.length / 4) * 4));
 
   /**
    * Score a grouping of players into groups of 4.
@@ -906,21 +1041,6 @@ export const generateEventRound = (
 };
 
 /**
- * Random mode with "prioritize skill": same number of rounds as the Whist schedule, but each
- * round is built like a League round (skill-balanced groups, avoiding repeats). Matches are
- * more even; in exchange some partnerships repeat and others never happen.
- */
-export const generateSkillBalancedSchedule = (players: Player[]): Round[] => {
-  const numRounds = players.length % 2 ? players.length : players.length - 1;
-  const numCourts = Math.floor(players.length / 4);
-  const rounds: Round[] = [];
-  for (let r = 0; r < numRounds; r++) {
-    rounds.push(generateEventRound(players, players, rounds, r, numCourts));
-  }
-  return rounds;
-};
-
-/**
  * Fit a full schedule into fewer courts (the club has fewer than players ÷ 4): same matches,
  * same order, packed greedily into rounds of at most `numCourts` matches with no player twice.
  * Keeps every partner/opponent guarantee of the schedule; players rest in turn.
@@ -934,20 +1054,40 @@ export const packRounds = (rounds: Round[], numCourts: number, playerIds: string
   const playersOf = (m: Match) => [...m.teamA, ...m.teamB];
   while (queue.length) {
     const roundIndex = packed.length;
-    const busy = new Set<string>();
-    const picked: Match[] = [];
     // Matches of whoever has played least go first (fair rests); schedule order breaks ties
     const order = queue.map((m, i) => ({ i, load: playersOf(m).reduce((sum, id) => sum + played.get(id)!, 0) }))
-      .sort((a, b) => a.load - b.load || a.i - b.i);
-    const taken = new Set<number>();
-    for (const { i } of order) {
-      if (picked.length >= numCourts) break;
-      const ids = playersOf(queue[i]);
-      if (ids.some(id => busy.has(id))) continue;
-      ids.forEach(id => { busy.add(id); played.set(id, played.get(id)! + 1); });
-      taken.add(i);
-      picked.push({ ...queue[i], roundIndex, courtIndex: picked.length, id: `r${roundIndex}-c${picked.length}` });
-    }
+      .sort((a, b) => a.load - b.load || a.i - b.i).map(o => o.i);
+    // Bounded search for the best set of disjoint matches: as many courts in use as possible, then
+    // as many as possible of whoever rested last round (nobody rests twice in a row if it can be helped)
+    const idsOf = queue.map(playersOf);
+    const left = new Set(idsOf.flat());
+    const mustPlay = new Set((packed[packed.length - 1]?.byes ?? []).filter(id => left.has(id)));
+    const covers = idsOf.map(ids => ids.filter(id => mustPlay.has(id)).length);
+    const candidates = [...order].sort((a, b) => covers[b] - covers[a]); // stable: keeps `order` within ties
+    const M = mustPlay.size + 1;
+    const perfect = numCourts * M + mustPlay.size;
+    let best: number[] = [], bestScore = -1, budget = 20_000; // candidate checks per round
+    const busy = new Set<string>();
+    const chosen: number[] = [];
+    const search = (from: number, covered: number) => {
+      const score = chosen.length * M + covered;
+      if (score > bestScore) { bestScore = score; best = [...chosen]; }
+      if (bestScore === perfect || chosen.length >= numCourts || budget < 0) return;
+      if ((chosen.length + Math.min(numCourts - chosen.length, candidates.length - from)) * M + mustPlay.size <= bestScore) return;
+      for (let k = from; k < candidates.length && bestScore < perfect && --budget >= 0; k++) {
+        const ids = idsOf[candidates[k]];
+        if (ids.some(id => busy.has(id))) continue;
+        ids.forEach(id => busy.add(id)); chosen.push(candidates[k]);
+        search(k + 1, covered + covers[candidates[k]]);
+        ids.forEach(id => busy.delete(id)); chosen.pop();
+      }
+    };
+    search(0, 0);
+    chosen.push(...best.sort((a, b) => order.indexOf(a) - order.indexOf(b)));
+    chosen.forEach(i => idsOf[i].forEach(id => busy.add(id)));
+    const taken = new Set(chosen);
+    const picked = chosen.map((i, c) => ({ ...queue[i], roundIndex, courtIndex: c, id: `r${roundIndex}-c${c}` }));
+    picked.forEach(m => playersOf(m).forEach(id => played.set(id, played.get(id)! + 1)));
     for (let i = queue.length - 1; i >= 0; i--) if (taken.has(i)) queue.splice(i, 1);
     const matches = optimizeCourtAssignments(picked, courtHistory);
     updateCourtHistory(matches, courtHistory);
@@ -955,6 +1095,74 @@ export const packRounds = (rounds: Round[], numCourts: number, playerIds: string
   }
   return packed;
 };
+
+/**
+ * Reorder a pre-generated Random schedule so nobody rests two rounds in a row. Same rounds
+ * (every partner/opponent guarantee holds), only their order changes; courts are rotated again
+ * for the new order. Keeps the schedule untouched when it already works. If it can't be done
+ * (more players resting than playing), it only reduces back-to-back rests.
+ */
+export const avoidBackToBackRests = (rounds: Round[], playerIds: string[]): Round[] => {
+  const n = rounds.length;
+  const byes = rounds.map(r => new Set(r.byes));
+  const overlap = (a: number, b: number) => rounds[b].byes.filter(id => byes[a].has(id)).length;
+  const backToBack = (order: number[]) => order.slice(1).reduce((sum, r, i) => sum + overlap(order[i], r), 0);
+  const identity = rounds.map((_, i) => i);
+  if (backToBack(identity) === 0) return rounds;
+
+  // Depth-first search for an order without back-to-back rests (lowest round first), bounded.
+  // Impossible when some round has more players resting than any round has playing
+  const maxPlaying = Math.max(...rounds.map(r => r.matches.length * 4));
+  let budget = rounds.some(r => r.byes.length > maxPlaying) ? 0 : 20_000;
+  // Candidates: rounds whose resting players have rested least so far first (even rests at any point)
+  const used = new Array<boolean>(n).fill(false);
+  const path: number[] = [];
+  const rests = new Map<string, number>(playerIds.map(id => [id, 0]));
+  const restLoad = (r: number) => rounds[r].byes.reduce((sum, id) => sum + (rests.get(id) || 0), 0);
+  const search = (): boolean => {
+    if (path.length === n) return true;
+    if (--budget < 0) return false;
+    const last = path[path.length - 1];
+    const next = identity.filter(r => !used[r] && (last === undefined || !overlap(last, r)))
+      .sort((a, b) => restLoad(a) - restLoad(b) || a - b);
+    for (const r of next) {
+      used[r] = true; path.push(r);
+      rounds[r].byes.forEach(id => rests.set(id, rests.get(id)! + 1));
+      if (search()) return true;
+      rounds[r].byes.forEach(id => rests.set(id, rests.get(id)! - 1));
+      used[r] = false; path.pop();
+    }
+    return false;
+  };
+  let order = path;
+  if (!search()) {
+    // Not possible: greedily pick the round sharing fewest resting players with the previous one
+    order = [0];
+    const left = new Set(identity.slice(1));
+    while (left.size) {
+      const prev = order[order.length - 1];
+      let best = -1;
+      for (const r of left) if (best < 0 || overlap(prev, r) < overlap(prev, best)) best = r;
+      order.push(best);
+      left.delete(best);
+    }
+    if (backToBack(order) >= backToBack(identity)) return rounds;
+  }
+
+  const courtHistory = new Map<string, number[]>(playerIds.map(id => [id, []]));
+  return order.map((r, roundIndex) => {
+    const renumbered = rounds[r].matches.map((m, i) => ({ ...m, roundIndex, courtIndex: i, id: `r${roundIndex}-c${i}` }));
+    const matches = optimizeCourtAssignments(renumbered, courtHistory);
+    updateCourtHistory(matches, courtHistory);
+    return { ...rounds[r], index: roundIndex, matches };
+  });
+};
+
+/**
+ * Index of the first round where someone rests again right after resting, or -1
+ */
+export const firstBackToBackRest = (rounds: Round[]): number =>
+  rounds.findIndex((r, i) => i > 0 && r.byes.some(id => rounds[i - 1].byes.includes(id)));
 
 /**
  * Generate a championship round.

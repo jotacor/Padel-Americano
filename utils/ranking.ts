@@ -1,5 +1,5 @@
-import { Player, Match, Round, Tournament } from '../types.ts';
-import { optimizeCourtAssignments, shuffle, skillValue } from './scheduler.ts';
+import type { Player, Match, Round, Tournament } from '../types.ts';
+import { optimizeCourtAssignments, playOrder, restedLastRound, shuffle, skillValue } from './scheduler.ts';
 
 // League matchmaking by initial skill and/or current standings ("prioritize standings").
 
@@ -110,13 +110,9 @@ export const generateRankedRound = (
     m.teamA.forEach(a => m.teamB.forEach(b => { bump(opponents, key(a, b)); lastOpponent.set(key(a, b), r.index); }));
   }));
 
-  // Fewest matches first, random order within the same count
-  const byCount = new Map<number, Player[]>();
-  activePlayers.forEach(p => {
-    const c = played.get(p.id) || 0;
-    byCount.set(c, [...(byCount.get(c) || []), p]);
-  });
-  const prioritized = [...byCount.keys()].sort((a, b) => a - b).flatMap(c => shuffle(byCount.get(c)!));
+  // Whoever rested last round first, then fewest matches, random order within the same count
+  const rested = restedLastRound(existingRounds);
+  const prioritized = playOrder(shuffle(activePlayers), p => rested.has(p.id), p => played.get(p.id) || 0);
   const take = Math.min(numCourts, Math.floor(prioritized.length / 4)) * 4;
   const selected = prioritized.slice(0, take).map(p => p.id);
 

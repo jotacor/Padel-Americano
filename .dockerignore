@@ -3,6 +3,7 @@
 node_modules
 dist
 .wrangler
+data
 .vscode
 .idea
 .DS_Store
@@ -12,3 +13,4 @@ dist
 Dockerfile
 .dockerignore
 .claude
+**/*.test.ts

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tournament, LeaderboardEntry } from './types';
 import { 
@@ -9,13 +9,10 @@ import {
   Zap
 } from 'lucide-react';
 import { useI18n } from './i18n/I18nContext.tsx';
-import { computeLeaderboard } from './utils/leaderboard.ts';
-
-const SKILL_COLORS = {
-  low: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  high: { bg: 'bg-rose-100', text: 'text-rose-700' },
-};
+import { usePolling } from './hooks/usePolling.ts';
+import { useAutoScroll } from './hooks/useAutoScroll.ts';
+import { computeLeaderboard, formatDiff } from './utils/leaderboard.ts';
+import { finalResult } from './utils/playoff.ts';
 
 const POLL_INTERVAL = 5000;
 
@@ -31,7 +28,9 @@ const LeaderboardDisplay: React.FC = () => {
     try {
       const response = await fetch(`/api/game/${id}`);
       if (!response.ok) {
-        setError(response.status === 404 ? t('common.tournamentNotFound') : t('common.failedToLoad'));
+        // Expired → error screen; other failures keep showing the last data
+        if (response.status === 404) setError(t('common.tournamentNotFound'));
+        else if (!tournament) setError(t('common.failedToLoad'));
         return;
       }
       const data = await response.json();
@@ -39,23 +38,21 @@ const LeaderboardDisplay: React.FC = () => {
       setError(null);
       setLastUpdated(new Date());
     } catch {
-      setError(t('common.connectionError'));
+      if (!tournament) setError(t('common.connectionError'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTournament();
-    const interval = setInterval(fetchTournament, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [id]);
+  usePolling(fetchTournament, POLL_INTERVAL, id);
+  // Long lists scroll slowly by themselves (TV)
+  useAutoScroll(!!tournament);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 
   const isFixed = tournament?.pairMode === 'fixed';
-  // Skill badge only in League (skill always set there) and per player; Random skill is optional → hidden
-  const showSkill = tournament?.mode === 'event' && !isFixed;
+  const result = tournament ? finalResult(tournament.rounds) : null;
+  const nameOf = (id: string) => tournament?.players.find(p => p.id === id)?.name ?? t('common.unknown');
 
   if (loading) {
     return (
@@ -102,7 +99,24 @@ const LeaderboardDisplay: React.FC = () => {
       </header>
 
       {/* Leaderboard */}
-      <main className="max-w-4xl mx-auto px-3 md:px-6 py-4 md:py-6 pb-20">
+      <main className="max-w-4xl mx-auto px-3 md:px-6 py-4 md:py-6 pb-20 space-y-4 md:space-y-6">
+        {/* Final result: champions and runners-up (quick final round or playoff) */}
+        {result && (
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
+            <div className="bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl md:rounded-3xl p-4 md:p-6 text-slate-900 text-center shadow-lg shadow-yellow-500/20">
+              <div className="text-2xl md:text-4xl">🏆</div>
+              <div className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-80 mt-1">{t('champ.champions')}</div>
+              <div className="font-black text-base md:text-2xl italic uppercase mt-1">{nameOf(result.champions[0])} & {nameOf(result.champions[1])}</div>
+              <div className="text-xl md:text-3xl font-black mt-1">{result.winnerScore}</div>
+            </div>
+            <div className="bg-gradient-to-br from-slate-300 to-slate-400 rounded-2xl md:rounded-3xl p-4 md:p-6 text-slate-800 text-center shadow-lg">
+              <div className="text-2xl md:text-4xl">🥈</div>
+              <div className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-70 mt-1">{t('champ.runnerUp')}</div>
+              <div className="font-black text-base md:text-2xl italic uppercase mt-1">{nameOf(result.runnersUp[0])} & {nameOf(result.runnersUp[1])}</div>
+              <div className="text-xl md:text-3xl font-black mt-1">{result.loserScore}</div>
+            </div>
+          </div>
+        )}
         <div className="bg-purple-900/40 rounded-2xl md:rounded-3xl border border-purple-800/50 overflow-hidden">
           <div className="px-4 md:px-6 py-3 md:py-4 border-b border-purple-800/50 flex items-center justify-between">
             <h2 className="text-base md:text-lg font-black text-white flex items-center gap-2">
@@ -127,9 +141,6 @@ const LeaderboardDisplay: React.FC = () => {
                 return 'bg-purple-800/50 text-purple-400';
               };
 
-              const player = tournament.players.find(p => p.id === entry.playerId);
-              const skill = player?.skillLevel || 'medium';
-
               return (
                 <div key={entry.playerId} className="flex items-center gap-3 px-4 py-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
@@ -147,17 +158,12 @@ const LeaderboardDisplay: React.FC = () => {
                         <span className="text-purple-700">-</span>
                         <span className="text-purple-500">{t('common.ties', { n: entry.ties })}</span>
                       </span>
-                      <span className="text-[9px] text-purple-500 font-bold">{t('display.gamesCount', { n: entry.matchesPlayed })}</span>
-                      {showSkill && (
-                        <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                          {t(`skill.${skill}`)}
-                        </span>
-                      )}
+                      <span className="text-[9px] text-purple-500 font-bold">{t('display.gamesCount', { n: entry.matchesPlayed })} · {t('lb.diffShort', { n: formatDiff(entry.pointDifferential) })}</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="font-black text-2xl text-white italic tracking-tighter leading-none">{entry.totalPoints}</span>
-                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t('common.pts')}</div>
+                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t(tournament.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</div>
                   </div>
                 </div>
               );
@@ -170,10 +176,10 @@ const LeaderboardDisplay: React.FC = () => {
               <tr className="text-[9px] font-black text-purple-500 uppercase tracking-widest border-b border-purple-800/30">
                 <th className="px-6 py-3 w-16">#</th>
                 <th className="px-6 py-3">{t(isFixed ? 'lb.pair' : 'common.player')}</th>
-                {showSkill && <th className="px-4 py-3 text-center">{t('common.skill')}</th>}
                 <th className="px-6 py-3 text-center">{t('display.record')}</th>
                 <th className="px-6 py-3 text-center">{t('display.games')}</th>
-                <th className="px-6 py-3 text-right">{t('common.points')}</th>
+                <th className="px-4 py-3 text-center">{t('lb.diff')}</th>
+                <th className="px-6 py-3 text-right">{t(tournament.scoring === 'sets' ? 'lb.setsWon' : 'common.points')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-800/20">
@@ -200,19 +206,6 @@ const LeaderboardDisplay: React.FC = () => {
                         <span className="font-black text-white text-lg italic uppercase">{entry.playerName}</span>
                       </div>
                     </td>
-                    {showSkill && (
-                      <td className="px-4 py-4 text-center">
-                        {(() => {
-                          const player = tournament.players.find(p => p.id === entry.playerId);
-                          const skill = player?.skillLevel || 'medium';
-                          return (
-                            <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {t(`skill.${skill}`)}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    )}
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-1 font-black text-sm">
                         <span className="text-emerald-400">{t('common.wins', { n: entry.wins })}</span>
@@ -224,6 +217,9 @@ const LeaderboardDisplay: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-purple-400 font-bold">{entry.matchesPlayed}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className={`font-black ${entry.pointDifferential > 0 ? 'text-emerald-400' : entry.pointDifferential < 0 ? 'text-rose-400' : 'text-purple-400'}`}>{formatDiff(entry.pointDifferential)}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="font-black text-3xl text-white italic tracking-tighter">{entry.totalPoints}</span>
