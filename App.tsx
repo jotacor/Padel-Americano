@@ -92,7 +92,6 @@ const readSavedState = () => {
     pairMode: (tournament?.pairMode ?? (get('padel_pair_mode') === 'fixed' ? 'fixed' : 'rotating')) as PairMode,
     pairs: tournament?.pairs ?? (Array.isArray(pairs) ? pairs : []),
     prioritizeSkill: get('padel_prioritize_skill') === 'true',
-    leagueSkill: get('padel_league_prioritize_skill') !== 'false',
     leagueRanking: get('padel_prioritize_ranking') === 'true',
     leagueClassic: get('padel_league_classic') === 'true',
     setupName: get('padel_tournament_name') ?? '',
@@ -126,7 +125,6 @@ const App: React.FC = () => {
   // Random + rotating: trade perfect Whist rotation for skill-even matches
   const [prioritizeSkill, setPrioritizeSkill] = useState(saved.prioritizeSkill);
   // League matchmaking: declared skill (default, legacy behavior) and/or current standings
-  const [leagueSkill, setLeagueSkill] = useState(saved.leagueSkill);
   const [leagueRanking, setLeagueRanking] = useState(saved.leagueRanking);
   // League variant: Classic (round robin, no skill/standings) or By skill (the two options above)
   const [leagueClassic, setLeagueClassic] = useState(saved.leagueClassic);
@@ -191,11 +189,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
     localStorage.setItem('padel_prioritize_skill', String(prioritizeSkill));
-    localStorage.setItem('padel_league_prioritize_skill', String(leagueSkill));
     localStorage.setItem('padel_prioritize_ranking', String(leagueRanking));
     localStorage.setItem('padel_league_classic', String(leagueClassic));
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
-  }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking, leagueClassic]);
+  }, [pairMode, pairs, prioritizeSkill, leagueRanking, leagueClassic]);
 
   const startSharing = async () => {
     if (!tournament) return;
@@ -318,7 +315,7 @@ const App: React.FC = () => {
         createdAt: new Date().toISOString(),
         numCourts: eventNumCourts,
         ...pairFields,
-        prioritizeSkill: !leagueClassic && leagueSkill, // League Classic: neither skill nor standings
+        prioritizeSkill: !leagueClassic, // League By skill always uses skill (+ standings if chosen); Classic neither
         ...(!leagueClassic && leagueRanking && { prioritizeRanking: true }),
       });
     } else {
@@ -363,7 +360,6 @@ const App: React.FC = () => {
       setPairMode('rotating');
       setPairs([]);
       setPrioritizeSkill(false);
-      setLeagueSkill(true);
       setLeagueRanking(false);
       setLeagueClassic(false);
       setClassicCourts(null);
@@ -378,7 +374,6 @@ const App: React.FC = () => {
       localStorage.removeItem('padel_pair_mode');
       localStorage.removeItem('padel_pairs');
       localStorage.removeItem('padel_prioritize_skill');
-      localStorage.removeItem('padel_league_prioritize_skill');
       localStorage.removeItem('padel_prioritize_ranking');
       setActiveTab('setup');
     }
@@ -432,7 +427,6 @@ const App: React.FC = () => {
       const mm = leagueMatchmaking(imported);
       const classic = !mm.skill && !mm.ranking;
       setLeagueClassic(classic);
-      setLeagueSkill(classic || mm.skill);
       setLeagueRanking(mm.ranking);
     } else {
       setPrioritizeSkill(!!imported.prioritizeSkill);
@@ -618,7 +612,6 @@ const App: React.FC = () => {
   const setBySkill = (v: boolean) => {
     if (!eventMode) return setPrioritizeSkill(v);
     setLeagueClassic(!v);
-    if (v && !leagueSkill && !leagueRanking) setLeagueSkill(true);
   };
   // − and + together, the value on the right (aligned with the other numbers of the panel)
   const renderStepperControl = (
@@ -1024,13 +1017,8 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    {/* League By skill: at least one of its two options stays on */}
-                    {eventMode && !leagueClassic && (
-                      <>
-                        {renderOption(leagueSkill, v => (v || leagueRanking) && setLeagueSkill(v), 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
-                        {renderOption(leagueRanking, v => (v || leagueSkill) && setLeagueRanking(v), 'setup.prioritizeRanking', 'setup.prioritizeRankingHint')}
-                      </>
-                    )}
+                    {/* League By skill: skill always counts; standings optional */}
+                    {eventMode && !leagueClassic && renderOption(leagueRanking, setLeagueRanking, 'setup.prioritizeRanking', 'setup.prioritizeRankingHint')}
                   </div>
                 )}
                 

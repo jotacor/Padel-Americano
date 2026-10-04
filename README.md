@@ -79,10 +79,8 @@ Americano has two variants:
 **League By skill**
 - Before each round matches are made among the players who are in (active). Those who sat out last round and those with fewer matches play first.
 - Repeated partners and opponents are avoided whenever possible.
-- Two options to balance matches (can be combined; at least one):
-  - **Prioritize initial skill** (on by default): uses the skill you gave each player so both teams are even.
-  - **Prioritize standings**: uses the results. Top players play with top players, bottom with bottom, and teams are balanced. It still rotates so everyone meets everyone. It uses the share of points won, not the total, so resting or arriving late isn't punished.
-  - Both: skill matters most at first, results more and more as games are played.
+- Matches are balanced by the **skill** you gave each player, so both teams are even.
+- Option **Prioritize standings**: besides skill, it uses the results. Top players play with top players, bottom with bottom, and teams are balanced; it still rotates so everyone meets everyone. Skill matters most at first, results more and more as games are played. It uses the share of points won, not the total, so resting or arriving late isn't punished.
 - **League By skill with fixed pairs**: each round the pairs that played least go first, against pairs of similar level, avoiding repeated opponents. If one member is out, the whole pair sits out. New pairs can be formed during the league.
 
 ### Courts and rests

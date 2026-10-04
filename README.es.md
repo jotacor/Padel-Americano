@@ -79,10 +79,8 @@ El modo Americano tiene dos variantes:
 **Liga Por nivel**
 - Antes de cada ronda se eligen los partidos entre los jugadores que están (activos). Primero juegan los que descansaron la ronda anterior y los que llevan menos partidos.
 - Se evita repetir compañero y rival siempre que se pueda.
-- Dos opciones para igualar los partidos (se pueden combinar; al menos una):
-  - **Priorizar nivel inicial** (activada por defecto): usa el nivel que pusiste a cada jugador para que los dos equipos queden igualados.
-  - **Priorizar clasificación**: usa los resultados. Los que van arriba juegan con los que van arriba y los de abajo con los de abajo, y los equipos se igualan. Aun así se va rotando para jugar contra todos. Cuenta la proporción de puntos ganados, no el total, para no castigar a quien descansó o llegó tarde.
-  - Con las dos: al principio manda el nivel y, según se juega, cada vez pesan más los resultados.
+- Los partidos se igualan por el **nivel** que pusiste a cada jugador, para que los dos equipos queden parecidos.
+- Opción **Priorizar clasificación**: además del nivel, usa los resultados. Los que van arriba juegan con los que van arriba y los de abajo con los de abajo, y los equipos se igualan; aun así se va rotando para jugar contra todos. Al principio manda el nivel y, según se juega, cada vez pesan más los resultados. Cuenta la proporción de puntos ganados, no el total, para no castigar a quien descansó o llegó tarde.
 - **Liga Por nivel con parejas fijas**: cada ronda juegan primero las parejas que menos han jugado, contra rivales de nivel parecido y sin repetir rival en lo posible. Si un miembro de la pareja no está, la pareja descansa entera. Se pueden formar parejas nuevas durante la liga.
 
 ### Pistas y descansos
