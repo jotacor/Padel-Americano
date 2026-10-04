@@ -1028,7 +1028,7 @@ const App: React.FC = () => {
                     {eventMode && !leagueClassic && (
                       <>
                         {renderOption(leagueSkill, v => (v || leagueRanking) && setLeagueSkill(v), 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
-                        {renderOption(leagueRanking, v => (v || leagueSkill) && setLeagueRanking(v), 'setup.prioritizeRanking', pairMode === 'fixed' ? 'setup.prioritizeRankingFixedHint' : 'setup.prioritizeRankingHint')}
+                        {renderOption(leagueRanking, v => (v || leagueSkill) && setLeagueRanking(v), 'setup.prioritizeRanking', 'setup.prioritizeRankingHint')}
                       </>
                     )}
                   </div>
