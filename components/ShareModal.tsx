@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Copy, Monitor, RefreshCw, Share2, Trophy, X } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext.tsx';
 import type { Share, SyncStatus } from '../hooks/useShareSync.ts';
+import { copyText } from '../utils/browser.ts';
 
 interface Props {
   share: Share;
@@ -17,13 +18,9 @@ interface Props {
 const CopyField: React.FC<{ label: string; icon: React.ReactNode; value: string; primaryClass: string }> = ({ label, icon, value, primaryClass }) => {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
+    if (!(await copyText(value))) return void window.prompt('', value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
   return (
     <div>

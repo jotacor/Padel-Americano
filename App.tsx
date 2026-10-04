@@ -9,6 +9,7 @@ import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
 import { roundText, standingsText } from './utils/shareText.ts';
+import { copyText, newId } from './utils/browser.ts';
 import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
@@ -201,7 +202,7 @@ const App: React.FC = () => {
       return;
     }
     const newPlayer: Player = {
-      id: crypto.randomUUID(),
+      id: newId(),
       name,
       skillLevel: newPlayerSkill,
       ...(isEvent && { isActive: true }),
@@ -286,7 +287,7 @@ const App: React.FC = () => {
     if (eventMode) {
       // Event mode: start with no rounds, generate on demand
       setTournament({
-        id: crypto.randomUUID(),
+        id: newId(),
         name: t('tournament.leagueName', { date: new Date().toLocaleDateString(locale) }),
         players: tournamentPlayers,
         rounds: [],
@@ -307,7 +308,7 @@ const App: React.FC = () => {
       // Fewer courts than players ÷ 4: same matches spread over more rounds
       const rounds = packRounds(fullSchedule, numCourts, tournamentPlayers.map(p => p.id));
       setTournament({
-        id: crypto.randomUUID(),
+        id: newId(),
         name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
         players: tournamentPlayers,
         rounds,
@@ -575,27 +576,14 @@ const App: React.FC = () => {
   );
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
-  /** Round line-up as text on the clipboard, to paste wherever you like */
-  const copyRound = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setToast(t('share.roundCopied'));
-      setTimeout(() => setToast(null), 2500);
-    } catch {
-      window.prompt('', text);
-    }
+  /** Text (round line-up, standings) on the clipboard, to paste wherever you like */
+  const copyToClipboard = async (text: string, done: TranslationKey) => {
+    if (!(await copyText(text))) return void window.prompt('', text);
+    setToast(t(done));
+    setTimeout(() => setToast(null), 2500);
   };
-
-  /** Standings as text on the clipboard, like the round */
-  const copyStandings = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setToast(t('share.standingsCopied'));
-      setTimeout(() => setToast(null), 2500);
-    } catch {
-      window.prompt('', text);
-    }
-  };
+  const copyRound = (text: string) => copyToClipboard(text, 'share.roundCopied');
+  const copyStandings = (text: string) => copyToClipboard(text, 'share.standingsCopied');
   const textCtx = { t, courtLabel, locale };
   // Keyboard navigation for rounds
   useEffect(() => {
