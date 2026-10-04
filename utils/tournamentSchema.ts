@@ -1,6 +1,6 @@
 // Tournament shape validation, shared by YAML import and (later) the server.
 // Pure functions, no dependencies: throws Error("<path>: <problem>") on invalid data.
-import type { Tournament, Player, Round, Match, Pair, ExportMeta, ExportHistoryEntry } from '../types.ts';
+import type { Tournament, Player, Round, Match, Pair, ExportMeta, ExportHistoryEntry, SetScore } from '../types.ts';
 
 export const fail = (msg: string): never => { throw new Error(msg); };
 export const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -49,6 +49,14 @@ const toMatch = (v: unknown, path: string, ids: Set<string>): Match => {
     scoreA: toScore(v.scoreA, `${path}.scoreA`),
     scoreB: toScore(v.scoreB, `${path}.scoreB`),
     isCompleted: bool(v.isCompleted, `${path}.isCompleted`),
+    ...(v.sets !== undefined && {
+      sets: arr(v.sets, `${path}.sets`).slice(0, 3).map((s, i) => {
+        const p = `${path}.sets[${i}]`;
+        const pair = arr(s, p);
+        if (pair.length !== 2) fail(`${p}: expected [games, games]`);
+        return [toScore(pair[0], `${p}[0]`), toScore(pair[1], `${p}[1]`)] as SetScore;
+      }),
+    }),
   };
 };
 
@@ -111,6 +119,7 @@ export const validateTournament = (v: unknown, meta?: ExportMeta): Tournament =>
     prioritizeSkill: opt(v.prioritizeSkill, bool, 'tournament.prioritizeSkill'),
     prioritizeRanking: opt(v.prioritizeRanking, bool, 'tournament.prioritizeRanking'),
     pointsPerMatch: opt(v.pointsPerMatch, (n, path) => int(n, path) >= 1 ? n as number : fail(`${path}: expected integer ≥ 1`), 'tournament.pointsPerMatch'),
+    scoring: opt(v.scoring, (x, path) => x === 'sets' ? 'sets' as const : fail(`${path}: expected sets`), 'tournament.scoring'),
     createdAt: opt(v.createdAt, iso, 'tournament.createdAt'),
     updatedAt: opt(v.updatedAt, iso, 'tournament.updatedAt'),
     finishedAt: opt(v.finishedAt, iso, 'tournament.finishedAt'),

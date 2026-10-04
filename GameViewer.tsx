@@ -18,6 +18,7 @@ import {
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import { computeLeaderboard, formatDiff } from './utils/leaderboard.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
+import { setsText } from './utils/scoring.ts';
 import { isFinal, isPlayoffMatch, matchTitle, roundBadge } from './utils/playoff.ts';
 import { usePolling } from './hooks/usePolling.ts';
 
@@ -192,8 +193,8 @@ const GameViewer: React.FC = () => {
                 <div className="text-3xl font-black text-slate-900">
                   {currentRoundIndex + 1}<span className="text-slate-300 text-base font-bold">/ {tournament.rounds.length}</span>
                 </div>
-                {tournament.pointsPerMatch && (
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t('rounds.toPoints', { n: tournament.pointsPerMatch })}</div>
+                {(tournament.scoring === 'sets' || tournament.pointsPerMatch) && (
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</div>
                 )}
               </div>
               <button 
@@ -252,6 +253,7 @@ const GameViewer: React.FC = () => {
                         <PlayerName name={getP(match.teamB[1])} baseClass={`text-base font-black italic block ${teamBWon ? winnerClass : 'text-slate-900'}`} />
                       </div>
                     </div>
+                    {match.sets?.length ? <div className="-mt-2 pb-3 text-center text-xs font-black tracking-wider text-slate-400">{setsText(match.sets)}</div> : null}
                   </div>
                 );
               })}
@@ -355,7 +357,7 @@ const GameViewer: React.FC = () => {
                       <th className="px-4 py-3">{t(tournament.pairMode === 'fixed' ? 'lb.pair' : 'common.player')}</th>
                       <th className="px-4 py-3 text-center">{t('viewer.wlt')}</th>
                       <th className="px-2 py-3 text-right">{t('lb.diff')}</th>
-                      <th className="px-4 py-3 text-right">{t('common.pts')}</th>
+                      <th className="px-4 py-3 text-right">{t(tournament.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">

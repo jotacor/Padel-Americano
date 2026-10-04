@@ -7,7 +7,7 @@ import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatc
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
-import { applyScoreInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
+import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, scoringOf, type Scoring, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { ymd } from './utils/dates.ts';
@@ -88,7 +88,8 @@ const readSavedState = () => {
     eventMode: tournament ? tournament.mode === 'event' : get('padel_event_mode') === 'true',
     eventNumCourts: tournament?.numCourts || parseInt(get('padel_event_courts') ?? '') || 4,
     classicCourts: classicCourts > 0 ? classicCourts : null,
-    setupPoints: points === 'free' ? null : parseInt(points ?? '') > 0 ? parseInt(points!) : DEFAULT_POINTS,
+    // 'free' (removed option) and anything unknown → default points
+    setupScoring: (points === 'sets' ? 'sets' : parseInt(points ?? '') > 0 ? parseInt(points!) : DEFAULT_POINTS) as number | 'sets',
     pairMode: (tournament?.pairMode ?? (get('padel_pair_mode') === 'fixed' ? 'fixed' : 'rotating')) as PairMode,
     pairs: tournament?.pairs ?? (Array.isArray(pairs) ? pairs : []),
     prioritizeSkill: get('padel_prioritize_skill') === 'true',
@@ -116,7 +117,7 @@ const App: React.FC = () => {
   // Random: courts the club gives us; null = all that fit (players ÷ 4)
   const [classicCourts, setClassicCourts] = useState<number | null>(saved.classicCourts);
   // Matches to a fixed points total (null = free scoring); the open tournament's value wins
-  const [setupPoints, setSetupPoints] = useState<number | null>(saved.setupPoints);
+  const [setupScoring, setSetupScoring] = useState<number | 'sets'>(saved.setupScoring);
 
   // Pairs: rotating (Americano) or fixed (manager picks partners)
   const [pairMode, setPairMode] = useState<PairMode>(saved.pairMode);
@@ -183,8 +184,8 @@ const App: React.FC = () => {
     if (classicCourts) localStorage.setItem('padel_classic_courts', String(classicCourts));
     else localStorage.removeItem('padel_classic_courts');
     // 'free' is stored explicitly: absent means the default (11)
-    localStorage.setItem('padel_points_per_match', setupPoints ? String(setupPoints) : 'free');
-  }, [classicCourts, setupPoints]);
+    localStorage.setItem('padel_points_per_match', String(setupScoring));
+  }, [classicCourts, setupScoring]);
 
   useEffect(() => {
     localStorage.setItem('padel_pair_mode', pairMode);
@@ -293,6 +294,7 @@ const App: React.FC = () => {
       if (!eventMode && unpaired.length) return alert(t('alert.unpairedPlayers', { names: unpaired.map(p => p.name).join(', ') }));
     }
     const pairFields = { pairMode, ...(fixed && { pairs: tournamentPairs }) };
+    const scoringFields = setupScoring === 'sets' ? { scoring: 'sets' as const } : { pointsPerMatch: setupScoring };
     
     let tournamentPlayers = [...players];
     
@@ -311,7 +313,7 @@ const App: React.FC = () => {
         rounds: [],
         isStarted: true,
         mode: 'event',
-        ...(setupPoints && { pointsPerMatch: setupPoints }),
+        ...scoringFields,
         createdAt: new Date().toISOString(),
         numCourts: eventNumCourts,
         ...pairFields,
@@ -329,7 +331,7 @@ const App: React.FC = () => {
         rounds,
         isStarted: true,
         mode: 'classic',
-        ...(setupPoints && { pointsPerMatch: setupPoints }),
+        ...scoringFields,
         createdAt: new Date().toISOString(),
         numCourts,
         ...pairFields,
@@ -363,7 +365,7 @@ const App: React.FC = () => {
       setLeagueRanking(false);
       setLeagueClassic(false);
       setClassicCourts(null);
-      setSetupPoints(DEFAULT_POINTS);
+      setSetupScoring(DEFAULT_POINTS);
       setSetupName('');
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
@@ -517,6 +519,17 @@ const App: React.FC = () => {
     setTournament({ ...tournament, rounds: newRounds });
   };
 
+  /** Best of 3 sets: games typed in one side of one set */
+  const updateSet = (roundIdx: number, matchId: string, setIdx: number, side: Side, raw: string) => {
+    if (!tournament) return;
+    setTournament({
+      ...tournament,
+      rounds: tournament.rounds.map((r, ri) => ri === roundIdx ? {
+        ...r, matches: r.matches.map(m => m.id === matchId ? { ...m, ...applySetInput(m, setIdx, side, raw) } : m),
+      } : r),
+    });
+  };
+
   /** Enter in a score → next empty score on the page (or close the keyboard) */
   const focusNextScore = (current: HTMLInputElement) => {
     const inputs = [...document.querySelectorAll<HTMLInputElement>('input[data-score]')];
@@ -525,11 +538,14 @@ const App: React.FC = () => {
     else current.blur();
   };
 
-  const pointsPerMatch = tournament ? tournament.pointsPerMatch ?? null : setupPoints;
-  const setPointsPerMatch = (n: number | null) => {
-    setSetupPoints(n);
-    if (tournament) setTournament({ ...tournament, pointsPerMatch: n ?? undefined });
+  // Scoring: 11p / 15p / 21p / best of 3 sets (null = free, older tournaments only)
+  const scoring: Scoring = tournament ? scoringOf(tournament) : setupScoring;
+  const hasScores = !!tournament?.rounds.some(r => r.matches.some(m => m.scoreA !== null || m.scoreB !== null || m.sets?.length));
+  const setScoring = (v: Scoring) => {
+    if (v !== null) setSetupScoring(v);
+    if (tournament) setTournament({ ...tournament, pointsPerMatch: typeof v === 'number' ? v : undefined, scoring: v === 'sets' ? 'sets' : undefined });
   };
+  const scoringLabel = (v: Scoring) => v === 'sets' ? t('scoring.sets') : v === null ? t('setup.pointsFree') : t('scoring.points', { n: v });
 
   const renderOption = (checked: boolean, onChange: (v: boolean) => void, label: TranslationKey, hint: TranslationKey) => (
     <label className="flex items-start gap-3 cursor-pointer group mt-4">
@@ -620,18 +636,19 @@ const App: React.FC = () => {
     onInc: (() => void) | null,
     labels: [TranslationKey, TranslationKey]
   ) => (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+      <div className="flex items-center gap-1">
         <button type="button" onClick={() => onDec?.()} disabled={!onDec} aria-label={t(labels[0])}
-          className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+          className="w-8 h-8 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
           <Minus className="w-4 h-4" strokeWidth={3} />
         </button>
         <button type="button" onClick={() => onInc?.()} disabled={!onInc} aria-label={t(labels[1])}
-          className="w-9 h-9 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
+          className="w-8 h-8 rounded-xl border-2 border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-30 disabled:hover:border-slate-700 flex items-center justify-center">
           <Plus className="w-4 h-4" strokeWidth={3} />
         </button>
       </div>
-      <span className="min-w-[5rem] md:min-w-[6rem] text-right text-3xl md:text-4xl font-black tabular-nums" aria-live="polite">{display}</span>
+      {/* Longer values ("3 sets", "Libre") smaller so they fit on one line; same width keeps the buttons aligned */}
+      <span className={`w-16 text-right font-black tabular-nums whitespace-nowrap ${String(display).length > 3 ? 'text-xl lg:text-lg xl:text-2xl' : String(display).length > 2 ? 'text-2xl lg:text-xl xl:text-3xl' : 'text-3xl md:text-4xl'}`} aria-live="polite">{display}</span>
     </div>
   );
   const renderStepper = (value: number, min: number, max: number, onChange: (n: number) => void) => renderStepperControl(
@@ -641,8 +658,14 @@ const App: React.FC = () => {
     ['setup.fewerCourts', 'setup.moreCourts']
   );
   // Points per match: 11 → 15 → 21 → Libre (plus an older custom value, e.g. 24, if the tournament has it)
-  const pointsSteps: (number | null)[] = [...[...new Set([...POINTS_OPTIONS, ...(pointsPerMatch ? [pointsPerMatch] : [])])].sort((a, b) => a - b), null];
-  const pointsStep = pointsSteps.indexOf(pointsPerMatch);
+  const scoringSteps: Scoring[] = [
+    ...[...new Set([...POINTS_OPTIONS, ...(typeof scoring === 'number' ? [scoring] : [])])].sort((a, b) => a - b),
+    'sets',
+    ...(scoring === null ? [null] : []),
+  ];
+  const scoringStep = scoringSteps.indexOf(scoring);
+  // Points ↔ sets can't change once scores are entered (they're stored differently)
+  const canStepTo = (i: number) => i >= 0 && i < scoringSteps.length && (!hasScores || (scoringSteps[i] === 'sets') === (scoring === 'sets'));
   const currentRoundComplete = tournament?.rounds[tournament.rounds.length - 1]?.matches.every(m => m.isCompleted) ?? true;
 
   /** Text (round line-up, standings) on the clipboard, to paste wherever you like */
@@ -657,11 +680,12 @@ const App: React.FC = () => {
   // With points per match, a half-entered result or one not adding up blocks moving on (blank is fine)
   const scoresOk = (rounds: Round[]): boolean => {
     if (!tournament) return true;
-    const bad = firstInvalidScore(rounds, tournament.pointsPerMatch);
+    const bad = firstInvalidScore(rounds, scoringOf(tournament));
     if (!bad) return true;
     setActiveTab('rounds');
     setCurrentRoundIndex(bad.roundIndex);
-    showToast(t('rounds.fixScores', { match: matchTitle(bad.match, t, courtLabel), round: bad.roundIndex + 1, total: tournament.pointsPerMatch ?? 0 }), 4500);
+    const where = { match: matchTitle(bad.match, t, courtLabel), round: bad.roundIndex + 1 };
+    showToast(tournament.scoring === 'sets' ? t('rounds.fixSets', where) : t('rounds.fixScores', { ...where, total: tournament.pointsPerMatch ?? 0 }), 4500);
     return false;
   };
   const nextRound = () => {
@@ -923,7 +947,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Right panel */}
-            <div className={`${isEvent ? 'bg-purple-950' : 'bg-slate-900'} rounded-3xl md:rounded-[3rem] p-6 md:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
+            <div className={`${isEvent ? 'bg-purple-950' : 'bg-slate-900'} rounded-3xl md:rounded-[3rem] p-6 md:p-8 xl:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
               <div className="space-y-6">
                 {/* Tournament name: for the next tournament, or renames the open one (also used in the export file name) */}
                 <div>
@@ -1046,11 +1070,11 @@ const App: React.FC = () => {
                   </div>
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
                   <div className="flex justify-between items-center pt-4">
-                    <abbr title={t('setup.pointsPerMatch')} className="text-slate-400 font-bold no-underline">{t('setup.pointsPerMatchShort')}</abbr>
+                    <span className="text-slate-400 font-bold">{t('setup.scoring')}</span>
                     {renderStepperControl(
-                      pointsPerMatch ?? t('setup.pointsFree'),
-                      pointsStep > 0 ? () => setPointsPerMatch(pointsSteps[pointsStep - 1]) : null,
-                      pointsStep < pointsSteps.length - 1 ? () => setPointsPerMatch(pointsSteps[pointsStep + 1]) : null,
+                      scoringLabel(scoring),
+                      canStepTo(scoringStep - 1) ? () => setScoring(scoringSteps[scoringStep - 1]) : null,
+                      canStepTo(scoringStep + 1) ? () => setScoring(scoringSteps[scoringStep + 1]) : null,
                       ['setup.fewerPoints', 'setup.morePoints']
                     )}
                   </div>
@@ -1156,8 +1180,8 @@ const App: React.FC = () => {
                         </button>
                       )}
                     </div>
-                    {tournament.pointsPerMatch && (
-                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{t('rounds.toPoints', { n: tournament.pointsPerMatch })}</span>
+                    {scoringOf(tournament) !== null && (
+                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</span>
                     )}
                   </div>
                   <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={nextRound} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
@@ -1199,6 +1223,35 @@ const App: React.FC = () => {
                             <PlayerName name={p1a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                             <PlayerName name={p2a?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamAWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
+                          {tournament.scoring === 'sets' ? (
+                            // Best of 3: one row per set (games A – games B); the 3rd only at one set all
+                            <div className="w-full md:col-span-3 flex flex-col items-center gap-2 md:gap-3">
+                              {[0, 1, 2].map(si => {
+                                const set = match.sets?.[si] ?? [null, null];
+                                const disabled = si === 2 && !needsThirdSet(match.sets);
+                                const setInput = (side: Side) => (
+                                  <input
+                                    type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} enterKeyHint="next" autoComplete="off" data-score={disabled ? undefined : ''}
+                                    aria-label={t('rounds.setScoreFor', { n: si + 1, team: (side === 'A' ? [p1a, p2a] : [p1b, p2b]).map(p => p?.name ?? '?').join(' & ') })}
+                                    value={set[side === 'A' ? 0 : 1] ?? ''}
+                                    disabled={disabled}
+                                    onChange={(e) => updateSet(currentRoundIndex, match.id, si, side, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
+                                    className={`w-12 h-12 md:w-16 md:h-16 text-center text-2xl md:text-3xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-xl md:rounded-2xl ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-30 ${!disabled && (side === 'A' ? teamAWon : teamBWon) ? winnerInputClass : ''}`}
+                                    placeholder="0"
+                                  />
+                                );
+                                return (
+                                  <div key={si} className="flex items-center gap-3 md:gap-4">
+                                    {setInput('A')}
+                                    <span className="w-10 md:w-12 text-center text-slate-300 font-black text-[10px] md:text-xs uppercase tracking-wider shrink-0">{t('rounds.setN', { n: si + 1 })}</span>
+                                    {setInput('B')}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
                           <div className="w-full md:col-span-3 flex items-center justify-center gap-4 md:gap-6">
                             <input
                               type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} enterKeyHint="next" autoComplete="off" data-score
@@ -1222,14 +1275,15 @@ const App: React.FC = () => {
                               placeholder="0"
                             />
                           </div>
+                          )}
                           <div className="w-full md:col-span-2 text-center md:text-left space-y-3 md:space-y-4 pl-1">
                             <PlayerName name={p1b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                             <PlayerName name={p2b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                         </div>
-                        {isInvalidScore(match, tournament.pointsPerMatch) && (
+                        {isInvalidScore(match, scoringOf(tournament)) && (
                           <p className="-mt-3 mb-4 md:-mt-8 md:mb-8 text-center text-xs font-bold text-rose-500">
-                            {scoreSumMismatch(match, tournament.pointsPerMatch) !== null
+                            {tournament.scoring === 'sets' ? t('rounds.invalidSets') : scoreSumMismatch(match, tournament.pointsPerMatch) !== null
                               ? t('rounds.sumWarning', { sum: scoreSumMismatch(match, tournament.pointsPerMatch) ?? 0, total: tournament.pointsPerMatch ?? 0 })
                               : t('rounds.missingScore')}
                           </p>
@@ -1426,7 +1480,7 @@ const App: React.FC = () => {
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
                 <div className="flex flex-col items-end gap-1">
-                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
+                  <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t(tournament?.scoring === 'sets' ? 'lb.sortedBySets' : 'lb.sortedBy')}</span>
                   {tournament && (
                     <button
                       onClick={() => copyStandings(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
@@ -1473,7 +1527,7 @@ const App: React.FC = () => {
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-black text-2xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
-                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t('common.pts')}</div>
+                        <div className="text-[8px] text-slate-400 font-bold uppercase">{t(tournament?.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</div>
                       </div>
                     </div>
                   );
@@ -1488,9 +1542,9 @@ const App: React.FC = () => {
                       <th className="px-12 py-8">{t('lb.rank')}</th>
                       <th className="px-12 py-8">{t(isFixed ? 'lb.pair' : 'lb.athlete')}</th>
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
-                      <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
+                      <th className="px-12 py-8 text-right">{t(tournament?.scoring === 'sets' ? 'lb.setsWon' : 'lb.totalPoints')}</th>
                       <th className="px-4 py-8 text-right">{t('lb.diff')}</th>
-                      <th className="pl-4 pr-12 py-8 text-right">{t('lb.perMatch')}</th>
+                      <th className="pl-4 pr-12 py-8 text-right">{t(tournament?.scoring === 'sets' ? 'lb.setsPerMatch' : 'lb.perMatch')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">

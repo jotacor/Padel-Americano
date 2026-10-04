@@ -16,7 +16,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 - ✅ **Cruces automáticos**: todos juegan con y contra gente distinta; opcionalmente, partidos igualados por nivel o por clasificación
 - ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos
 - ✅ **Rotación de pistas**: cada jugador va pasando por pistas distintas
-- ✅ **Resultados rápidos**: partidos a 11, 15 o 21 puntos (o libre); escribes un marcador y el otro se rellena solo (7 → 7-4)
+- ✅ **Resultados rápidos**: partidos a 11, 15 o 21 puntos (escribes un marcador y el otro se rellena solo: 7 → 7-4) o al mejor de 3 sets
 - ✅ **Clasificación en directo**: victorias, puntos, diferencia (DIF) y puntos por partido
 - ✅ **Final**: *Ronda final* rápida o *Playoff* (semifinales + final) entre los mejores
 - ✅ **Rondas extra (+)** y **deshacer la última ronda** si aún no tiene resultados
@@ -28,7 +28,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ### Paso a paso
 
-1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Americano o Liga), la variante (Clásico o Por nivel), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
+1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Americano o Liga), la variante (Clásico o Por nivel), el tipo de parejas (rotativas o fijas), las pistas y la puntuación (11, 15 o 21 puntos, o 3 sets).
 2. **Empezar**: en Americano se crean todas las rondas; en Liga se genera la primera.
 3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
 4. **Siguiente ronda**: pasa con la flecha (Americano) o pulsa "Generar ronda" (Liga).
@@ -93,9 +93,10 @@ El modo Americano tiene dos variantes:
 
 ### Resultados
 
-- **PPP (puntos por partido)**: 11, 15, 21 o Libre. Son impares para que no haya empates.
-- Escribes el marcador de un equipo y el del otro se rellena solo (con PPP 11, escribes 7 → 7-4).
-- Con PPP elegido, **no se puede pasar de ronda si algún resultado no suma los PPP** o está a medias. Los partidos en blanco sí se pueden dejar. Con "Libre" no se comprueba nada.
+- **Puntuación**: partidos a 11p, 15p o 21p (impares para que no haya empates), o **3 sets**.
+- A puntos: escribes el marcador de un equipo y el del otro se rellena solo (a 11, escribes 7 → 7-4).
+- A 3 sets: al mejor de 3, con sets de tenis (6-0 a 6-4, 7-5 o 7-6 con tie-break). Si una pareja gana los dos primeros sets, el tercero no se juega. En la clasificación, después de las victorias cuentan los **sets** (sets ganados y diferencia de sets), no los juegos.
+- **No se puede pasar de ronda si algún resultado no es válido** (no suma los puntos, sets imposibles o a medias). Los partidos en blanco sí se pueden dejar.
 - En los partidos terminados, el equipo ganador sale en verde.
 - **Deshacer ronda**: quita la última ronda si nadie ha apuntado resultados (por ejemplo, si llega alguien tarde en Liga). En Americano solo se pueden deshacer las rondas extra y las finales.
 

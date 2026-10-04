@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyScoreInput, firstInvalidScore, isInvalidScore, POINTS_OPTIONS, scoreSumMismatch } from './scoring.ts';
+import { applyScoreInput, applySetInput, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, setsResult, setsText } from './scoring.ts';
 
 const empty = { scoreA: null, scoreB: null };
 
@@ -71,5 +71,44 @@ describe('isInvalidScore (blocks moving on)', () => {
     ];
     expect(firstInvalidScore(rounds, 11)).toEqual({ roundIndex: 1, match: s(3, 3) });
     expect(firstInvalidScore(rounds.slice(0, 1), 11)).toBeNull();
+  });
+});
+
+describe('best of 3 sets', () => {
+  it('valid tennis sets: 6-0…6-4, 7-5, 7-6', () => {
+    for (const [a, b] of [[6, 0], [6, 4], [4, 6], [7, 5], [7, 6], [6, 7]]) expect(isValidSet(a, b), `${a}-${b}`).toBe(true);
+    for (const [a, b] of [[6, 5], [7, 4], [5, 3], [6, 6], [8, 6], [7, 7]]) expect(isValidSet(a, b), `${a}-${b}`).toBe(false);
+    expect(isValidSet(6, null)).toBe(false);
+  });
+
+  it('2-0 needs no third set; 1-1 needs it; the result is the sets won', () => {
+    expect(setsResult([[6, 4], [6, 3]])).toEqual({ a: 2, b: 0 });
+    expect(setsResult([[4, 6], [3, 6]])).toEqual({ a: 0, b: 2 });
+    expect(setsResult([[6, 4], [3, 6]])).toBeNull();
+    expect(needsThirdSet([[6, 4], [3, 6]])).toBe(true);
+    expect(setsResult([[6, 4], [3, 6], [7, 5]])).toEqual({ a: 2, b: 1 });
+    expect(setsResult([[6, 4], [0, 6], [6, 7]])).toEqual({ a: 1, b: 2 }); // fewer games, but sets decide
+    expect(setsResult([[6, 4], [6, 3], [6, 1]])).toBeNull(); // no 3rd set after 2-0
+    expect(setsResult([[6, 5], [6, 3]])).toBeNull();
+  });
+
+  it('typing a set: completes the match, clears a 3rd set that is no longer needed', () => {
+    let m = { sets: [] as [number | null, number | null][] };
+    for (const [i, side, v] of [[0, 'A', '6'], [0, 'B', '4'], [1, 'A', '3'], [1, 'B', '6'], [2, 'A', '7'], [2, 'B', '5']] as const) {
+      m = { ...m, ...applySetInput(m, i, side, v) };
+    }
+    expect(m).toMatchObject({ scoreA: 2, scoreB: 1, isCompleted: true });
+    expect(setsText(m.sets)).toBe('6-4 3-6 7-5');
+    const fixed = applySetInput(m, 1, 'A', '7'); // 7-6 → 2-0: the 3rd set goes away
+    expect(fixed).toMatchObject({ scoreA: 2, scoreB: 0, isCompleted: true });
+    expect(fixed.sets).toHaveLength(2);
+    expect(applySetInput({}, 0, 'A', '9').sets).toEqual([[7, null]]); // capped at 7 games
+  });
+
+  it('blocks moving on only when a set is entered but the match is not a valid best of 3', () => {
+    expect(isInvalidScore({ scoreA: null, scoreB: null, sets: [] }, 'sets')).toBe(false);
+    expect(isInvalidScore({ scoreA: null, scoreB: null, sets: [[6, 4]] }, 'sets')).toBe(true);
+    expect(isInvalidScore({ scoreA: 2, scoreB: 0, sets: [[6, 4], [7, 6]] }, 'sets')).toBe(false);
+    expect(firstInvalidScore([{ index: 3, matches: [{ scoreA: null, scoreB: null, sets: [[6, 6]] }] }], 'sets')?.roundIndex).toBe(3);
   });
 });

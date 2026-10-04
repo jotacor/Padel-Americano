@@ -163,7 +163,7 @@ const LeaderboardDisplay: React.FC = () => {
                   </div>
                   <div className="text-right shrink-0">
                     <span className="font-black text-2xl text-white italic tracking-tighter leading-none">{entry.totalPoints}</span>
-                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t('common.pts')}</div>
+                    <div className="text-[8px] text-purple-500 font-bold uppercase">{t(tournament.scoring === 'sets' ? 'common.setsUnit' : 'common.pts')}</div>
                   </div>
                 </div>
               );
@@ -179,7 +179,7 @@ const LeaderboardDisplay: React.FC = () => {
                 <th className="px-6 py-3 text-center">{t('display.record')}</th>
                 <th className="px-6 py-3 text-center">{t('display.games')}</th>
                 <th className="px-4 py-3 text-center">{t('lb.diff')}</th>
-                <th className="px-6 py-3 text-right">{t('common.points')}</th>
+                <th className="px-6 py-3 text-right">{t(tournament.scoring === 'sets' ? 'lb.setsWon' : 'common.points')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-800/20">

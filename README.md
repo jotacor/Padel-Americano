@@ -16,7 +16,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 - ✅ **Automatic matches**: everyone plays with and against different people; optionally, matches balanced by skill or by standings
 - ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn
 - ✅ **Court rotation**: each player moves around different courts
-- ✅ **Quick scores**: matches to 11, 15 or 21 points (or free); type one score and the other fills in (7 → 7-4)
+- ✅ **Quick scores**: matches to 11, 15 or 21 points (type one score and the other fills in: 7 → 7-4) or best of 3 sets
 - ✅ **Live standings**: wins, points, point difference (DIFF) and points per match
 - ✅ **Finals**: quick *Final round* or a *Playoff* (semifinals + final) among the best
 - ✅ **Extra rounds (+)** and **undo the last round** while it has no scores
@@ -28,7 +28,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ### Step by step
 
-1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant (Classic or By skill), the pairs (rotating or fixed), the courts and the points per match (PPM).
+1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant (Classic or By skill), the pairs (rotating or fixed), the courts and the scoring (11, 15 or 21 points, or 3 sets).
 2. **Start**: Americano creates every round; League creates the first one.
 3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
 4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
@@ -93,9 +93,10 @@ Americano has two variants:
 
 ### Scores
 
-- **PPM (points per match)**: 11, 15, 21 or Free. Odd numbers, so no ties.
-- Type one team's score and the other fills in (PPM 11: type 7 → 7-4).
-- With a PPM set, **you can't move to the next round if a score doesn't add up to the PPM** or is half entered. Blank matches are allowed. With "Free" nothing is checked.
+- **Scoring**: matches to 11p, 15p or 21p (odd, so no ties), or **3 sets**.
+- With points: type one team's score and the other fills in (to 11: type 7 → 7-4).
+- With 3 sets: best of 3, tennis sets (6-0 to 6-4, 7-5 or 7-6 with a tie-break). If a team wins the first two sets, the third isn't played. In the standings, after wins it's **sets** that count (sets won and set difference), not games.
+- **You can't move to the next round if a score isn't valid** (doesn't add up, impossible sets, or half entered). Blank matches are allowed.
 - In finished matches the winning team is shown in green.
 - **Undo round**: removes the last round if nobody has entered scores (e.g. someone arrived late in a League). In Americano only extra rounds and finals can be undone.
 
