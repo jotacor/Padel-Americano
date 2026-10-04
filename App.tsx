@@ -1100,7 +1100,7 @@ const App: React.FC = () => {
                 ) : (
                   <button onClick={() => setActiveTab('rounds')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-lg md:text-xl flex items-center justify-center gap-3 transition-all active:scale-95"><Layout className="w-5 h-5 md:w-6 md:h-6" /> {t('setup.goToMatches')}</button>
                 )}
-                {tournament && <button onClick={resetTournament} className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
+                {tournament && <button onClick={resetTournament} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors"><Trash className="w-3 h-3" /> {t('setup.endTournament')}</button>}
                 {(players.length > 0 && !tournament) && (
                   <button onClick={clearAllData} className="w-full text-rose-400 hover:text-rose-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 py-2 transition-colors">
                     <Trash2 className="w-3 h-3" /> {t('setup.clearAll')}
