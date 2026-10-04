@@ -13,7 +13,7 @@ import ShareModal from './components/ShareModal.tsx';
 import { roundText, standingsText } from './utils/shareText.ts';
 import { copyText, newId } from './utils/browser.ts';
 import { generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
-import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
+import { computeLeaderboard, formatDiff, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
 import { 
   Users, 
@@ -1369,9 +1369,6 @@ const App: React.FC = () => {
                     return 'bg-slate-100 text-slate-400';
                   };
 
-                  const player = tournament?.players.find(p => p.id === entry.playerId);
-                  const skill = player?.skillLevel || 'medium';
-
                   return (
                     <div key={entry.playerId} className="flex items-center gap-3 px-4 py-4">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${getRankStyle()}`}>
@@ -1389,12 +1386,7 @@ const App: React.FC = () => {
                             <span className="text-slate-300">-</span>
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
-                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: fmtAvg(entry.avgPoints) })}</span>
-                          {!isFixed && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                              {t(`skill.${skill}`)}
-                            </span>
-                          )}
+                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: fmtAvg(entry.avgPoints) })} · {t('lb.diffShort', { n: formatDiff(entry.pointDifferential) })}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -1413,9 +1405,9 @@ const App: React.FC = () => {
                     <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                       <th className="px-12 py-8">{t('lb.rank')}</th>
                       <th className="px-12 py-8">{t(isFixed ? 'lb.pair' : 'lb.athlete')}</th>
-                      {!isFixed && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
                       <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
+                      <th className="px-4 py-8 text-right">{t('lb.diff')}</th>
                       <th className="pl-4 pr-12 py-8 text-right">{t('lb.perMatch')}</th>
                     </tr>
                   </thead>
@@ -1443,19 +1435,6 @@ const App: React.FC = () => {
                               <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
                             </div>
                           </td>
-                          {!isFixed && (
-                            <td className="px-8 py-10 text-center">
-                              {(() => {
-                                const player = tournament?.players.find(p => p.id === entry.playerId);
-                                const skill = player?.skillLevel || 'medium';
-                                return (
-                                  <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
-                                    {t(`skill.${skill}`)}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                          )}
                           <td className="px-12 py-10 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 font-black text-base">
                               <span className="text-emerald-500">{t('common.wins', { n: entry.wins })}</span>
@@ -1467,6 +1446,9 @@ const App: React.FC = () => {
                           </td>
                           <td className="px-12 py-10 text-right">
                             <span className="font-black text-6xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
+                          </td>
+                          <td className="px-4 py-10 text-right">
+                            <span className={`font-black text-3xl tracking-tighter italic leading-none ${entry.pointDifferential > 0 ? 'text-emerald-500' : entry.pointDifferential < 0 ? 'text-rose-400' : 'text-slate-400'}`}>{formatDiff(entry.pointDifferential)}</span>
                           </td>
                           <td className="pl-4 pr-12 py-10 text-right">
                             <span className="font-black text-3xl tracking-tighter text-slate-400 italic leading-none">{fmtAvg(entry.avgPoints)}</span>

@@ -2,6 +2,7 @@
 import type { LeaderboardEntry, Tournament } from '../types.ts';
 import type { TranslationKey } from '../i18n/translations.ts';
 import { isFinal, isPlayoffMatch, matchTitle } from './playoff.ts';
+import { formatDiff } from './leaderboard.ts';
 
 type T = (key: TranslationKey, params?: Record<string, string | number>) => string;
 interface Ctx { t: T; courtLabel: (index: number) => string; locale: string }
@@ -27,7 +28,7 @@ export const roundText = (tournament: Tournament, roundIndex: number, { t, court
 };
 
 export const standingsText = (tournament: Tournament, leaderboard: LeaderboardEntry[], { t }: Ctx, liveUrl?: string): string => {
-  const lines = leaderboard.filter(e => e.matchesPlayed > 0).map((e, i) => `${i + 1}. ${e.playerName.toLocaleUpperCase('es')} — ${t('text.standingsLine', { wins: e.wins, pts: e.totalPoints })}`);
+  const lines = leaderboard.filter(e => e.matchesPlayed > 0).map((e, i) => `${i + 1}. ${e.playerName.toLocaleUpperCase('es')} — ${t('text.standingsLine', { wins: e.wins, pts: e.totalPoints, diff: formatDiff(e.pointDifferential) })}`);
   return [
     `🏆 ${tournament.name} · ${t('common.standings')}`,
     ...lines,

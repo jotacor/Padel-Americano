@@ -16,7 +16,7 @@ import {
   Eye
 } from 'lucide-react';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
-import { computeLeaderboard } from './utils/leaderboard.ts';
+import { computeLeaderboard, formatDiff } from './utils/leaderboard.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { isFinal, isPlayoffMatch, matchTitle, roundBadge } from './utils/playoff.ts';
 import { usePolling } from './hooks/usePolling.ts';
@@ -354,6 +354,7 @@ const GameViewer: React.FC = () => {
                       <th className="px-4 py-3">#</th>
                       <th className="px-4 py-3">{t(tournament.pairMode === 'fixed' ? 'lb.pair' : 'common.player')}</th>
                       <th className="px-4 py-3 text-center">{t('viewer.wlt')}</th>
+                      <th className="px-2 py-3 text-right">{t('lb.diff')}</th>
                       <th className="px-4 py-3 text-right">{t('common.pts')}</th>
                     </tr>
                   </thead>
@@ -381,6 +382,9 @@ const GameViewer: React.FC = () => {
                             <span className="text-slate-200">-</span>
                             <span className="text-slate-400">{entry.ties}</span>
                           </div>
+                        </td>
+                        <td className="px-2 py-4 text-right">
+                          <span className={`font-black text-sm ${entry.pointDifferential > 0 ? 'text-emerald-500' : entry.pointDifferential < 0 ? 'text-rose-400' : 'text-slate-400'}`}>{formatDiff(entry.pointDifferential)}</span>
                         </td>
                         <td className="px-4 py-4 text-right">
                           <span className="font-black text-2xl text-slate-900 italic">{entry.totalPoints}</span>

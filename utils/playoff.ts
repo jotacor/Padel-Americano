@@ -99,3 +99,17 @@ export const roundBadge = (round: Round | undefined, t: T): string | null => {
   if (ms.some(isFinal)) return t('champ.round');
   return null;
 };
+
+/** Result of the final (quick final round or playoff), once it has a winner */
+export const finalResult = (rounds: Round[]): { champions: Pair; runnersUp: Pair; winnerScore: number; loserScore: number; playoff: boolean } | null => {
+  const m = rounds.flatMap(r => r.matches).find(isFinal);
+  if (!m?.isCompleted || m.scoreA === null || m.scoreB === null || m.scoreA === m.scoreB) return null;
+  const aWon = m.scoreA > m.scoreB;
+  return {
+    champions: aWon ? m.teamA : m.teamB,
+    runnersUp: aWon ? m.teamB : m.teamA,
+    winnerScore: Math.max(m.scoreA, m.scoreB),
+    loserScore: Math.min(m.scoreA, m.scoreB),
+    playoff: isPlayoffMatch(m),
+  };
+};

@@ -35,10 +35,10 @@ describe('WhatsApp texts', () => {
     const text = standingsText(tournament, computeLeaderboard(tournament), ctx, 'https://padelme.io/game/bala-zapato');
     expect(text.split('\n')).toEqual([
       '🏆 Liga martes · Clasificación',
-      '1. ANA — 1V · 15 pts',
-      '2. LUIS — 1V · 15 pts',
-      '3. MARTA — 0V · 9 pts',
-      '4. JUAN — 0V · 9 pts',
+      '1. ANA — 1V · 15 pts · dif +6',
+      '2. LUIS — 1V · 15 pts · dif +6',
+      '3. MARTA — 0V · 9 pts · dif -6',
+      '4. JUAN — 0V · 9 pts · dif -6',
       '',
       'En directo: https://padelme.io/game/bala-zapato',
     ]);

@@ -151,7 +151,7 @@ All state lives in `App.tsx` using React hooks.
 
 ### Scoring & Leaderboard
 
-Order: Match Wins → Total Points → Point Differential (fixed, no user choice; `computeLeaderboard` → all views, finals, "Copiar clasificación"). Scores table also shows Pts/Match (informative only)
+Order: Match Wins → Total Points → Point Differential (fixed, no user choice; `computeLeaderboard` → all views, finals, "Copiar clasificación"). Every standings view (app, viewer, TV, "Copiar clasificación") shows DIF (`formatDiff`: +5/-3) so ties on wins and points are readable; no skill level in standings. Scores table also shows Pts/Match (informative only). TV shows champions/runners-up (`finalResult`) once the final is played
 
 ### Score entry
 
