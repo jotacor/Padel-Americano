@@ -7,7 +7,7 @@ import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatc
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
-import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, scoringOf, type Scoring, type Side } from './utils/scoring.ts';
+import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, scoringOf, type Scoring, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { ymd } from './utils/dates.ts';
@@ -1232,6 +1232,8 @@ const App: React.FC = () => {
                               {[0, 1, 2].map(si => {
                                 const set = match.sets?.[si] ?? [null, null];
                                 const disabled = si === 2 && !needsThirdSet(match.sets);
+                                // Each set highlights its own winner (a 2-1 shows the loser's set in green too)
+                                const setWinner: Side | null = isValidSet(set[0], set[1]) ? (set[0]! > set[1]! ? 'A' : 'B') : null;
                                 const setInput = (side: Side) => (
                                   <input
                                     type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} enterKeyHint="next" autoComplete="off" data-score={disabled ? undefined : ''}
@@ -1241,7 +1243,7 @@ const App: React.FC = () => {
                                     onChange={(e) => updateSet(currentRoundIndex, match.id, si, side, e.target.value)}
                                     onFocus={(e) => e.target.select()}
                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
-                                    className={`w-12 h-12 md:w-16 md:h-16 text-center text-2xl md:text-3xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-xl md:rounded-2xl ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-30 ${!disabled && (side === 'A' ? teamAWon : teamBWon) ? winnerInputClass : ''}`}
+                                    className={`w-12 h-12 md:w-16 md:h-16 text-center text-2xl md:text-3xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-xl md:rounded-2xl ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-30 ${!disabled && setWinner === side ? winnerInputClass : ''}`}
                                     placeholder="0"
                                   />
                                 );
