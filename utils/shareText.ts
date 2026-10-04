@@ -1,6 +1,7 @@
 // Plain-text messages to copy (round line-up, standings): "ANA-LUIS vs MARTA-JUAN". Pure: translations are passed in.
 import type { LeaderboardEntry, Tournament } from '../types.ts';
 import type { TranslationKey } from '../i18n/translations.ts';
+import { isFinal, isPlayoffMatch, matchTitle } from './playoff.ts';
 
 type T = (key: TranslationKey, params?: Record<string, string | number>) => string;
 interface Ctx { t: T; courtLabel: (index: number) => string; locale: string }
@@ -17,7 +18,7 @@ export const roundText = (tournament: Tournament, roundIndex: number, { t, court
     ...(tournament.pointsPerMatch ? [t('rounds.toPoints', { n: tournament.pointsPerMatch })] : []),
   ].join(' · ');
   const matches = [...round.matches].sort((a, b) => a.courtIndex - b.courtIndex).map(m => {
-    const court = m.id.includes('championship') ? `🏆 ${t('common.finals')}` : courtLabel(m.courtIndex);
+    const court = isFinal(m) || isPlayoffMatch(m) ? `🏆 ${matchTitle(m, t, courtLabel)}` : courtLabel(m.courtIndex);
     const score = m.isCompleted ? ` (${m.scoreA}-${m.scoreB})` : '';
     return `${court}: ${pair(m.teamA)} ${t('common.vs').toLowerCase()} ${pair(m.teamB)}${score}`;
   });

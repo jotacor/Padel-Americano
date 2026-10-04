@@ -48,6 +48,7 @@
 | `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
+| `utils/playoff.ts` | Playoff (every mode, Tabla tab): top 8 players → teams 1+8 vs 4+5, 2+7 vs 3+6 (fixed pairs: top 4, 1 vs 4, 2 vs 3) → final; no 3rd place, everyone else rests; League seeds only active players. While a playoff runs, no normal rounds can be added |
 | `utils/classicSchedule.ts` | Random mode entry points: `buildClassicSchedule` (start) and `nextClassicRound` ("+" rounds), used by App |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
@@ -179,7 +180,7 @@ Local dev: `scripts/dev.mjs` spawns both; shared tournaments in `./data` (gitign
 
 - Run `npm run typecheck` and `npm test` before committing (app + server, `strict` + `noUnused*`; must be error-free). CI (`.github/workflows/ci.yml`) runs typecheck + test + build on push to `main`
 - Tests: vitest, `*.test.ts` next to the code (`utils/`, `i18n/`, `hooks/`, `server/`), helpers in `utils/testing.ts` (`makePlayers`, `seedRandom`, `expectValidRound`…). `utils/__snapshots__/scheduler.test.ts.snap` = golden Random schedules 4–30 players: scheduler/optimizer changes must keep it identical (only update with `npx vitest run -u` when a change is intended)
-- Championship detection uses `match.id.includes('championship')`
+- Championship detection uses `match.id.includes('championship')` (`isFinal`): quick final round and playoff final (`r{n}-playoff-championship`). Playoff semifinals: `r{n}-playoff-sf{1|2}`; use `utils/playoff.ts` helpers (`isFinal`, `isPlayoffMatch`, `matchTitle`, `roundBadge`) instead of matching ids by hand
 - League mode detected via `tournament.mode === 'event'`
 - Player names are uppercase (`cleanName` uppercases; `upperNames`/`withUpperNames` normalize saved/imported data) and unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path
 - Viewer/display views communicate only through the server API (no localStorage) — except the per-device `padel_language` UI preference

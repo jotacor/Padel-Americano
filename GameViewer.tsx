@@ -18,6 +18,7 @@ import {
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
+import { isFinal, isPlayoffMatch, matchTitle, roundBadge } from './utils/playoff.ts';
 import { usePolling } from './hooks/usePolling.ts';
 
 interface SharedTournamentData {
@@ -181,9 +182,9 @@ const GameViewer: React.FC = () => {
                 <ChevronLeft className="w-6 h-6" strokeWidth={3} />
               </button>
               <div className="text-center">
-                {tournament.rounds[currentRoundIndex]?.matches.some(m => m.id.includes('championship')) ? (
+                {roundBadge(tournament.rounds[currentRoundIndex], t) ? (
                   <div className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 mb-1">
-                    <Trophy className="w-3 h-3" /> {t('common.finals')}
+                    <Trophy className="w-3 h-3" /> {roundBadge(tournament.rounds[currentRoundIndex], t)}
                   </div>
                 ) : (
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">{t('common.round')}</span>
@@ -218,13 +219,13 @@ const GameViewer: React.FC = () => {
                 return (
                   <div key={match.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className={`px-4 py-2 border-b flex justify-between items-center text-[9px] font-black uppercase tracking-widest ${
-                      match.id.includes('championship') 
+                      isFinal(match) || isPlayoffMatch(match)
                         ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700' 
                         : 'bg-slate-50/50 border-slate-100 text-slate-400'
                     }`}>
                       <span className="flex items-center gap-1">
-                        {match.id.includes('championship') && <Trophy className="w-3 h-3 text-yellow-500" />}
-                        {match.id.includes('championship') ? t('common.finals') : courtLabel(match.courtIndex)}
+                        {(isFinal(match) || isPlayoffMatch(match)) && <Trophy className="w-3 h-3 text-yellow-500" />}
+                        {matchTitle(match, t, courtLabel)}
                       </span>
                       {match.isCompleted && <span className="text-emerald-500 flex items-center gap-1"><ShieldCheck size={10}/> {t('common.done')}</span>}
                     </div>
@@ -323,7 +324,7 @@ const GameViewer: React.FC = () => {
                     </div>
                   </div>
                   
-                  {tournament.pairMode !== 'fixed' && <div className="border-t-2 border-yellow-300 pt-4">
+                  {tournament.pairMode !== 'fixed' && !isPlayoffMatch(championshipMatch) && <div className="border-t-2 border-yellow-300 pt-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center mb-3">{t('champ.individualRankings')}</div>
                     <div className="grid grid-cols-4 gap-2">
                       {allFinalists.map((entry, idx) => (

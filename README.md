@@ -26,7 +26,8 @@ A modern web app for running **Padel Americano** tournaments — the social form
 ### Flexible Tournament Management
 - ✅ **Undo a round** — Remove the last round while nobody has scored in it (someone arrived late? undo and generate again)
 - ✅ **Add Rounds On-Demand** — "+" button to extend tournament with fair player rotation
-- ✅ **Championship Round** — Create finals: 1st+3rd vs 2nd+4th place
+- ✅ **Championship Round** — Quick finals (Random): 1st+3rd vs 2nd+4th place
+- ✅ **Playoff** — Every mode: top 8 in balanced teams (1+8 vs 4+5, 2+7 vs 3+6) or top 4 fixed pairs (1 vs 4, 2 vs 3), semifinals then final; everyone else rests
 - ✅ **Championship Results** — Shows winning team, runner-up, and individual rankings
 - ✅ **Locked Setup** — Players locked once tournament starts (prevents accidents)
 
@@ -112,7 +113,7 @@ Two options in League setup, combinable:
 | **Schedule** | Full round robin: every pair meets every other pair once | One round at a time: fewest-played pairs first, avoid repeat opponents, balance pair skill (or standings, see above) |
 | **Requirements** | Every player must have a partner | Unpaired players wait; new pairs can be formed mid-league |
 | **Resting** | One pair rests per round if the number of pairs is odd | A pair rests together (toggling one partner toggles both) |
-| **Standings / Finals** | Per pair; finals 1st vs 2nd pair (3rd vs 4th on the next court) | Per pair |
+| **Standings / Finals** | Per pair; finals 1st vs 2nd pair (3rd vs 4th on the next court) or playoff with the top 4 pairs | Per pair; playoff with the top 4 pairs |
 
 ### Scheduling Algorithm
 

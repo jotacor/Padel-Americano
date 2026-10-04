@@ -26,7 +26,8 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 ### Gestión flexible del torneo
 - ✅ **Deshacer una ronda** — Quita la última ronda mientras nadie haya apuntado resultados (¿alguien llegó tarde? deshaz y genera otra)
 - ✅ **Añadir rondas bajo demanda** — Botón "+" para ampliar el torneo con una rotación justa de jugadores
-- ✅ **Ronda de campeonato** — Crea la final: 1.º+3.º vs 2.º+4.º clasificado
+- ✅ **Ronda de campeonato** — Final rápida (Aleatorio): 1.º+3.º vs 2.º+4.º clasificado
+- ✅ **Playoff** — En todos los modos: los 8 primeros en parejas equilibradas (1+8 vs 4+5, 2+7 vs 3+6) o las 4 primeras parejas fijas (1 vs 4, 2 vs 3), semifinales y final; el resto descansa
 - ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual
 - ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
 
@@ -112,7 +113,7 @@ Dos opciones en la configuración de Liga, combinables:
 | **Calendario** | Todos contra todos: cada pareja se enfrenta a cada otra pareja una vez | Una ronda cada vez: primero las parejas que menos han jugado, evitando rivales repetidos y equilibrando el nivel de las parejas (o la clasificación, ver arriba) |
 | **Requisitos** | Todos los jugadores deben tener pareja | Los jugadores sin pareja esperan; se pueden formar parejas nuevas durante la liga |
 | **Descanso** | Una pareja descansa por ronda si el número de parejas es impar | Una pareja descansa junta (alternar a un miembro alterna a ambos) |
-| **Clasificación / Finales** | Por pareja; final 1.ª vs 2.ª pareja (3.ª vs 4.ª en la pista siguiente) | Por pareja |
+| **Clasificación / Finales** | Por pareja; final 1.ª vs 2.ª pareja (3.ª vs 4.ª en la pista siguiente) o playoff con las 4 primeras parejas | Por pareja; playoff con las 4 primeras parejas |
 
 ### Algoritmo de calendario
 
