@@ -52,8 +52,6 @@ const en = {
   'champ.format': '1st + 3rd place vs 2nd + 4th place',
   'champ.formatPairs': '1st pair vs 2nd pair',
   'champ.create': 'Create Finals',
-  'finals.title': 'Finish the tournament',
-  'finals.quick': 'Quick final round',
   'playoff.title': 'Playoff',
   'playoff.format': 'Top 8: 1st+8th vs 4th+5th and 2nd+7th vs 3rd+6th, then the final',
   'playoff.formatPairs': 'Top 4 pairs: 1st vs 4th and 2nd vs 3rd, then the final',
@@ -65,7 +63,6 @@ const en = {
   'playoff.createFinal': 'Create final',
   'playoff.waitSemis': 'Finish both semifinals to create the final',
   'playoff.tiedSemi': 'A semifinal is tied: fix the score to have a winner',
-  'playoff.restHint': 'Everyone else rests',
 
   // App — navigation & header
   'nav.setup': 'Setup',
@@ -298,8 +295,6 @@ const es: Translations = {
   'champ.format': '1º + 3º vs 2º + 4º',
   'champ.formatPairs': '1ª pareja vs 2ª pareja',
   'champ.create': 'Crear Final',
-  'finals.title': 'Terminar el torneo',
-  'finals.quick': 'Ronda final rápida',
   'playoff.title': 'Playoff',
   'playoff.format': '8 primeros: 1º+8º vs 4º+5º y 2º+7º vs 3º+6º, y después la final',
   'playoff.formatPairs': '4 primeras parejas: 1ª vs 4ª y 2ª vs 3ª, y después la final',
@@ -311,7 +306,6 @@ const es: Translations = {
   'playoff.createFinal': 'Crear final',
   'playoff.waitSemis': 'Termina las dos semifinales para crear la final',
   'playoff.tiedSemi': 'Hay una semifinal empatada: corrige el resultado para que haya ganador',
-  'playoff.restHint': 'El resto descansa',
 
   // App — navigation & header
   'nav.setup': 'Ajustes',

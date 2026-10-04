@@ -50,7 +50,7 @@
 | `utils/leagueClassic.ts` | League Classic rounds: pending matches of the Classic plan among those present (see League) |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Americano Classic), per-round matching (League, Americano By skill), finals |
-| `utils/playoff.ts` | Playoff (every mode; created from the Partidos tab on the last round, like the quick final round; "Crear final" on the semifinals round; both cards at the top of the round view): top 8 players → teams 1+8 vs 4+5, 2+7 vs 3+6 (fixed pairs: top 4, 1 vs 4, 2 vs 3) → final; no 3rd place, everyone else rests; League seeds only active players. While a playoff runs, no normal rounds can be added |
+| `utils/playoff.ts` | Playoff (every mode; created from the Partidos tab on the last round, like the quick final round; "Crear final" on the semifinals round; buttons inside the round header box): top 8 players → teams 1+8 vs 4+5, 2+7 vs 3+6 (fixed pairs: top 4, 1 vs 4, 2 vs 3) → final; no 3rd place, everyone else rests; League seeds only active players. While a playoff runs, no normal rounds can be added |
 | `utils/classicSchedule.ts` | Americano entry points: `buildClassicSchedule` (start, Classic / By skill), `nextClassicRound` ("+" rounds), `classicRoundCount` (setup estimate), used by App |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |

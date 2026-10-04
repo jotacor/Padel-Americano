@@ -111,7 +111,7 @@ Americano has two variants:
 
 ### Finishing the tournament
 
-In *Matches*, on the last round, "Finish the tournament" appears. Once the Final round or the Playoff is created, earlier rounds are closed and their results can't be changed (creating the final closes the semifinals too):
+In *Matches*, on the last round, the "Create Finals" and "Create Playoff" buttons appear inside the round box. Once the Final round or the Playoff is created, earlier rounds are closed and their results can't be changed (creating the final closes the semifinals too):
 
 **Quick final round** (Americano only): one round.
 - Rotating pairs: **1st + 3rd vs 2nd + 4th** on Court 1; everyone else plays on the other courts.

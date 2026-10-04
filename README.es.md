@@ -111,7 +111,7 @@ El modo Americano tiene dos variantes:
 
 ### Terminar el torneo
 
-En *Partidos*, al llegar a la última ronda, aparece "Terminar el torneo". En cuanto se crea la Ronda final o el Playoff, las rondas anteriores quedan cerradas y ya no se pueden cambiar sus resultados (al crear la final, también las semifinales):
+En *Partidos*, en la última ronda, aparecen los botones "Crear Final" y "Crear Playoff" dentro del recuadro de la ronda. En cuanto se crea la Ronda final o el Playoff, las rondas anteriores quedan cerradas y ya no se pueden cambiar sus resultados (al crear la final, también las semifinales):
 
 **Ronda final rápida** (solo Americano): una sola ronda.
 - Parejas rotativas: **1º + 3º contra 2º + 4º** en la Pista 1; el resto juega en las otras pistas.
