@@ -105,7 +105,7 @@ const en = {
   'setup.generate': 'START',
   'setup.goToMatches': 'GO TO MATCHES',
   'setup.clearAll': 'Clear All Data',
-  'setup.exportYaml': 'Export (YAML)',
+  'setup.exportYaml': 'Export',
   'setup.importYaml': 'Import',
 
   // App — rounds
@@ -306,7 +306,7 @@ const es: Translations = {
   'setup.generate': 'INICIAR',
   'setup.goToMatches': 'IR A PARTIDOS',
   'setup.clearAll': 'Borrar Todos los Datos',
-  'setup.exportYaml': 'Exportar (YAML)',
+  'setup.exportYaml': 'Exportar',
   'setup.importYaml': 'Importar',
 
   // App — rounds

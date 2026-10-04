@@ -1249,16 +1249,14 @@ const App: React.FC = () => {
             <div className="bg-white rounded-3xl md:rounded-[4rem] shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end gap-1">
                   <span className="hidden md:inline text-slate-400 text-xs font-black uppercase tracking-widest italic text-right">{t('lb.sortedBy')}</span>
                   {tournament && (
                     <button
                       onClick={() => copyStandings(standingsText(tournament, leaderboard, textCtx, shareSync.share?.shareUrl))}
-                      title={t('share.copyStandings')}
-                      aria-label={t('share.copyStandings')}
-                      className="p-2 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-1 transition-colors"
                     >
-                      <Copy className="w-4 h-4 md:w-5 md:h-5" />
+                      <Copy className="w-3.5 h-3.5" /> {t('share.copyStandings')}
                     </button>
                   )}
                 </div>

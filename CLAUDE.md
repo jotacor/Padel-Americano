@@ -135,7 +135,7 @@ All state lives in `App.tsx` using React hooks.
 
 ### Export / Import (YAML)
 
-- Setup right panel: "Export (YAML)" (when a tournament exists) + "Import" (always). No DB; files only
+- Setup right panel: "Export" (YAML file; when a tournament exists) + "Import" (always). No DB; files only
 - File: header comments, `format: padel-americano/v1`, `revision`, `exportedAt`, `history[]` (revision, exportedAt, rounds/matches done, leader), `tournament` (full `Tournament` minus `exportMeta`)
 - Versioning: `tournament.exportMeta = { revision, history }`; each export bumps revision + appends history (kept in state, so import v2 → export = v3)
 - Import validates shape (players, rounds, matches, pair/player ids); invalid → translated alert, state untouched. Confirms before replacing, stops sharing, restores setup state (players, courts, mode, pairs), opens Scores
