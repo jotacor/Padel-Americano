@@ -11,7 +11,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ## Features
 
-- ✅ **Two modes**: *Americano* (every round ready at the start; *Classic* or *By skill* variant) and *League* (one round at a time; people can come and go)
+- ✅ **Two modes**: *Americano* (every round ready at the start) and *League* (one round at a time; people can come and go), each with a *Classic* (everyone with and against everyone) or *By skill* variant
 - ✅ **Rotating or fixed pairs**: rotating = a new partner every round; fixed = always the same partner
 - ✅ **Automatic matches**: everyone plays with and against different people; optionally, matches balanced by skill or by standings
 - ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn
@@ -28,7 +28,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ### Step by step
 
-1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant for Americano (Classic or By skill), the pairs (rotating or fixed), the courts and the points per match (PPM).
+1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant (Classic or By skill), the pairs (rotating or fixed), the courts and the points per match (PPM).
 2. **Start**: Americano creates every round; League creates the first one.
 3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
 4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
@@ -70,19 +70,25 @@ Americano has two variants:
 **Americano By skill, fixed pairs**
 - Every round pairs play opponents of **similar level**, avoiding repeated opponents where possible. No round-robin guarantee.
 
-**League**
+**League Classic**
+- A normal league: **everyone with and against everyone** (fixed pairs: each pair vs every other; rotating: partner everyone), no skill or standings.
+- While everyone is in, it follows the Americano Classic schedule, round by round.
+- If someone is missing, the round is played by those present with matchups not played yet; whoever was missing plays theirs later if there's time. Spare courts: those present with nothing pending play each other.
+- The schedule comes first: someone may sit out two rounds in a row.
+
+**League By skill**
 - Before each round matches are made among the players who are in (active). Those who sat out last round and those with fewer matches play first.
 - Repeated partners and opponents are avoided whenever possible.
-- Two options to balance matches (can be combined):
+- Two options to balance matches (can be combined; at least one):
   - **Prioritize initial skill** (on by default): uses the skill you gave each player so both teams are even.
   - **Prioritize standings**: uses the results. Top players play with top players, bottom with bottom, and teams are balanced. It still rotates so everyone meets everyone. It uses the share of points won, not the total, so resting or arriving late isn't punished.
-  - Both: skill matters most at first, results more and more as games are played. Neither: rotation only.
-- **League with fixed pairs**: each round the pairs that played least go first, against pairs of similar level, avoiding repeated opponents. If one member is out, the whole pair sits out. New pairs can be formed during the league.
+  - Both: skill matters most at first, results more and more as games are played.
+- **League By skill with fixed pairs**: each round the pairs that played least go first, against pairs of similar level, avoiding repeated opponents. If one member is out, the whole pair sits out. New pairs can be formed during the league.
 
 ### Courts and rests
 
 - You choose the courts. In Americano the default is one court per 4 players.
-- Extra players sit out in turn. In League and Americano By skill **nobody sits out two rounds in a row** (unless more players rest than play). In Americano Classic the schedule comes first: with all courts it doesn't happen either, with fewer courts only if there's no other way for everyone to play with and against everyone.
+- Extra players sit out in turn. In the By skill variants **nobody sits out two rounds in a row** (unless more players rest than play). In the Classic variants the schedule comes first: with all courts it doesn't happen either, with fewer courts only if there's no other way for everyone to play with and against everyone.
 - In Americano Classic, with fewer courts than players ÷ 4, the same matches of the schedule are spread over more rounds.
 - Players move around courts so they aren't always on the same one.
 - **Extra rounds (+)** in Americano: add rounds any time. Those who sat out and those with fewer matches play first, avoiding repeated partners and opponents.

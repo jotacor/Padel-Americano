@@ -46,6 +46,7 @@
 | `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
+| `utils/leagueClassic.ts` | League Classic rounds: pending matches of the Classic plan among those present (see League) |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Americano Classic), per-round matching (League, Americano By skill), finals |
 | `utils/playoff.ts` | Playoff (every mode, Tabla tab): top 8 players → teams 1+8 vs 4+5, 2+7 vs 3+6 (fixed pairs: top 4, 1 vs 4, 2 vs 3) → final; no 3rd place, everyone else rests; League seeds only active players. While a playoff runs, no normal rounds can be added |
@@ -75,7 +76,8 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **A
 - Rounds generated one-at-a-time with skill-balanced matchmaking
 - Manager adds players and toggles them active/inactive between rounds (no self-service check-in)
 - `skillLevel` (low/medium/high) drives team balancing
-- Matchmaking options (combinable, stored on tournament, read via `leagueMatchmaking()`): "Prioritize initial skill" (`prioritizeSkill`, **undefined = true** for legacy Leagues) and "Prioritize standings" (`prioritizeRanking`). `utils/ranking.ts`: `playerStrengths()` (percentile of points won/played → 1..3, blended with prior skill by matches played), `generateRankedRound()` (rotating: similar-strength groups of 4 + even split, local search), `repeatCost()` (excess-over-least-met², recency) also used by `generateFixedPairsRound(..., { strength, ranked })`. Neither option → `generateEventRound` with constant strength (rotation only). Weights in `MATCH_WEIGHTS` were tuned by simulation (12–24 players); too high `level`/`balance` freezes groups
+- Variants (setup buttons "Clásico | Por nivel", state `leagueClassic`, stored as both options false): **Classic** = `utils/leagueClassic.ts` `generateLeagueClassicRound`: plan = Americano Classic schedule for the whole roster (fixed: `generateFixedPairsSchedule(pairs, false)`, deterministic order; rotating: `generateAmericanoSchedule` without skill); each round plays the pending plan matches whose players are all active (max courts, plan order; the schedule wins over rests), spare courts filled rotation-only with idle active players; new players/pairs join the plan. **By skill** = the two matchmaking options below (at least one on)
+- Matchmaking options (combinable, stored on tournament, read via `leagueMatchmaking()`): "Prioritize initial skill" (`prioritizeSkill`, **undefined = true** for legacy Leagues) and "Prioritize standings" (`prioritizeRanking`). `utils/ranking.ts`: `playerStrengths()` (percentile of points won/played → 1..3, blended with prior skill by matches played), `generateRankedRound()` (rotating: similar-strength groups of 4 + even split, local search), `repeatCost()` (excess-over-least-met², recency) also used by `generateFixedPairsRound(..., { strength, ranked })`. Neither option = League Classic (`generateLeagueClassicRound`). Weights in `MATCH_WEIGHTS` were tuned by simulation (12–24 players); too high `level`/`balance` freezes groups
 - `isActive` toggle for round-by-round player pool management
 - Courts (`tournament.numCourts`, default 4, max `MAX_COURTS`) changeable between rounds from the setup panel
 - Purple accent theme (`bg-purple-600`, `bg-purple-950`)
@@ -123,7 +125,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_event_courts` - Event court count
 - `padel_classic_courts` - Americano court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and Americano variant (true = By skill) during setup
-- `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
+- `padel_league_prioritize_skill`, `padel_prioritize_ranking`, `padel_league_classic` - League matchmaking toggles and variant during setup
 - `padel_tournament_name` - name for the next tournament (setup field "Nombre del torneo"; empty = automatic "Liga - YYYY-MM-DD" / "Americano - YYYY-MM-DD"); the open tournament's name is edited in place
 - `padel_points_per_match` - points per match chosen in setup ('free' or a number; absent = 11)
 - `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)

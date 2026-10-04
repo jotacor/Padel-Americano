@@ -11,7 +11,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ## Características
 
-- ✅ **Dos modos**: *Americano* (todas las rondas preparadas al empezar; variante *Clásico* o *Por nivel*) y *Liga* (una ronda cada vez; la gente puede entrar y salir)
+- ✅ **Dos modos**: *Americano* (todas las rondas preparadas al empezar) y *Liga* (una ronda cada vez; la gente puede entrar y salir), cada uno con variante *Clásico* (todos con y contra todos) o *Por nivel*
 - ✅ **Parejas rotativas o fijas**: con rotativas cambias de compañero cada ronda; con fijas juegas siempre con el mismo
 - ✅ **Cruces automáticos**: todos juegan con y contra gente distinta; opcionalmente, partidos igualados por nivel o por clasificación
 - ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos
@@ -28,7 +28,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ### Paso a paso
 
-1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Americano o Liga), la variante si es Americano (Clásico o Por nivel), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
+1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Americano o Liga), la variante (Clásico o Por nivel), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
 2. **Empezar**: en Americano se crean todas las rondas; en Liga se genera la primera.
 3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
 4. **Siguiente ronda**: pasa con la flecha (Americano) o pulsa "Generar ronda" (Liga).
@@ -70,19 +70,25 @@ El modo Americano tiene dos variantes:
 **Americano Por nivel, parejas fijas**
 - Cada ronda, las parejas juegan contra rivales de **nivel parecido**, sin repetir rival en lo posible. No garantiza todos contra todos.
 
-**Liga**
+**Liga Clásico**
+- Una liga normal: **todos con y contra todos** (parejas fijas: cada pareja contra cada otra; rotativas: pareja con todos), sin nivel ni clasificación.
+- Mientras estén todos, sigue el mismo calendario que el Americano Clásico, ronda a ronda.
+- Si falta alguien, la ronda se juega con los presentes y con enfrentamientos que aún no se han jugado; quien faltó juega los suyos más adelante si da tiempo. Si sobran pistas, los presentes sin partidos pendientes juegan entre ellos.
+- Manda el calendario: puede que alguien descanse dos rondas seguidas.
+
+**Liga Por nivel**
 - Antes de cada ronda se eligen los partidos entre los jugadores que están (activos). Primero juegan los que descansaron la ronda anterior y los que llevan menos partidos.
 - Se evita repetir compañero y rival siempre que se pueda.
-- Dos opciones para igualar los partidos (se pueden combinar):
+- Dos opciones para igualar los partidos (se pueden combinar; al menos una):
   - **Priorizar nivel inicial** (activada por defecto): usa el nivel que pusiste a cada jugador para que los dos equipos queden igualados.
   - **Priorizar clasificación**: usa los resultados. Los que van arriba juegan con los que van arriba y los de abajo con los de abajo, y los equipos se igualan. Aun así se va rotando para jugar contra todos. Cuenta la proporción de puntos ganados, no el total, para no castigar a quien descansó o llegó tarde.
-  - Con las dos: al principio manda el nivel y, según se juega, cada vez pesan más los resultados. Sin ninguna: solo rotación.
-- **Liga con parejas fijas**: cada ronda juegan primero las parejas que menos han jugado, contra rivales de nivel parecido y sin repetir rival en lo posible. Si un miembro de la pareja no está, la pareja descansa entera. Se pueden formar parejas nuevas durante la liga.
+  - Con las dos: al principio manda el nivel y, según se juega, cada vez pesan más los resultados.
+- **Liga Por nivel con parejas fijas**: cada ronda juegan primero las parejas que menos han jugado, contra rivales de nivel parecido y sin repetir rival en lo posible. Si un miembro de la pareja no está, la pareja descansa entera. Se pueden formar parejas nuevas durante la liga.
 
 ### Pistas y descansos
 
 - Tú eliges las pistas. En Americano, por defecto, una pista por cada 4 jugadores.
-- Si sobran jugadores, descansan por turnos. En Liga y en Americano Por nivel **nadie descansa dos rondas seguidas** (salvo que descansen más jugadores de los que juegan). En Americano Clásico manda el calendario: con todas las pistas tampoco pasa, y con menos pistas solo si no hay otra forma de que todos jueguen con y contra todos.
+- Si sobran jugadores, descansan por turnos. En las variantes Por nivel **nadie descansa dos rondas seguidas** (salvo que descansen más jugadores de los que juegan). En las variantes Clásico manda el calendario: con todas las pistas tampoco pasa, y con menos pistas solo si no hay otra forma de que todos jueguen con y contra todos.
 - En Americano Clásico, si hay menos pistas que jugadores ÷ 4, los mismos partidos del calendario se reparten en más rondas.
 - Los jugadores van cambiando de pista para no estar siempre en la misma.
 - **Rondas extra (+)** en Americano: añade rondas cuando quieras. Juegan primero quienes descansaron y quienes llevan menos partidos, evitando repetir parejas y rivales.

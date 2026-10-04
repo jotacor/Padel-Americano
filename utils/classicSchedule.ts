@@ -17,7 +17,7 @@ export interface ClassicSetup {
 }
 
 /** Classic ignores skill: everyone counts the same */
-const withoutSkill = (players: Player[]): Player[] => players.map(p => ({ ...p, skillLevel: 'medium' }));
+export const withoutSkill = (players: Player[]): Player[] => players.map(p => ({ ...p, skillLevel: 'medium' }));
 
 /**
  * Rounds of a full Americano: rotating → players − 1 when divisible by 4, else players (same matches

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, LeaderboardEntry, Pair, PairMode, Round } from './types.ts';
 import { generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
 import { buildClassicSchedule, classicRoundCount, nextClassicRound } from './utils/classicSchedule.ts';
+import { generateLeagueClassicRound } from './utils/leagueClassic.ts';
 import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatch, matchTitle, PLAYOFF_PAIRS, PLAYOFF_PLAYERS, playoffState, roundBadge } from './utils/playoff.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
@@ -93,6 +94,7 @@ const readSavedState = () => {
     prioritizeSkill: get('padel_prioritize_skill') === 'true',
     leagueSkill: get('padel_league_prioritize_skill') !== 'false',
     leagueRanking: get('padel_prioritize_ranking') === 'true',
+    leagueClassic: get('padel_league_classic') === 'true',
     setupName: get('padel_tournament_name') ?? '',
   };
 };
@@ -126,6 +128,8 @@ const App: React.FC = () => {
   // League matchmaking: declared skill (default, legacy behavior) and/or current standings
   const [leagueSkill, setLeagueSkill] = useState(saved.leagueSkill);
   const [leagueRanking, setLeagueRanking] = useState(saved.leagueRanking);
+  // League variant: Classic (round robin, no skill/standings) or By skill (the two options above)
+  const [leagueClassic, setLeagueClassic] = useState(saved.leagueClassic);
   // Name for the next tournament (empty = automatic "Liga - fecha"); the open tournament's name is edited in place
   const [setupName, setSetupName] = useState(saved.setupName);
   
@@ -189,8 +193,9 @@ const App: React.FC = () => {
     localStorage.setItem('padel_prioritize_skill', String(prioritizeSkill));
     localStorage.setItem('padel_league_prioritize_skill', String(leagueSkill));
     localStorage.setItem('padel_prioritize_ranking', String(leagueRanking));
+    localStorage.setItem('padel_league_classic', String(leagueClassic));
     localStorage.setItem('padel_pairs', JSON.stringify(pairs));
-  }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking]);
+  }, [pairMode, pairs, prioritizeSkill, leagueSkill, leagueRanking, leagueClassic]);
 
   const startSharing = async () => {
     if (!tournament) return;
@@ -313,8 +318,8 @@ const App: React.FC = () => {
         createdAt: new Date().toISOString(),
         numCourts: eventNumCourts,
         ...pairFields,
-        prioritizeSkill: leagueSkill,
-        ...(leagueRanking && { prioritizeRanking: true }),
+        prioritizeSkill: !leagueClassic && leagueSkill, // League Classic: neither skill nor standings
+        ...(!leagueClassic && leagueRanking && { prioritizeRanking: true }),
       });
     } else {
       const balanced = prioritizeSkill; // Americano variant: By skill (else Classic)
@@ -360,6 +365,7 @@ const App: React.FC = () => {
       setPrioritizeSkill(false);
       setLeagueSkill(true);
       setLeagueRanking(false);
+      setLeagueClassic(false);
       setClassicCourts(null);
       setSetupPoints(DEFAULT_POINTS);
       setSetupName('');
@@ -424,7 +430,9 @@ const App: React.FC = () => {
     setPairs(imported.pairs ?? []);
     if (imported.mode === 'event') {
       const mm = leagueMatchmaking(imported);
-      setLeagueSkill(mm.skill);
+      const classic = !mm.skill && !mm.ranking;
+      setLeagueClassic(classic);
+      setLeagueSkill(classic || mm.skill);
       setLeagueRanking(mm.ranking);
     } else {
       setPrioritizeSkill(!!imported.prioritizeSkill);
@@ -453,7 +461,9 @@ const App: React.FC = () => {
       const mm = leagueMatchmaking(tournament);
       const strengths = playerStrengths(tournament.players, tournament.rounds, mm);
       const strength = (id: string) => strengths.get(id) ?? 2;
-      const newRound = fixed
+      const newRound = !mm.skill && !mm.ranking
+        ? generateLeagueClassicRound(tournament.players, activeIds, fixed ? tournament.pairs ?? [] : null, tournament.rounds, newRoundIndex, nc)
+        : fixed
         ? generateFixedPairsRound(activePairs, tournament.players, tournament.rounds, newRoundIndex, nc, { strength, ranked: mm.ranking })
         : mm.ranking
         ? generateRankedRound(activePlayers, tournament.players, tournament.rounds, newRoundIndex, nc, strength)
@@ -600,7 +610,16 @@ const App: React.FC = () => {
   // Random before start: full schedule (N−1 rounds, N if odd; pairs for fixed) spread over the chosen courts
   const estimatedClassicRounds = classicRoundCount(isFixed ? currentPairs.length : players.length, isFixed, numCourts);
   // Skill is only used by the League and Americano By skill (Classic ignores it: selector and badges hidden)
-  const usesSkill = tournament ? tournament.mode === 'event' || !!tournament.prioritizeSkill : eventMode || prioritizeSkill;
+  const usesSkill = tournament
+    ? (tournament.mode === 'event' ? leagueMatchmaking(tournament).skill || !!tournament.prioritizeRanking : !!tournament.prioritizeSkill)
+    : (eventMode ? !leagueClassic : prioritizeSkill);
+  // Variant buttons (Americano: Classic | By skill; League: Classic | By skill with its two options)
+  const bySkill = eventMode ? !leagueClassic : prioritizeSkill;
+  const setBySkill = (v: boolean) => {
+    if (!eventMode) return setPrioritizeSkill(v);
+    setLeagueClassic(!v);
+    if (v && !leagueSkill && !leagueRanking) setLeagueSkill(true);
+  };
   // − and + together, the value on the right (aligned with the other numbers of the panel)
   const renderStepperControl = (
     display: React.ReactNode,
@@ -726,7 +745,7 @@ const App: React.FC = () => {
                   PADEL<span className={tc.primaryText}>AMERICANO</span>
                 </h1>
               </div>
-              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t((tournament ? tournament.prioritizeSkill : prioritizeSkill) ? 'header.taglineSkill' : 'header.taglineClassic')}</p>
+              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t((tournament ? !leagueMatchmaking(tournament).skill && !tournament.prioritizeRanking : leagueClassic) ? 'header.taglineLeagueClassic' : 'header.taglineLeague') : t((tournament ? tournament.prioritizeSkill : prioritizeSkill) ? 'header.taglineSkill' : 'header.taglineClassic')}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
@@ -881,16 +900,8 @@ const App: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center shrink-0">
-                      {isFixed && canEditPairs && !partnerId && (
-                        <button
-                          onClick={() => selectForPair(p.id)}
-                          title={t('pairs.pairWith')}
-                          className={`p-2 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : 'text-slate-400 hover:text-slate-700 hover:bg-white/70'}`}
-                        >
-                          <Link2 className="w-5 h-5" />
-                        </button>
-                      )}
+                    {/* Actions stacked (remove / sit out on top, pair below) so the name keeps the width */}
+                    <div className="flex flex-col items-center shrink-0">
                       {tournament?.mode === 'event' ? (
                         <button
                           onClick={() => togglePlayerActive(p.id)}
@@ -900,8 +911,17 @@ const App: React.FC = () => {
                           {p.isActive !== false ? <UserPlus className="w-5 h-5" /> : <UserMinus className="w-5 h-5" />}
                         </button>
                       ) : !tournament ? (
-                        <button onClick={() => removePlayer(p.id)} title={t('setup.removePlayer')} className="p-2 rounded-xl text-slate-400/70 hover:text-rose-500 hover:bg-white/70 transition-all"><Trash2 className="w-5 h-5" /></button>
+                        <button onClick={() => removePlayer(p.id)} title={t('setup.removePlayer')} className="p-1.5 rounded-xl text-slate-400/70 hover:text-rose-500 hover:bg-white/70 transition-all"><Trash2 className="w-5 h-5" /></button>
                       ) : null}
+                      {isFixed && canEditPairs && !partnerId && (
+                        <button
+                          onClick={() => selectForPair(p.id)}
+                          title={t('pairs.pairWith')}
+                          className={`p-1.5 rounded-xl transition-all ${pairingWith === p.id ? `${tc.primary} text-white` : 'text-slate-400 hover:text-slate-700 hover:bg-white/70'}`}
+                        >
+                          <Link2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   );
@@ -959,31 +979,31 @@ const App: React.FC = () => {
                         {t('setup.event')}
                       </button>
                     </div>
-                    {/* Americano variant: Classic (same matches for all, no skill) or By skill (tournament.prioritizeSkill) */}
-                    {!eventMode && (
-                      <>
-                        <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.variant')}</h3>
-                        <div className="grid grid-cols-2 gap-2">
-                          {([false, true] as const).map(bySkill => {
-                            const Icon = bySkill ? Scale : Repeat;
-                            return (
-                              <button
-                                key={String(bySkill)}
-                                onClick={() => setPrioritizeSkill(bySkill)}
-                                aria-pressed={prioritizeSkill === bySkill}
-                                className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
-                                  prioritizeSkill === bySkill ? 'bg-white/10 border-2 border-white/20 text-white' : 'border-2 border-transparent text-slate-500 hover:border-white/10'
-                                }`}
-                              >
-                                <Icon className="w-5 h-5 mx-auto mb-1" />
-                                {t(bySkill ? 'setup.variantSkill' : 'setup.variantClassic')}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-slate-400 text-xs font-medium mt-2">{t(prioritizeSkill ? 'setup.variantSkillHint' : 'setup.variantClassicHint')}</p>
-                      </>
-                    )}
+                    {/* Variant: Classic (same matches for all, no skill) or By skill — Americano and League */}
+                    <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.variant')}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([false, true] as const).map(option => {
+                        const Icon = option ? Scale : Repeat;
+                        return (
+                          <button
+                            key={String(option)}
+                            onClick={() => setBySkill(option)}
+                            aria-pressed={bySkill === option}
+                            className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
+                              bySkill === option
+                                ? (isEvent ? 'bg-purple-600/30 border-2 border-purple-400/40 text-purple-300' : 'bg-white/10 border-2 border-white/20 text-white')
+                                : 'border-2 border-transparent text-slate-500 hover:border-white/10'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5 mx-auto mb-1" />
+                            {t(option ? 'setup.variantSkill' : 'setup.variantClassic')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-slate-400 text-xs font-medium mt-2">{t(eventMode
+                      ? (bySkill ? 'setup.variantLeagueSkillHint' : 'setup.variantLeagueClassicHint')
+                      : (bySkill ? 'setup.variantSkillHint' : 'setup.variantClassicHint'))}</p>
                     <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.pairing')}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {(['rotating', 'fixed'] as const).map(mode => {
@@ -1004,10 +1024,11 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    {eventMode && (
+                    {/* League By skill: at least one of its two options stays on */}
+                    {eventMode && !leagueClassic && (
                       <>
-                        {renderOption(leagueSkill, setLeagueSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
-                        {renderOption(leagueRanking, setLeagueRanking, 'setup.prioritizeRanking', pairMode === 'fixed' ? 'setup.prioritizeRankingFixedHint' : 'setup.prioritizeRankingHint')}
+                        {renderOption(leagueSkill, v => (v || leagueRanking) && setLeagueSkill(v), 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}
+                        {renderOption(leagueRanking, v => (v || leagueSkill) && setLeagueRanking(v), 'setup.prioritizeRanking', pairMode === 'fixed' ? 'setup.prioritizeRankingFixedHint' : 'setup.prioritizeRankingHint')}
                       </>
                     )}
                   </div>

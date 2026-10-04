@@ -26,8 +26,9 @@ const courtHistoryOf = (rounds: Round[]): Map<string, number[]> => {
  * Random mode: full round robin between pairs (circle method) — every pair meets every
  * other pair exactly once. With an odd number of pairs, one pair rests each round.
  */
-export const generateFixedPairsSchedule = (pairs: Pair[]): Round[] => {
-  const teams: (Pair | null)[] = shuffle(pairs);
+export const generateFixedPairsSchedule = (pairs: Pair[], randomOrder = true): Round[] => {
+  // League Classic needs the same plan every round: keep the pairs' order there
+  const teams: (Pair | null)[] = randomOrder ? shuffle(pairs) : [...pairs];
   if (teams.length % 2) teams.push(null);
   const n = teams.length;
   const order = teams.map((_, i) => i);
