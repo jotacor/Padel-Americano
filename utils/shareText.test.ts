@@ -11,7 +11,7 @@ const ctx = { t, courtLabel: (i: number) => t('common.court', { n: i + 1 }), loc
 
 const players = makePlayers(10).map((p, i) => ({ ...p, name: ['Ana', 'Luis', 'Marta', 'Juan', 'Pedro', 'Laura', 'Sara', 'Iván', 'Nuria', 'Raúl'][i] }));
 const tournament: Tournament = {
-  id: 't', name: 'Liga martes', players, isStarted: true, mode: 'event', pointsPerMatch: 24,
+  id: 't', name: 'Liga martes', players, isStarted: true, mode: 'event', pointsPerMatch: 21,
   rounds: [{
     index: 0, byes: ['p8', 'p9'],
     matches: [
@@ -24,7 +24,7 @@ const tournament: Tournament = {
 describe('WhatsApp texts', () => {
   it('round line-up', () => {
     expect(roundText(tournament, 0, ctx)).toBe([
-      '🎾 Liga martes · Ronda 1/1 · a 24 puntos',
+      '🎾 Liga martes · Ronda 1/1 · 21p · gana quien llega a 11',
       'Pista 1: ANA-LUIS vs MARTA-JUAN (15-9)',
       'Pista 2: PEDRO-LAURA vs SARA-IVÁN',
       'Descansan: NURIA, RAÚL',

@@ -1,4 +1,4 @@
-// Score entry: matches to a points total (11/15/21: odd, so never a tie) or best of 3 tennis sets.
+// Score entry: matches to 11/15/21 (first to 6/8/11 wins, so never a tie) or best of 3 tennis sets.
 import type { Match, SetScore, Tournament } from '../types.ts';
 
 export const POINTS_OPTIONS = [11, 15, 21] as const;
@@ -58,11 +58,22 @@ export const applySetInput = (
 export const setsText = (sets: SetScore[] = []): string =>
   sets.filter(s => !empty(s)).map(([a, b]) => `${a ?? ''}-${b ?? ''}`).join(' ');
 
+/** Points a team needs to win a match "to P" (11 → 6, 15 → 8, 21 → 11): first to reach it wins */
+export const winningPoints = (pointsPerMatch: number): number => Math.ceil(pointsPerMatch / 2);
+
+/** A finished points match: one team reached the winning points and the other stayed below */
+export const isValidPoints = (a: number | null, b: number | null, pointsPerMatch: number): boolean => {
+  if (a === null || b === null) return false;
+  const w = winningPoints(pointsPerMatch);
+  return (a === w && b < w) || (b === w && a < w);
+};
+
 /**
- * Scores after typing `raw` on one side. With a total P the other side is filled with P − value,
- * unless the user typed that side by hand (`lastTyped` = the other side): then it's left alone
- * (a sum ≠ P is then flagged and blocks moving on, see `isInvalidScore`). Clearing a side clears an auto-filled
- * other side too. Without P, only digits are kept.
+ * Scores after typing `raw` on one side of a match to P (first to `winningPoints(P)` wins).
+ * The other side follows unless the user typed it by hand (`lastTyped` = the other side): a value
+ * below the winning points fills the other side with the winning points (to 11: 4 → 4-6); the winning
+ * points themselves leave the other side empty for the loser's score. Clearing clears a followed side.
+ * Without P, only digits are kept.
  */
 export const applyScoreInput = (
   match: Pick<Match, 'scoreA' | 'scoreB'>,
@@ -73,28 +84,28 @@ export const applyScoreInput = (
 ): Pick<Match, 'scoreA' | 'scoreB' | 'isCompleted'> => {
   const digits = raw.replace(/\D/g, '').slice(0, 3);
   let value: number | null = digits === '' ? null : parseInt(digits, 10);
-  if (value !== null && pointsPerMatch) value = Math.min(value, pointsPerMatch);
   const [mine, other] = side === 'A' ? [match.scoreA, match.scoreB] : [match.scoreB, match.scoreA];
 
   let nextOther = other;
   if (pointsPerMatch) {
-    // The other side follows this one if it is empty, was filled for us, or (unknown origin) they added up to P
+    const w = winningPoints(pointsPerMatch);
+    if (value !== null) value = Math.min(value, w);
+    // The other side follows this one if it is empty, was filled for us, or (unknown origin) the result was a valid one
     const follows = other === null || lastTyped === side
-      || (lastTyped === undefined && mine !== null && mine + other === pointsPerMatch);
-    if (follows) nextOther = value === null ? null : pointsPerMatch - value;
+      || (lastTyped === undefined && isValidPoints(mine, other, pointsPerMatch));
+    if (follows) nextOther = value === null || value === w ? null : w;
   }
   const [scoreA, scoreB] = side === 'A' ? [value, nextOther] : [nextOther, value];
   return { scoreA, scoreB, isCompleted: scoreA !== null && scoreB !== null };
 };
 
 /**
- * With a points total, a result that blocks moving on: only one side entered, or both entered but
- * not adding up to the total. A blank match is fine (not played yet / skipped).
+ * A result that blocks moving on: points → one side entered, or both but not "first to the winning
+ * points" (6-4 to 11 is fine, 7-4 or 6-6 is not); sets → see `setsResult`. A blank match is fine.
  */
 export const isInvalidScore = (m: Pick<Match, 'scoreA' | 'scoreB' | 'sets'>, scoring: Scoring | undefined): boolean => {
   if (scoring === 'sets') return (m.sets ?? []).some(s => !empty(s)) && !setsResult(m.sets);
-  return !!scoring && (m.scoreA !== null || m.scoreB !== null)
-    && (m.scoreA === null || m.scoreB === null || m.scoreA + m.scoreB !== scoring);
+  return !!scoring && (m.scoreA !== null || m.scoreB !== null) && !isValidPoints(m.scoreA, m.scoreB, scoring);
 };
 
 /** First invalid result (see `isInvalidScore`) in these rounds, or null */
@@ -105,7 +116,3 @@ export const firstInvalidScore = <M extends Pick<Match, 'scoreA' | 'scoreB' | 's
   }
   return null;
 };
-
-/** Sum of a finished match when it differs from the points total (shown under the match; blocks moving on), else null */
-export const scoreSumMismatch = (m: Pick<Match, 'scoreA' | 'scoreB'>, pointsPerMatch?: number): number | null =>
-  pointsPerMatch && m.scoreA !== null && m.scoreB !== null && m.scoreA + m.scoreB !== pointsPerMatch ? m.scoreA + m.scoreB : null;

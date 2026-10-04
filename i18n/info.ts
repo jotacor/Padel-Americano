@@ -38,7 +38,7 @@ const es: InfoSection[] = [
           'En **Ajustes**, apunta a los jugadores. El nivel (Bajo, Medio, Alto) solo se pide en las variantes Por nivel.',
           'Elige **modo** (Americano o Liga), **variante** (Clásico o Por nivel) y **parejas** (Rotativas o Fijas). Con Fijas, une a cada pareja con el icono de enlace.',
           'Pon las **pistas** que tienes. Si sobran jugadores, descansan por turnos.',
-          'Elige la **puntuación**: 11, 15 o 21 puntos, o 3 sets.',
+          'Elige la **puntuación**: 11p, 15p o 21p (gana quien llega a 6, 8 u 11), o 3 sets.',
           'Pulsa **Iniciar**.',
         ],
       },
@@ -50,7 +50,7 @@ const es: InfoSection[] = [
       {
         kind: 'list',
         items: [
-          'En **Partidos** ves quién juega en cada pista. Apunta el resultado al acabar: a puntos, escribe un equipo y el otro se rellena solo; a 3 sets, apunta los juegos de cada set.',
+          'En **Partidos** ves quién juega en cada pista. Apunta el resultado al acabar: a puntos, escribe el marcador del perdedor y el ganador se rellena solo; a 3 sets, apunta los juegos de cada set.',
           'Pasa a la siguiente ronda con la flecha (Americano) o con **Generar ronda** (Liga). Si algún resultado está mal o a medias, no te deja pasar; los partidos sin jugar se pueden dejar en blanco.',
           'En **Liga**, antes de cada ronda marca en Ajustes quién está y quién no. Puedes añadir jugadores y cambiar las pistas.',
           '¿Te has equivocado al crear una ronda? **Deshacer ronda** la quita mientras no tenga resultados (en Americano, solo las rondas añadidas y las finales).',
@@ -130,7 +130,7 @@ const en: InfoSection[] = [
           'In **Setup**, add the players. Skill (Low, Medium, High) is only asked for in the By skill variants.',
           'Pick the **mode** (Americano or League), **variant** (Classic or By skill) and **pairs** (Rotating or Fixed). With Fixed, link each pair with the link icon.',
           'Set the **courts** you have. Extra players sit out in turn.',
-          'Pick the **scoring**: 11, 15 or 21 points, or 3 sets.',
+          'Pick the **scoring**: 11p, 15p or 21p (first to 6, 8 or 11 wins), or 3 sets.',
           'Press **Start**.',
         ],
       },
@@ -142,7 +142,7 @@ const en: InfoSection[] = [
       {
         kind: 'list',
         items: [
-          '**Matches** shows who plays on each court. Enter the result when it ends: with points, type one team and the other fills in; with 3 sets, enter the games of each set.',
+          '**Matches** shows who plays on each court. Enter the result when it ends: with points, type the loser\'s score and the winner fills in; with 3 sets, enter the games of each set.',
           'Move to the next round with the arrow (Americano) or **Generate round** (League). If a result is wrong or half entered, it won\'t let you; unplayed matches can stay blank.',
           'In a **League**, before each round mark in Setup who is in and who isn\'t. You can add players and change courts.',
           'Created a round by mistake? **Undo round** removes it while it has no results (in Americano, only added rounds and finals).',

@@ -16,7 +16,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 - ✅ **Automatic matches**: everyone plays with and against different people; optionally, matches balanced by skill or by standings
 - ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn
 - ✅ **Court rotation**: each player moves around different courts
-- ✅ **Quick scores**: matches to 11, 15 or 21 points (type one score and the other fills in: 7 → 7-4) or best of 3 sets
+- ✅ **Quick scores**: matches to 11, 15 or 21 points (first to 6, 8 or 11 wins; type the loser's score and the winner fills in: 4 → 4-6) or best of 3 sets
 - ✅ **Live standings**: wins, points, point difference (DIFF) and points per match
 - ✅ **Finals**: quick *Final round* or a *Playoff* (semifinals + final) among the best
 - ✅ **Extra rounds (+)** and **undo the last round** while it has no scores
@@ -96,10 +96,10 @@ Americano has two variants:
 
 ### Scores
 
-- **Scoring**: matches to 11p, 15p or 21p (odd, so no ties), or **3 sets**.
-- With points: type one team's score and the other fills in (to 11: type 7 → 7-4).
+- **Scoring**: matches to 11p, 15p or 21p, or **3 sets**.
+- With points, the first team to 6 (11p), 8 (15p) or 11 (21p) wins: 6-4 is valid, 7-4 isn't. Type the loser's score and the winner fills in (11p: type 4 → 4-6); type the winner's and then enter the loser's.
 - With 3 sets: best of 3, tennis sets (6-0 to 6-4, 7-5 or 7-6 with a tie-break). If a team wins the first two sets, the third isn't played. In the standings, after wins it's **sets** that count (sets won and set difference), not games.
-- **You can't move to the next round if a score isn't valid** (doesn't add up, impossible sets, or half entered). Blank matches are allowed.
+- **You can't move to the next round if a score isn't valid** (nobody reached the winning points, impossible sets, or half entered). Blank matches are allowed.
 - In finished matches the winning team is shown in green.
 - **Undo round**: removes the last round if nobody has entered scores (e.g. someone arrived late in a League). In Americano only extra rounds and finals can be undone.
 

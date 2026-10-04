@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { applyScoreInput, applySetInput, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, setsResult, setsText } from './scoring.ts';
+import { applyScoreInput, applySetInput, firstInvalidScore, isInvalidScore, isValidPoints, isValidSet, needsThirdSet, POINTS_OPTIONS, setsResult, setsText, winningPoints } from './scoring.ts';
 
 const empty = { scoreA: null, scoreB: null };
 
-describe('applyScoreInput', () => {
-  it('offers only odd totals (no ties)', () => {
+describe('applyScoreInput (first to 6 / 8 / 11 wins)', () => {
+  it('11, 15 and 21 points: first to 6, 8 and 11 wins (odd totals, no ties)', () => {
     expect(POINTS_OPTIONS).toEqual([11, 15, 21]);
-    POINTS_OPTIONS.forEach(p => expect(p % 2).toBe(1));
+    expect(POINTS_OPTIONS.map(winningPoints)).toEqual([6, 8, 11]);
   });
 
   it('without a points total: digits only, nothing auto-filled', () => {
@@ -14,51 +14,50 @@ describe('applyScoreInput', () => {
     expect(applyScoreInput(empty, 'A', '', undefined)).toEqual({ scoreA: null, scoreB: null, isCompleted: false });
   });
 
-  it('typing one side fills the other (21 → 13-8), keystroke by keystroke', () => {
-    const s1 = applyScoreInput(empty, 'A', '1', 21);
-    expect(s1).toEqual({ scoreA: 1, scoreB: 20, isCompleted: true });
-    const s2 = applyScoreInput(s1, 'A', '13', 21, 'A');
-    expect(s2).toEqual({ scoreA: 13, scoreB: 8, isCompleted: true });
+  it('a losing score fills the other side with the winning points (to 11: 4 → 4-6)', () => {
+    expect(applyScoreInput(empty, 'A', '4', 11)).toEqual({ scoreA: 4, scoreB: 6, isCompleted: true });
+    expect(applyScoreInput(empty, 'B', '9', 21)).toEqual({ scoreA: 11, scoreB: 9, isCompleted: true });
+  });
+
+  it('the winning points leave the other side empty for the loser\'s score', () => {
+    const won = applyScoreInput(empty, 'A', '6', 11);
+    expect(won).toEqual({ scoreA: 6, scoreB: null, isCompleted: false });
+    expect(applyScoreInput(won, 'B', '3', 11, 'A')).toEqual({ scoreA: 6, scoreB: 3, isCompleted: true });
+  });
+
+  it('correcting the auto-filled side: 4-6 → A 6 empties B', () => {
+    const s1 = applyScoreInput(empty, 'A', '4', 11);
+    expect(applyScoreInput(s1, 'A', '6', 11, 'A')).toEqual({ scoreA: 6, scoreB: null, isCompleted: false });
   });
 
   it('clearing a side also clears the auto-filled one', () => {
-    expect(applyScoreInput({ scoreA: 13, scoreB: 8 }, 'A', '', 21, 'A')).toEqual({ scoreA: null, scoreB: null, isCompleted: false });
+    expect(applyScoreInput({ scoreA: 4, scoreB: 6 }, 'A', '', 11, 'A')).toEqual({ scoreA: null, scoreB: null, isCompleted: false });
   });
 
-  it('a hand-typed other side is respected (match cut short by time: 13-5)', () => {
-    const typedA = applyScoreInput(empty, 'A', '13', 21);
-    const typedB = applyScoreInput(typedA, 'B', '5', 21, 'A');
-    expect(typedB).toEqual({ scoreA: 13, scoreB: 5, isCompleted: true });
-    expect(scoreSumMismatch(typedB, 21)).toBe(18);
-    // and editing A afterwards keeps B (both typed by hand)
-    expect(applyScoreInput(typedB, 'A', '14', 21, 'B')).toEqual({ scoreA: 14, scoreB: 5, isCompleted: true });
+  it('a hand-typed other side is respected', () => {
+    const typedA = applyScoreInput(empty, 'A', '8', 15);
+    const typedB = applyScoreInput(typedA, 'B', '5', 15, 'A');
+    expect(typedB).toEqual({ scoreA: 8, scoreB: 5, isCompleted: true });
+    expect(applyScoreInput(typedB, 'A', '7', 15, 'B')).toEqual({ scoreA: 7, scoreB: 5, isCompleted: true }); // B typed by hand: kept (now invalid)
   });
 
-  it('saved scores of unknown origin follow when they added up to the total', () => {
-    expect(applyScoreInput({ scoreA: 9, scoreB: 6 }, 'B', '7', 15)).toEqual({ scoreA: 8, scoreB: 7, isCompleted: true });
-    expect(applyScoreInput({ scoreA: 9, scoreB: 4 }, 'B', '5', 15)).toEqual({ scoreA: 9, scoreB: 5, isCompleted: true });
-  });
-
-  it('caps at the total', () => {
-    expect(applyScoreInput(empty, 'B', '30', 11)).toEqual({ scoreA: 0, scoreB: 11, isCompleted: true });
-    expect(applyScoreInput(empty, 'A', '6', 11)).toEqual({ scoreA: 6, scoreB: 5, isCompleted: true });
-  });
-
-  it('flags sums that do not match the total', () => {
-    expect(scoreSumMismatch({ scoreA: 13, scoreB: 8 }, 21)).toBeNull();
-    expect(scoreSumMismatch({ scoreA: 13, scoreB: 8 }, undefined)).toBeNull();
-    expect(scoreSumMismatch({ scoreA: 13, scoreB: null }, 21)).toBeNull();
+  it('caps at the winning points', () => {
+    expect(applyScoreInput(empty, 'B', '30', 11)).toEqual({ scoreA: null, scoreB: 6, isCompleted: false });
   });
 });
 
 describe('isInvalidScore (blocks moving on)', () => {
   const s = (scoreA: number | null, scoreB: number | null) => ({ scoreA, scoreB });
-  it('with a points total: half-entered or not adding up is invalid; blank or exact is fine', () => {
+  it('points: one team exactly at the winning points, the other below; blank is fine', () => {
     expect(isInvalidScore(s(null, null), 11)).toBe(false);
-    expect(isInvalidScore(s(7, 4), 11)).toBe(false);
-    expect(isInvalidScore(s(7, 9), 11)).toBe(true);
-    expect(isInvalidScore(s(7, null), 11)).toBe(true);
-    expect(isInvalidScore(s(null, 4), 11)).toBe(true);
+    expect(isInvalidScore(s(6, 3), 11)).toBe(false);
+    expect(isInvalidScore(s(0, 6), 11)).toBe(false);
+    expect(isInvalidScore(s(11, 10), 21)).toBe(false);
+    expect(isInvalidScore(s(7, 4), 11)).toBe(true); // nobody stops at 7
+    expect(isInvalidScore(s(5, 4), 11)).toBe(true); // nobody reached 6
+    expect(isInvalidScore(s(6, 6), 11)).toBe(true);
+    expect(isInvalidScore(s(6, null), 11)).toBe(true);
+    expect(isValidPoints(8, 7, 15)).toBe(true);
   });
   it('free scoring never blocks', () => {
     expect(isInvalidScore(s(7, 9), undefined)).toBe(false);
@@ -66,7 +65,7 @@ describe('isInvalidScore (blocks moving on)', () => {
   });
   it('finds the first invalid result', () => {
     const rounds = [
-      { index: 0, matches: [s(7, 4), s(null, null)] },
+      { index: 0, matches: [s(6, 4), s(null, null)] },
       { index: 1, matches: [s(6, 5), s(3, 3)] },
     ];
     expect(firstInvalidScore(rounds, 11)).toEqual({ roundIndex: 1, match: s(3, 3) });

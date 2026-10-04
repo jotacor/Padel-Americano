@@ -7,7 +7,7 @@ import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatc
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
-import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoreSumMismatch, scoringOf, type Scoring, type Side } from './utils/scoring.ts';
+import { applyScoreInput, applySetInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, isValidSet, needsThirdSet, POINTS_OPTIONS, scoringOf, winningPoints, type Scoring, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { ymd } from './utils/dates.ts';
@@ -691,7 +691,7 @@ const App: React.FC = () => {
     setActiveTab('rounds');
     setCurrentRoundIndex(bad.roundIndex);
     const where = { match: matchTitle(bad.match, t, courtLabel), round: bad.roundIndex + 1 };
-    showToast(tournament.scoring === 'sets' ? t('rounds.fixSets', where) : t('rounds.fixScores', { ...where, total: tournament.pointsPerMatch ?? 0 }), 4500);
+    showToast(tournament.scoring === 'sets' ? t('rounds.fixSets', where) : t('rounds.fixScores', { ...where, w: winningPoints(tournament.pointsPerMatch ?? 0) }), 4500);
     return false;
   };
   const nextRound = () => {
@@ -1190,7 +1190,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     {scoringOf(tournament) !== null && (
-                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</span>
+                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0, w: winningPoints(tournament.pointsPerMatch ?? 0) })}</span>
                     )}
                   </div>
                   <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={nextRound} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
@@ -1294,8 +1294,8 @@ const App: React.FC = () => {
                         </div>
                         {isInvalidScore(match, scoringOf(tournament)) && (
                           <p className="-mt-3 mb-4 md:-mt-8 md:mb-8 text-center text-xs font-bold text-rose-500">
-                            {tournament.scoring === 'sets' ? t('rounds.invalidSets') : scoreSumMismatch(match, tournament.pointsPerMatch) !== null
-                              ? t('rounds.sumWarning', { sum: scoreSumMismatch(match, tournament.pointsPerMatch) ?? 0, total: tournament.pointsPerMatch ?? 0 })
+                            {tournament.scoring === 'sets' ? t('rounds.invalidSets') : match.scoreA !== null && match.scoreB !== null
+                              ? t('rounds.firstToWarning', { w: winningPoints(tournament.pointsPerMatch ?? 0) })
                               : t('rounds.missingScore')}
                           </p>
                         )}
