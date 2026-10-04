@@ -204,6 +204,9 @@ const en = {
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
   'tournament.leagueName': 'League - {date}',
+  'setup.tournamentName': 'Tournament name',
+  'file.modeClassic': 'random',
+  'file.modeEvent': 'league',
 
   // Game viewer
   'viewer.loading': 'Loading tournament...',
@@ -429,6 +432,9 @@ const es: Translations = {
   // Tournament names
   'tournament.classicName': 'Americano - {date}',
   'tournament.leagueName': 'Liga - {date}',
+  'setup.tournamentName': 'Nombre del torneo',
+  'file.modeClassic': 'aleatorio',
+  'file.modeEvent': 'liga',
 
   // Game viewer
   'viewer.loading': 'Cargando torneo...',

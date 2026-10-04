@@ -9,6 +9,7 @@ import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/play
 import { applyScoreInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
+import { ymd } from './utils/dates.ts';
 import ShareModal from './components/ShareModal.tsx';
 import { roundText, standingsText } from './utils/shareText.ts';
 import { copyText, newId } from './utils/browser.ts';
@@ -88,6 +89,7 @@ const readSavedState = () => {
     prioritizeSkill: get('padel_prioritize_skill') === 'true',
     leagueSkill: get('padel_league_prioritize_skill') !== 'false',
     leagueRanking: get('padel_prioritize_ranking') === 'true',
+    setupName: get('padel_tournament_name') ?? '',
   };
 };
 
@@ -120,6 +122,8 @@ const App: React.FC = () => {
   // League matchmaking: declared skill (default, legacy behavior) and/or current standings
   const [leagueSkill, setLeagueSkill] = useState(saved.leagueSkill);
   const [leagueRanking, setLeagueRanking] = useState(saved.leagueRanking);
+  // Name for the next tournament (empty = automatic "Liga - fecha"); the open tournament's name is edited in place
+  const [setupName, setSetupName] = useState(saved.setupName);
   
   // Live sharing (KV, 24 h after the last update)
   const [showShareModal, setShowShareModal] = useState(false);
@@ -163,6 +167,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('padel_event_courts', eventNumCourts.toString());
   }, [eventNumCourts]);
+
+  useEffect(() => {
+    if (setupName) localStorage.setItem('padel_tournament_name', setupName);
+    else localStorage.removeItem('padel_tournament_name');
+  }, [setupName]);
 
   useEffect(() => {
     if (classicCourts) localStorage.setItem('padel_classic_courts', String(classicCourts));
@@ -291,7 +300,7 @@ const App: React.FC = () => {
       // Event mode: start with no rounds, generate on demand
       setTournament({
         id: newId(),
-        name: t('tournament.leagueName', { date: new Date().toLocaleDateString(locale) }),
+        name: setupName.trim() || t('tournament.leagueName', { date: ymd() }),
         players: tournamentPlayers,
         rounds: [],
         isStarted: true,
@@ -309,7 +318,7 @@ const App: React.FC = () => {
       const rounds = buildClassicSchedule({ players: tournamentPlayers, pairs: tournamentPairs, fixed, balanced }, numCourts);
       setTournament({
         id: newId(),
-        name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
+        name: setupName.trim() || t('tournament.classicName', { date: ymd() }),
         players: tournamentPlayers,
         rounds,
         isStarted: true,
@@ -349,6 +358,7 @@ const App: React.FC = () => {
       setLeagueRanking(false);
       setClassicCourts(null);
       setSetupPoints(DEFAULT_POINTS);
+      setSetupName('');
       localStorage.removeItem('padel_tournament');
       localStorage.removeItem('padel_players');
       localStorage.removeItem('padel_share_state');
@@ -374,7 +384,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(new Blob([serializeTournament(updated)], { type: 'application/yaml' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = exportFilename(updated);
+    a.download = exportFilename(updated, t(updated.mode === 'event' ? 'file.modeEvent' : 'file.modeClassic'));
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -901,6 +911,25 @@ const App: React.FC = () => {
             {/* Right panel */}
             <div className={`${isEvent ? 'bg-purple-950' : 'bg-slate-900'} rounded-3xl md:rounded-[3rem] p-6 md:p-10 text-white shadow-2xl space-y-6 md:space-y-8 flex flex-col justify-between`}>
               <div className="space-y-6">
+                {/* Tournament name: for the next tournament, or renames the open one (also used in the export file name) */}
+                <div>
+                  <label htmlFor="tournament-name" className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mb-3 block">{t('setup.tournamentName')}</label>
+                  <input
+                    id="tournament-name"
+                    type="text"
+                    maxLength={60}
+                    value={tournament ? tournament.name : setupName}
+                    placeholder={t(isEvent ? 'tournament.leagueName' : 'tournament.classicName', { date: ymd() })}
+                    onChange={(e) => tournament ? setTournament({ ...tournament, name: e.target.value }) : setSetupName(e.target.value)}
+                    onBlur={() => {
+                      if (tournament && !tournament.name.trim()) {
+                        const date = ymd(new Date(tournament.createdAt ?? Date.now()));
+                        setTournament({ ...tournament, name: t(tournament.mode === 'event' ? 'tournament.leagueName' : 'tournament.classicName', { date }) });
+                      }
+                    }}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-base font-bold text-white placeholder:text-slate-600 outline-none focus:border-white/30"
+                  />
+                </div>
                 {/* Mode selector - only before tournament starts */}
                 {!tournament && (
                   <div>

@@ -3,6 +3,7 @@ import { Document, parse, visit, isSeq, isScalar } from 'yaml';
 import type { Tournament, ExportHistoryEntry } from '../types.ts';
 import { isObj, toExportMeta, validateTournament } from './tournamentSchema.ts';
 import { summarizeTournament } from './tournamentSummary.ts';
+import { ymd } from './dates.ts';
 
 export { summarizeTournament };
 
@@ -25,8 +26,17 @@ const slugify = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'tournament';
 
-export const exportFilename = (t: Tournament): string =>
-  `padel-${slugify(t.name)}-v${t.exportMeta?.revision ?? 0}.yaml`;
+/** Automatic names ("Liga - 4/10/2026", "Americano - …") don't go into the file name: the date already does */
+const isDefaultName = (name: string) => /^(americano|liga|league)\s*-\s*[\d/.-]+$/i.test(name.trim());
+
+/** padel-{mode}-{name}-{YYYY-MM-DD}-v{revision}.yaml, e.g. padel-liga-martes-2026-10-04-v3.yaml (`modeWord` translated) */
+export const exportFilename = (t: Tournament, modeWord: string): string => {
+  const date = ymd(t.createdAt ? new Date(t.createdAt) : new Date());
+  const mode = slugify(modeWord);
+  // "Liga de los Martes" → padel-liga-de-los-martes-…, not padel-liga-liga-de-los-martes-…
+  const name = isDefaultName(t.name) ? '' : slugify(t.name).replace(new RegExp(`^${mode}(-|$)`), '');
+  return [`padel-${mode}`, name, date, `v${t.exportMeta?.revision ?? 0}`].filter(Boolean).join('-') + '.yaml';
+};
 
 /** YAML text for `t` (revision/history taken from `t.exportMeta` as-is). */
 export const serializeTournament = (t: Tournament): string => {

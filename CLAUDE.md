@@ -127,6 +127,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
+- `padel_tournament_name` - name for the next tournament (setup field "Nombre del torneo"; empty = automatic "Liga - YYYY-MM-DD" / "Americano - YYYY-MM-DD"); the open tournament's name is edited in place
 - `padel_points_per_match` - points per match chosen in setup ('free' or a number; absent = 11)
 - `padel_language` - UI language (`en`/`es`), saved on explicit choice or `?lang=xx` in the URL; default = Spanish (browser language ignored)
 
@@ -143,6 +144,7 @@ All state lives in `App.tsx` using React hooks.
 ### Export / Import (YAML)
 
 - Setup right panel: "Export" (YAML file; when a tournament exists) + "Import" (always). No DB; files only
+- File name: `padel-{liga|aleatorio}-{name}-{YYYY-MM-DD}-v{revision}.yaml` (`exportFilename`; mode word translated, automatic names left out, a leading mode word in the name not repeated; date = `createdAt`, `utils/dates.ts` `ymd`)
 - File: header comments, `format: padel-americano/v1`, `revision`, `exportedAt`, `history[]` (revision, exportedAt, rounds/matches done, leader), `tournament` (full `Tournament` minus `exportMeta`)
 - Versioning: `tournament.exportMeta = { revision, history }`; each export bumps revision + appends history (kept in state, so import v2 → export = v3)
 - Import validates shape (players, rounds, matches, pair/player ids); invalid → translated alert, state untouched. Confirms before replacing, stops sharing, restores setup state (players, courts, mode, pairs), opens Scores
