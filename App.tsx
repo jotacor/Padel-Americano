@@ -936,7 +936,7 @@ const App: React.FC = () => {
                   </div>
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}
                   <div className="flex justify-between items-center pt-4">
-                    <span className="text-slate-400 font-bold">{t('setup.pointsPerMatch')}</span>
+                    <abbr title={t('setup.pointsPerMatch')} className="text-slate-400 font-bold no-underline">{t('setup.pointsPerMatchShort')}</abbr>
                     {renderStepperControl(
                       pointsPerMatch ?? t('setup.pointsFree'),
                       pointsStep > 0 ? () => setPointsPerMatch(pointsSteps[pointsStep - 1]) : null,
