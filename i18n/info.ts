@@ -73,7 +73,7 @@ const es: InfoSection[] = [
         items: [
           '**Ronda final** (Americano): una sola ronda, 1º y 3º contra 2º y 4º. Para acabar rápido.',
           '**Playoff**: semifinales y final con los 8 mejores (o las 4 mejores parejas). Necesita dos rondas más.',
-          'Ambos se crean en **Tabla**. Al acabar la final salen los campeones.',
+          'Ambos aparecen en **Partidos**, en la última ronda. Al crearlos, las rondas anteriores quedan cerradas. Los campeones salen en **Tabla**.',
           '**Finalizar torneo** (Ajustes) lo borra del móvil: **Exporta** antes si quieres guardarlo.',
         ],
       },
@@ -165,7 +165,7 @@ const en: InfoSection[] = [
         items: [
           '**Final round** (Americano): a single round, 1st and 3rd vs 2nd and 4th. To finish quickly.',
           '**Playoff**: semifinals and final with the top 8 (or the top 4 pairs). Needs two more rounds.',
-          'Both are created in **Scores**. When the final ends, the champions are shown.',
+          'Both appear in **Matches**, on the last round. Once created, earlier rounds are closed. The champions show in **Scores**.',
           '**End tournament** (Setup) removes it from the device: **Export** first if you want to keep it.',
         ],
       },

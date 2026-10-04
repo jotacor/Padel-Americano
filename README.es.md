@@ -33,7 +33,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 2. **Empezar**: en Americano se crean todas las rondas; en Liga se genera la primera.
 3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
 4. **Siguiente ronda**: pasa con la flecha (Americano) o pulsa "Generar ronda" (Liga).
-5. **Terminar**: en *Tabla* puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones. *Finalizar torneo* (en rojo, en Ajustes) cierra el torneo.
+5. **Terminar**: en *Partidos*, en la última ronda, puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones en la *Tabla*. *Finalizar torneo* (en rojo, en Ajustes) cierra el torneo.
 
 La pestaña *Info* de la app resume todo esto para tenerlo a mano durante el torneo.
 
@@ -111,7 +111,7 @@ El modo Americano tiene dos variantes:
 
 ### Terminar el torneo
 
-En *Tabla*, apartado "Terminar el torneo":
+En *Partidos*, al llegar a la última ronda, aparece "Terminar el torneo". En cuanto se crea la Ronda final o el Playoff, las rondas anteriores quedan cerradas y ya no se pueden cambiar sus resultados (al crear la final, también las semifinales):
 
 **Ronda final rápida** (solo Americano): una sola ronda.
 - Parejas rotativas: **1º + 3º contra 2º + 4º** en la Pista 1; el resto juega en las otras pistas.
@@ -122,7 +122,7 @@ En *Tabla*, apartado "Terminar el torneo":
   - Semifinal 1: (1º+8º) contra (4º+5º)
   - Semifinal 2: (2º+7º) contra (3º+6º)
 - Parejas fijas: las **4 primeras parejas**. Semifinal 1: 1ª contra 4ª. Semifinal 2: 2ª contra 3ª.
-- Cuando terminan las dos semifinales, pulsa "Crear final": juegan las dos parejas ganadoras.
+- Cuando terminan las dos semifinales, pulsa "Crear final" (en la ronda de semifinales): juegan las dos parejas ganadoras.
 - En Liga solo entran los jugadores activos. Con una sola pista, cada semifinal va en una ronda.
 
 Al terminar la final se muestran **Campeones** y **Subcampeones** en la app, en el enlace compartido y en la pantalla de la TV.

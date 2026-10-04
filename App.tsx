@@ -41,6 +41,7 @@ import {
   UserMinus,
   Minus,
   Shuffle,
+  Lock,
   BookOpen,
   Scale,
   Repeat,
@@ -515,7 +516,7 @@ const App: React.FC = () => {
   // Side the organizer typed last in each match: the other one may be auto-filled (applyScoreInput)
   const lastTypedSide = useRef<Record<string, Side>>({});
   const updateScore = (roundIdx: number, matchId: string, team: Side, score: string) => {
-    if (!tournament) return;
+    if (!tournament || isRoundLocked(roundIdx)) return;
     const newRounds = tournament.rounds.map((r, ri) => ri === roundIdx ? {
       ...r, matches: r.matches.map(m => m.id === matchId
         ? { ...m, ...applyScoreInput(m, team, score, tournament.pointsPerMatch, lastTypedSide.current[matchId]) }
@@ -527,7 +528,7 @@ const App: React.FC = () => {
 
   /** Best of 3 sets: games typed in one side of one set */
   const updateSet = (roundIdx: number, matchId: string, setIdx: number, side: Side, raw: string) => {
-    if (!tournament) return;
+    if (!tournament || isRoundLocked(roundIdx)) return;
     setTournament({
       ...tournament,
       rounds: tournament.rounds.map((r, ri) => ri === roundIdx ? {
@@ -583,6 +584,11 @@ const App: React.FC = () => {
     return leaderboard.map(e => pairOfEntry(tournament, e)).filter((p): p is Pair => !!p && p.every(id => inPool.has(id)));
   })();
   const playoff = playoffState(tournament?.rounds ?? []);
+  // Once the finals start, earlier rounds are closed: rounds before the first playoff/final round,
+  // and the semifinals once the final exists (undoing the final round reopens them)
+  const firstFinalsRound = (tournament?.rounds ?? []).findIndex(r => r.matches.some(m => isFinal(m) || isPlayoffMatch(m)));
+  const finalRound = (tournament?.rounds ?? []).findIndex(r => r.matches.some(isFinal));
+  const isRoundLocked = (ri: number) => (firstFinalsRound >= 0 && ri < firstFinalsRound) || (finalRound >= 0 && ri < finalRound);
   const hasFinals = !!tournament?.rounds.some(r => r.matches.some(m => isFinal(m) || isPlayoffMatch(m)));
   const canPlayoff = playoffSeeds.length >= (isFixed ? PLAYOFF_PAIRS : PLAYOFF_PLAYERS);
   const addPlayoff = () => {
@@ -1179,7 +1185,7 @@ const App: React.FC = () => {
                     )}
                     <div className="text-4xl md:text-7xl font-black text-slate-900 flex items-center justify-center gap-2">
                       {currentRoundIndex + 1}<span className="text-slate-300 text-base md:text-2xl font-bold">/ {tournament.rounds.length}</span>
-                      {currentRoundIndex === tournament.rounds.length - 1 && tournament.mode !== 'event' && !playoff.started && (
+                      {currentRoundIndex === tournament.rounds.length - 1 && tournament.mode !== 'event' && !hasFinals && (
                         <button 
                           onClick={addRound} 
                           className={`ml-2 p-2 md:p-3 rounded-xl ${tc.primaryLight} hover:opacity-80 ${tc.primaryText} transition-all`}
@@ -1205,6 +1211,11 @@ const App: React.FC = () => {
                     </button>
                   )}
                 </div>
+                {isRoundLocked(currentRoundIndex) && (
+                  <div className="flex items-center justify-center gap-2 text-slate-500 text-xs md:text-sm font-bold">
+                    <Lock className="w-4 h-4" /> {t('rounds.locked')}
+                  </div>
+                )}
                 <div className="grid gap-4 md:gap-8">
                   {(tournament.rounds[currentRoundIndex]?.matches || [])
                     .slice()
@@ -1237,7 +1248,7 @@ const App: React.FC = () => {
                             <div className="w-full md:col-span-3 flex flex-col items-center gap-2 md:gap-3">
                               {[0, 1, 2].map(si => {
                                 const set = match.sets?.[si] ?? [null, null];
-                                const disabled = si === 2 && !needsThirdSet(match.sets);
+                                const disabled = isRoundLocked(currentRoundIndex) || (si === 2 && !needsThirdSet(match.sets));
                                 // Each set highlights its own winner (a 2-1 shows the loser's set in green too)
                                 const setWinner: Side | null = isValidSet(set[0], set[1]) ? (set[0]! > set[1]! ? 'A' : 'B') : null;
                                 const setInput = (side: Side) => (
@@ -1269,9 +1280,10 @@ const App: React.FC = () => {
                               aria-label={t('rounds.scoreFor', { team: [p1a, p2a].map(p => p?.name ?? '?').join(' & ') })}
                               value={match.scoreA ?? ''}
                               onChange={(e) => updateScore(currentRoundIndex, match.id, 'A', e.target.value)}
+                              disabled={isRoundLocked(currentRoundIndex)}
                               onFocus={(e) => e.target.select()}
                               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
-                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamAWon ? winnerInputClass : ''}`}
+                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-60 ${teamAWon ? winnerInputClass : ''}`}
                               placeholder="0"
                             />
                             <span className="text-slate-200 font-black italic text-sm md:text-xl shrink-0">{t('common.vs')}</span>
@@ -1280,9 +1292,10 @@ const App: React.FC = () => {
                               aria-label={t('rounds.scoreFor', { team: [p1b, p2b].map(p => p?.name ?? '?').join(' & ') })}
                               value={match.scoreB ?? ''}
                               onChange={(e) => updateScore(currentRoundIndex, match.id, 'B', e.target.value)}
+                              disabled={isRoundLocked(currentRoundIndex)}
                               onFocus={(e) => e.target.select()}
                               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusNextScore(e.currentTarget); } }}
-                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none ${teamBWon ? winnerInputClass : ''}`}
+                              className={`w-16 h-16 md:w-28 md:h-28 text-center text-3xl md:text-5xl font-black bg-slate-50 border-2 md:border-4 border-slate-100 rounded-2xl md:rounded-[2.5rem] ${tc.focusBorder} focus:bg-white transition-all outline-none disabled:opacity-60 ${teamBWon ? winnerInputClass : ''}`}
                               placeholder="0"
                             />
                           </div>
@@ -1317,6 +1330,68 @@ const App: React.FC = () => {
                       })}
                     </div>
                   </div>
+                )}
+                {/* Last round: finish the tournament (quick final round / playoff), then the playoff final */}
+                {currentRoundIndex === tournament.rounds.length - 1 && (
+                  <>
+                {/* Finish the tournament: quick final round (Random) or playoff (every mode) */}
+                {!hasFinals && (
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 space-y-4">
+                    <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
+                      <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('finals.title')}
+                    </h3>
+                    <div className={`grid gap-3 ${tournament.mode !== 'event' ? 'md:grid-cols-2' : ''}`}>
+                      {tournament.mode !== 'event' && (
+                        <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
+                          <div>
+                            <div className="font-black text-slate-800">{t('finals.quick')}</div>
+                            <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'champ.formatPairs' : 'champ.format')}</p>
+                          </div>
+                          <button onClick={addChampionshipRound} disabled={leaderboard.length < minForFinals}
+                            className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                            <Zap className="w-5 h-5" /> {t('champ.create')}
+                          </button>
+                        </div>
+                      )}
+                      <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
+                        <div>
+                          <div className="font-black text-slate-800">{t('playoff.title')}</div>
+                          <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'playoff.formatPairs' : 'playoff.format')}. {t('playoff.restHint')}.</p>
+                          {!canPlayoff && (
+                            <p className="text-rose-500 text-xs font-bold mt-2">
+                              {isFixed ? t('playoff.needPairs', { n: PLAYOFF_PAIRS }) : t('playoff.needPlayers', { n: PLAYOFF_PLAYERS })}
+                            </p>
+                          )}
+                        </div>
+                        <button onClick={addPlayoff} disabled={!canPlayoff}
+                          className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                          <Trophy className="w-5 h-5" /> {t('playoff.create')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Playoff in progress: the final once both semifinals have a winner */}
+                {playoff.started && !playoff.final && (
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="text-center md:text-left">
+                      <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
+                        <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('playoff.title')} · {t('playoff.semifinals')}
+                      </h3>
+                      {!playoff.finalists && (
+                        <p className={`text-sm mt-1 ${playoff.tiedSemi ? 'text-rose-500 font-bold' : 'text-slate-600'}`}>
+                          {t(playoff.tiedSemi ? 'playoff.tiedSemi' : 'playoff.waitSemis')}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={addPlayoffFinal} disabled={!playoff.finalists}
+                      className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
+                      <Trophy className="w-5 h-5" /> {t('playoff.createFinal')}
+                    </button>
+                  </div>
+                )}
+                  </>
                 )}
               </>
             ) : (
@@ -1429,64 +1504,6 @@ const App: React.FC = () => {
               );
             })()}
             
-            {/* Finish the tournament: quick final round (Random) or playoff (every mode) */}
-            {tournament && !hasFinals && (
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 space-y-4">
-                <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                  <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('finals.title')}
-                </h3>
-                <div className={`grid gap-3 ${tournament.mode !== 'event' ? 'md:grid-cols-2' : ''}`}>
-                  {tournament.mode !== 'event' && (
-                    <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
-                      <div>
-                        <div className="font-black text-slate-800">{t('finals.quick')}</div>
-                        <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'champ.formatPairs' : 'champ.format')}</p>
-                      </div>
-                      <button onClick={addChampionshipRound} disabled={leaderboard.length < minForFinals}
-                        className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
-                        <Zap className="w-5 h-5" /> {t('champ.create')}
-                      </button>
-                    </div>
-                  )}
-                  <div className="bg-white/70 rounded-2xl p-4 md:p-5 flex flex-col gap-3">
-                    <div>
-                      <div className="font-black text-slate-800">{t('playoff.title')}</div>
-                      <p className="text-slate-600 text-sm mt-1">{t(isFixed ? 'playoff.formatPairs' : 'playoff.format')}. {t('playoff.restHint')}.</p>
-                      {!canPlayoff && (
-                        <p className="text-rose-500 text-xs font-bold mt-2">
-                          {isFixed ? t('playoff.needPairs', { n: PLAYOFF_PAIRS }) : t('playoff.needPlayers', { n: PLAYOFF_PLAYERS })}
-                        </p>
-                      )}
-                    </div>
-                    <button onClick={addPlayoff} disabled={!canPlayoff}
-                      className="mt-auto self-start bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
-                      <Trophy className="w-5 h-5" /> {t('playoff.create')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Playoff in progress: the final once both semifinals have a winner */}
-            {tournament && playoff.started && !playoff.final && (
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-3xl md:rounded-[3rem] p-6 md:p-8 border border-yellow-200 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="text-center md:text-left">
-                  <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-                    <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" /> {t('playoff.title')} · {t('playoff.semifinals')}
-                  </h3>
-                  {!playoff.finalists && (
-                    <p className={`text-sm mt-1 ${playoff.tiedSemi ? 'text-rose-500 font-bold' : 'text-slate-600'}`}>
-                      {t(playoff.tiedSemi ? 'playoff.tiedSemi' : 'playoff.waitSemis')}
-                    </p>
-                  )}
-                </div>
-                <button onClick={addPlayoffFinal} disabled={!playoff.finalists}
-                  className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2">
-                  <Trophy className="w-5 h-5" /> {t('playoff.createFinal')}
-                </button>
-              </div>
-            )}
-
             <div className="bg-white rounded-3xl md:rounded-[4rem] shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 md:px-12 py-5 md:py-8 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 md:gap-3"><Award className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" /> {t('common.standings')}</h2>

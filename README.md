@@ -33,7 +33,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 2. **Start**: Americano creates every round; League creates the first one.
 3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
 4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
-5. **Finish**: in *Scores* create the Final round or a Playoff. When the final is over, the champions are shown. *End tournament* (in red, in Setup) closes the tournament.
+5. **Finish**: in *Matches*, on the last round, create the Final round or a Playoff. When the final is over, the champions are shown in *Scores*. *End tournament* (in red, in Setup) closes the tournament.
 
 The app's *Info* tab sums all this up, handy during the tournament.
 
@@ -111,7 +111,7 @@ Americano has two variants:
 
 ### Finishing the tournament
 
-In *Scores*, "Finish the tournament":
+In *Matches*, on the last round, "Finish the tournament" appears. Once the Final round or the Playoff is created, earlier rounds are closed and their results can't be changed (creating the final closes the semifinals too):
 
 **Quick final round** (Americano only): one round.
 - Rotating pairs: **1st + 3rd vs 2nd + 4th** on Court 1; everyone else plays on the other courts.
@@ -122,7 +122,7 @@ In *Scores*, "Finish the tournament":
   - Semifinal 1: (1st+8th) vs (4th+5th)
   - Semifinal 2: (2nd+7th) vs (3rd+6th)
 - Fixed pairs: the **top 4 pairs**. Semifinal 1: 1st vs 4th. Semifinal 2: 2nd vs 3rd.
-- When both semifinals are over, press "Create final": the two winning teams play it.
+- When both semifinals are over, press "Create final" (on the semifinals round): the two winning teams play it.
 - In a League only active players take part. With a single court, each semifinal is its own round.
 
 When the final is over, **Champions** and **Runners-up** are shown in the app, the shared link and the TV screen.
