@@ -59,6 +59,7 @@ const SKILL_COLORS = {
 const NEUTRAL_COLORS = { dot: 'bg-slate-400', card: 'bg-slate-50 border-slate-100 hover:border-slate-200' };
 
 const MAX_COURTS = 10;
+const DEFAULT_COURTS = 4; // both modes: the club's courts, not players ÷ 4
 
 /**
  * Saved setup + open tournament, read once to initialize state (not in an effect: React StrictMode runs
@@ -87,7 +88,7 @@ const readSavedState = () => {
     tournament,
     eventMode: tournament ? tournament.mode === 'event' : get('padel_event_mode') === 'true',
     eventNumCourts: tournament?.numCourts || parseInt(get('padel_event_courts') ?? '') || 4,
-    classicCourts: classicCourts > 0 ? classicCourts : null,
+    classicCourts: classicCourts > 0 ? classicCourts : DEFAULT_COURTS,
     // 'free' (removed option) and anything unknown → default points
     setupScoring: (points === 'sets' ? 'sets' : parseInt(points ?? '') > 0 ? parseInt(points!) : DEFAULT_POINTS) as number | 'sets',
     pairMode: (tournament?.pairMode ?? (get('padel_pair_mode') === 'fixed' ? 'fixed' : 'rotating')) as PairMode,
@@ -118,7 +119,7 @@ const App: React.FC = () => {
   const [eventMode, setEventMode] = useState(saved.eventMode);
   const [eventNumCourts, setEventNumCourts] = useState(saved.eventNumCourts);
   // Random: courts the club gives us; null = all that fit (players ÷ 4)
-  const [classicCourts, setClassicCourts] = useState<number | null>(saved.classicCourts);
+  const [classicCourts, setClassicCourts] = useState<number>(saved.classicCourts);
   // Matches to a fixed points total (null = free scoring); the open tournament's value wins
   const [setupScoring, setSetupScoring] = useState<number | 'sets'>(saved.setupScoring);
 
@@ -161,7 +162,7 @@ const App: React.FC = () => {
   const maxClassicCourts = Math.floor((tournament?.players ?? players).length / 4);
   const numCourts = isEvent ? eventNumCourts
     : tournament ? (tournament.numCourts ?? maxClassicCourts)
-    : Math.min(classicCourts ?? maxClassicCourts, maxClassicCourts);
+    : classicCourts;
 
   useEffect(() => {
     localStorage.setItem('padel_players', JSON.stringify(players));
@@ -185,8 +186,7 @@ const App: React.FC = () => {
   }, [setupName]);
 
   useEffect(() => {
-    if (classicCourts) localStorage.setItem('padel_classic_courts', String(classicCourts));
-    else localStorage.removeItem('padel_classic_courts');
+    localStorage.setItem('padel_classic_courts', String(classicCourts));
     // 'free' is stored explicitly: absent means the default (11)
     localStorage.setItem('padel_points_per_match', String(setupScoring));
   }, [classicCourts, setupScoring]);
@@ -368,7 +368,7 @@ const App: React.FC = () => {
       setPrioritizeSkill(false);
       setLeagueRanking(false);
       setLeagueClassic(false);
-      setClassicCourts(null);
+      setClassicCourts(DEFAULT_COURTS);
       setSetupScoring(DEFAULT_POINTS);
       setSetupName('');
       localStorage.removeItem('padel_tournament');
@@ -1069,7 +1069,7 @@ const App: React.FC = () => {
                     {isEvent
                       ? renderStepper(numCourts, 1, MAX_COURTS, setLeagueCourts)
                       : !tournament
-                      ? renderStepper(numCourts, maxClassicCourts ? 1 : 0, maxClassicCourts, v => setClassicCourts(v >= maxClassicCourts ? null : v))
+                      ? renderStepper(numCourts, 1, MAX_COURTS, setClassicCourts)
                       : <span className={`${PANEL_VALUE}`}>{numCourts}</span>}
                   </div>
                   {courtsHint && <p className="text-right text-slate-500 text-xs font-medium">{courtsHint}</p>}

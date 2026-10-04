@@ -85,7 +85,7 @@ Americano has two variants:
 
 ### Courts and rests
 
-- You choose the courts. In Americano the default is one court per 4 players.
+- You choose the courts: 4 by default, up to 10, in both modes. If there are spare courts, it tells you how many go unused.
 - Extra players sit out in turn. In the By skill variants **nobody sits out two rounds in a row** (unless more players rest than play). In the Classic variants the schedule comes first: with all courts it doesn't happen either, with fewer courts only if there's no other way for everyone to play with and against everyone.
 - In Americano Classic, with fewer courts than players ÷ 4, the same matches of the schedule are spread over more rounds.
 - Players move around courts so they aren't always on the same one.

@@ -85,7 +85,7 @@ El modo Americano tiene dos variantes:
 
 ### Pistas y descansos
 
-- Tú eliges las pistas. En Americano, por defecto, una pista por cada 4 jugadores.
+- Tú eliges las pistas: 4 por defecto, hasta 10, en los dos modos. Si sobran pistas, se avisa de cuántas quedan sin usar.
 - Si sobran jugadores, descansan por turnos. En las variantes Por nivel **nadie descansa dos rondas seguidas** (salvo que descansen más jugadores de los que juegan). En las variantes Clásico manda el calendario: con todas las pistas tampoco pasa, y con menos pistas solo si no hay otra forma de que todos jueguen con y contra todos.
 - En Americano Clásico, si hay menos pistas que jugadores ÷ 4, los mismos partidos del calendario se reparten en más rondas.
 - Los jugadores van cambiando de pista para no estar siempre en la misma.

@@ -69,7 +69,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **A
 **Americano** (`mode: 'classic'`, default) — all rounds pre-generated, roster locked after start. Two variants (`tournament.prioritizeSkill`, setup buttons "Clásico | Por nivel"; old saved tournaments without it = Classic), entry points in `utils/classicSchedule.ts` (`buildClassicSchedule`, `nextClassicRound` for "+", `classicRoundCount` for the setup estimate):
 - **Classic** (`prioritizeSkill` false): no skill (players passed with equal skill; skill selector/badges hidden in setup), everyone plays the same number of matches, no partnership repeats. Rotating: Whist (8/12/16) / Berger; n ≡ 0, 1 (mod 4) → partner everyone once; n ≡ 2, 3 → `restingPairs()` picks the resting pair of each circle round (backtracking, MRV + deterministic retries) so rests are equal: 4c+3 → resting pairs form a 2-factor; 4c+2 → a Hamiltonian path + one extra round (v2v3)(v4v5)…; 6 and 7 players use `SMALL_SCHEDULES` (circle can't). Rounds: n − 1 if n ≡ 0 (mod 4), else n. Fixed pairs: round robin (`generateFixedPairsSchedule`). Fewer courts → `packRounds` (same matches) + `avoidBackToBackRests`; the schedule wins, so back-to-back rests can remain when unavoidable (never with all courts — tested)
 - **By skill** (`prioritizeSkill` true): `classicRoundCount` rounds built one by one with the chosen courts — rotating `generateEventRound`, fixed pairs `generateFixedPairsRound` with skill strength; `playOrder()` → never two rests in a row (resting ≤ playing); some partners/opponents repeat
-- Courts chosen in setup (`classicCourts` state, null = players ÷ 4, saved as `tournament.numCourts`) — extra rounds and finals use `tournament.numCourts` too
+- Courts chosen in setup (`classicCourts` state, default `DEFAULT_COURTS` = 4, max `MAX_COURTS` like League; more than players ÷ 4 → "Pistas sin usar"; saved as `tournament.numCourts`) — extra rounds and finals use `tournament.numCourts` too
 - **Nobody rests two rounds in a row** in League and Americano By skill: every round generator orders players with `playOrder()` (rested last round first, then fewest played). `utils/rests.test.ts` checks it (5–30 players × every court count) plus Classic equal matches / round robin
 
 **League / Liga** (`mode: 'event'`):
@@ -123,7 +123,7 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
-- `padel_classic_courts` - Americano court count (absent = players ÷ 4)
+- `padel_classic_courts` - Americano court count (absent = 4)
 - `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and Americano variant (true = By skill) during setup
 - `padel_prioritize_ranking`, `padel_league_classic` - League standings option and variant during setup
 - `padel_tournament_name` - name for the next tournament (setup field "Nombre del torneo"; empty = automatic "Liga - YYYY-MM-DD" / "Americano - YYYY-MM-DD"); the open tournament's name is edited in place
