@@ -47,9 +47,9 @@
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
-| `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
+| `utils/fixedPairs.ts` | Fixed pairs: round robin (Americano Classic), per-round matching (League, Americano By skill), finals |
 | `utils/playoff.ts` | Playoff (every mode, Tabla tab): top 8 players → teams 1+8 vs 4+5, 2+7 vs 3+6 (fixed pairs: top 4, 1 vs 4, 2 vs 3) → final; no 3rd place, everyone else rests; League seeds only active players. While a playoff runs, no normal rounds can be added |
-| `utils/classicSchedule.ts` | Random mode entry points: `buildClassicSchedule` (start) and `nextClassicRound` ("+" rounds), used by App |
+| `utils/classicSchedule.ts` | Americano entry points: `buildClassicSchedule` (start, Classic / By skill), `nextClassicRound` ("+" rounds), `classicRoundCount` (setup estimate), used by App |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
@@ -63,16 +63,13 @@
 
 ### Two Tournament Modes
 
-Internal `mode` values are kept for stored-data compatibility: `'classic'` = **Random / Aleatorio**, `'event'` = **League / Liga**.
+Internal `mode` values are kept for stored-data compatibility: `'classic'` = **Americano**, `'event'` = **League / Liga**.
 
-**Random / Aleatorio** (`mode: 'classic'`, default):
-- All rounds pre-generated using Whist tournament logic
-- Player roster locked after tournament starts
-- Courts chosen in setup (`classicCourts` state, null = players ÷ 4, saved as `tournament.numCourts`); fewer courts → `packRounds()` spreads the full schedule over more rounds (same matches, fewest-played first) — extra rounds and finals use `tournament.numCourts` too
-- **Nobody rests two rounds in a row** (all modes, whenever resting ≤ playing): every round generator orders players with `playOrder()` (rested last round first, then fewest played). Random: `packRounds` searches for full courts + last round's resters, `avoidBackToBackRests` reorders the rounds (same matches, courts re-rotated), and `regenerateFromBackToBackRest` generates any remaining tail like "+" rounds. Checked for 5–30 players × every court count in `utils/rests.test.ts`
-- Perfect schedules for 8, 12, 16 players
-- "Prioritize initial skill" toggle (rotating only, `tournament.prioritizeSkill`): `generateSkillBalancedSchedule` builds every round with the League algorithm instead of Whist → much more even matches (8p: avg diff 1.36 → ~0.65) but some partnerships repeat/never happen; extra rounds also use `generateEventRound`
-- `skillLevel` optional: `generateAmericanoSchedule` builds the Whist/Berger schedule on abstract slots, then `assignSlotsBySkill` picks the player→slot mapping minimizing Σ(match skill diff)². Partner/opponent guarantees are kept. For perfect Whist (8/12/16) every mapping gives the same total (each pair partners 1×, opposes 2×), so skill only helps other sizes
+**Americano** (`mode: 'classic'`, default) — all rounds pre-generated, roster locked after start. Two variants (`tournament.prioritizeSkill`, setup buttons "Clásico | Por nivel"; old saved tournaments without it = Classic), entry points in `utils/classicSchedule.ts` (`buildClassicSchedule`, `nextClassicRound` for "+", `classicRoundCount` for the setup estimate):
+- **Classic** (`prioritizeSkill` false): no skill (players passed with equal skill; skill selector/badges hidden in setup), everyone plays the same number of matches, no partnership repeats. Rotating: Whist (8/12/16) / Berger; n ≡ 0, 1 (mod 4) → partner everyone once; n ≡ 2, 3 → `restingPairs()` picks the resting pair of each circle round (backtracking, MRV + deterministic retries) so rests are equal: 4c+3 → resting pairs form a 2-factor; 4c+2 → a Hamiltonian path + one extra round (v2v3)(v4v5)…; 6 and 7 players use `SMALL_SCHEDULES` (circle can't). Rounds: n − 1 if n ≡ 0 (mod 4), else n. Fixed pairs: round robin (`generateFixedPairsSchedule`). Fewer courts → `packRounds` (same matches) + `avoidBackToBackRests`; the schedule wins, so back-to-back rests can remain when unavoidable (never with all courts — tested)
+- **By skill** (`prioritizeSkill` true): `classicRoundCount` rounds built one by one with the chosen courts — rotating `generateEventRound`, fixed pairs `generateFixedPairsRound` with skill strength; `playOrder()` → never two rests in a row (resting ≤ playing); some partners/opponents repeat
+- Courts chosen in setup (`classicCourts` state, null = players ÷ 4, saved as `tournament.numCourts`) — extra rounds and finals use `tournament.numCourts` too
+- **Nobody rests two rounds in a row** in League and Americano By skill: every round generator orders players with `playOrder()` (rested last round first, then fewest played). `utils/rests.test.ts` checks it (5–30 players × every court count) plus Classic equal matches / round robin
 
 **League / Liga** (`mode: 'event'`):
 - Rounds generated one-at-a-time with skill-balanced matchmaking
@@ -84,7 +81,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - Purple accent theme (`bg-purple-600`, `bg-purple-950`)
 
 **Pair modality** (both modes): `tournament.pairMode` = `'rotating'` (default, Americano) or `'fixed'` (manager pairs players in setup; `tournament.pairs: [id, id][]`).
-- Random + fixed: full round robin between pairs (`generateFixedPairsSchedule`)
+- Americano Classic + fixed: full round robin between pairs (`generateFixedPairsSchedule`); Americano By skill + fixed: per-round matching by pair skill
 - League + fixed: `generateFixedPairsRound` — fewest-played pairs first, minimize repeat opponents + skill gap; a pair plays only if both are active (toggling one toggles both); new pairs can be formed mid-league
 - Leaderboard entries per pair (`playerId = pairKey`); finals = 1st vs 2nd pair
 
@@ -104,7 +101,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 
 **Court Rotation**: `optimizeCourtAssignments()` ensures court variety: minimizes players staying on their last court, ties broken by round number (lexicographic index `round % ties`). Exact DP over court subsets (n·2ⁿ), identical to the old n! search (equivalence test in `utils/optimizer.test.ts`).
 
-**Random general case** (Berger sizes): per round, branch-and-bound over pair groupings with a greedy starting bound + admissible lower bound (keeps the first optimal grouping → same output) and a deterministic node budget (400k, only hit from ~36 players).
+**Americano general case** (Berger sizes): per round, branch-and-bound over pair groupings with a greedy starting bound + admissible lower bound (keeps the first optimal grouping → same output) and a deterministic node budget (400k, only hit from ~36 players).
 
 ### Routes
 
@@ -124,8 +121,8 @@ All state lives in `App.tsx` using React hooks.
 - `padel_share_state` - Sharing state (id, pin, url)
 - `padel_event_mode` - League mode flag
 - `padel_event_courts` - Event court count
-- `padel_classic_courts` - Random mode court count (absent = players ÷ 4)
-- `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and skill-priority toggle during setup
+- `padel_classic_courts` - Americano court count (absent = players ÷ 4)
+- `padel_pair_mode`, `padel_pairs`, `padel_prioritize_skill` - Pair modality, fixed pairs and Americano variant (true = By skill) during setup
 - `padel_league_prioritize_skill`, `padel_prioritize_ranking` - League matchmaking toggles during setup
 - `padel_tournament_name` - name for the next tournament (setup field "Nombre del torneo"; empty = automatic "Liga - YYYY-MM-DD" / "Americano - YYYY-MM-DD"); the open tournament's name is edited in place
 - `padel_points_per_match` - points per match chosen in setup ('free' or a number; absent = 11)
@@ -160,7 +157,7 @@ Order: Match Wins → Total Points → Point Differential (fixed, no user choice
 - `tournament.pointsPerMatch` (11 default / 15 / 21 / Libre — odd so no ties; `padel_points_per_match` stores 'free' explicitly; older values like 24 stay selectable, setup panel, editable any time; `padel_points_per_match` for setup): `utils/scoring.ts` `applyScoreInput` fills the other side with P − x unless the organizer typed that side by hand (`lastTypedSide` per match), so time-capped results (15-7) still work; `isInvalidScore` (half-entered, or sum ≠ P; blank is fine) shows "Suman X de P"/"Falta un resultado" and **blocks** moving to the next round (arrow/keys: current round) and creating rounds ("+", Generar ronda, finals, playoff: any round) via `scoresOk` → toast + jump to the match
 - Setup: points per match is a − / + stepper over 11 → 15 → 21 → Libre (`pointsSteps`, shares `renderStepperControl` with courts)
 - Score inputs: `type=text inputMode=numeric`, select on focus, Enter → next empty score (`data-score`)
-- "Undo round" (`canUndoRound`): last round with no score at all; League always, Random only finals or extra "+" rounds (previous round complete) — never the pre-generated schedule
+- "Undo round" (`canUndoRound`): last round with no score at all; League always, Americano only finals or extra "+" rounds (previous round complete) — never the pre-generated schedule
 
 ## Commands
 
@@ -181,7 +178,7 @@ Local dev: `scripts/dev.mjs` spawns both; shared tournaments in `./data` (gitign
 ## Conventions
 
 - Run `npm run typecheck` and `npm test` before committing (app + server, `strict` + `noUnused*`; must be error-free). CI (`.github/workflows/ci.yml`) runs typecheck + test + build on push to `main`
-- Tests: vitest, `*.test.ts` next to the code (`utils/`, `i18n/`, `hooks/`, `server/`), helpers in `utils/testing.ts` (`makePlayers`, `seedRandom`, `expectValidRound`…). `utils/__snapshots__/scheduler.test.ts.snap` = golden Random schedules 4–30 players: scheduler/optimizer changes must keep it identical (only update with `npx vitest run -u` when a change is intended)
+- Tests: vitest, `*.test.ts` next to the code (`utils/`, `i18n/`, `hooks/`, `server/`), helpers in `utils/testing.ts` (`makePlayers`, `seedRandom`, `expectValidRound`…). `utils/__snapshots__/scheduler.test.ts.snap` = golden Americano Classic schedules 4–30 players: scheduler/optimizer changes must keep it identical (only update with `npx vitest run -u` when a change is intended)
 - Championship detection uses `match.id.includes('championship')` (`isFinal`): quick final round and playoff final (`r{n}-playoff-championship`). Playoff semifinals: `r{n}-playoff-sf{1|2}`; use `utils/playoff.ts` helpers (`isFinal`, `isPlayoffMatch`, `matchTitle`, `roundBadge`) instead of matching ids by hand
 - League mode detected via `tournament.mode === 'event'`
 - Player names are uppercase (`cleanName` uppercases; `upperNames`/`withUpperNames` normalize saved/imported data) and unique: use `isNameTaken()` (case/accent/whitespace-insensitive) on every add path

@@ -11,10 +11,10 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ## Features
 
-- ✅ **Two modes**: *Random* (every round ready at the start) and *League* (one round at a time; people can come and go)
+- ✅ **Two modes**: *Americano* (every round ready at the start; *Classic* or *By skill* variant) and *League* (one round at a time; people can come and go)
 - ✅ **Rotating or fixed pairs**: rotating = a new partner every round; fixed = always the same partner
 - ✅ **Automatic matches**: everyone plays with and against different people; optionally, matches balanced by skill or by standings
-- ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn and **nobody sits out two rounds in a row**
+- ✅ **The courts you have**: choose how many courts (− / +); the rest sit out in turn
 - ✅ **Court rotation**: each player moves around different courts
 - ✅ **Quick scores**: matches to 11, 15 or 21 points (or free); type one score and the other fills in (7 → 7-4)
 - ✅ **Live standings**: wins, points, point difference (DIFF) and points per match
@@ -28,15 +28,15 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ### Step by step
 
-1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Random or League), the pairs (rotating or fixed), the courts and the points per match (PPM).
-2. **Start**: Random creates every round; League creates the first one.
+1. **Setup**: name the tournament (optional), add the players (at least 4) with their skill (Low, Medium, High), pick the mode (Americano or League), the variant for Americano (Classic or By skill), the pairs (rotating or fixed), the courts and the points per match (PPM).
+2. **Start**: Americano creates every round; League creates the first one.
 3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
-4. **Next round**: move on with the arrow (Random) or press "Generate round" (League).
+4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
 5. **Finish**: in *Scores* create the Final round or a Playoff. When the final is over, the champions are shown.
 
 ### Choosing a mode
 
-| | **Random** | **League** |
+| | **Americano** | **League** |
 |---|---|---|
 | **Rounds** | All ready at the start | One at a time ("Generate round") |
 | **Players** | Fixed for the whole tournament | Add people and mark who is in or sitting out before each round |
@@ -45,18 +45,30 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ### How matches are made
 
-**Random, rotating pairs (default)**
-- Every player partners **each other player once** and faces everyone a similar number of times. Nobody repeats a partner.
-- Number of rounds: players − 1 (with an odd number, as many rounds as players). 8 players: 7 rounds.
-- With 8, 12 or 16 players the schedule is perfect: partner everyone once, face everyone exactly twice.
-- Skill is only used to place each player in the schedule so matches are as even as possible (no effect with 8, 12, 16: already balanced).
+Americano has two variants:
 
-**Random + "Prioritize initial skill"**
-- Every round matches are **balanced by skill** (Low = 1, Medium = 2, High = 3; a team adds up its two players).
-- Matches are more even, but some partnerships repeat and others never happen.
+| | **Classic** | **By skill** |
+|---|---|---|
+| **Goal** | Everyone plays the same, with and against everyone | Matches balanced by skill |
+| **Skill** | Not used | Used every round |
+| **Repeats** | No partnership repeats | Some partners and opponents repeat |
+| **Rests** | The schedule comes first: with fewer courts someone may sit out twice in a row if there's no other way | Never two rests in a row (when fewer rest than play) |
 
-**Random, fixed pairs**
-- **Round robin**: each pair plays every other pair once. With an odd number of pairs, one rests each round.
+**Americano Classic, rotating pairs**
+- Every player partners each other player at most once and everyone plays **the same number of matches**.
+- With 8, 9, 12, 13, 16, 17, 20, 21… players (multiples of 4 or one more) everyone partners **everyone**; with 8, 12 and 16 everyone also faces everyone exactly twice.
+- With the rest (10, 11, 14, 15…) partnering everyone and playing the same is impossible: everyone plays the same and a few partnerships are missing.
+- Rounds: players − 1 for multiples of 4, otherwise as many rounds as players. 8 players: 7 rounds; 10: 10.
+
+**Americano Classic, fixed pairs**
+- **Round robin**: each pair plays every other pair once, with whatever courts there are. With an odd number of pairs, one rests each round.
+
+**Americano By skill, rotating pairs**
+- Every round matches are **balanced by skill** (Low = 1, Medium = 2, High = 3; a team adds up its two players), avoiding repeated partners and opponents where possible.
+- Those who sat out last round and those with fewer matches play first.
+
+**Americano By skill, fixed pairs**
+- Every round pairs play opponents of **similar level**, avoiding repeated opponents where possible. No round-robin guarantee.
 
 **League**
 - Before each round matches are made among the players who are in (active). Those who sat out last round and those with fewer matches play first.
@@ -69,11 +81,11 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 ### Courts and rests
 
-- You choose the courts. In Random the default is one court per 4 players.
-- Extra players sit out in turn. **Nobody sits out two rounds in a row**, unless more players rest than play (e.g. 12 players on 1 court).
-- In Random, with fewer courts than players ÷ 4, the same matches of the schedule are spread over more rounds.
+- You choose the courts. In Americano the default is one court per 4 players.
+- Extra players sit out in turn. In League and Americano By skill **nobody sits out two rounds in a row** (unless more players rest than play). In Americano Classic the schedule comes first: with all courts it doesn't happen either, with fewer courts only if there's no other way for everyone to play with and against everyone.
+- In Americano Classic, with fewer courts than players ÷ 4, the same matches of the schedule are spread over more rounds.
 - Players move around courts so they aren't always on the same one.
-- **Extra rounds (+)** in Random: add rounds any time. Those who sat out and those with fewer matches play first, avoiding repeated partners and opponents.
+- **Extra rounds (+)** in Americano: add rounds any time. Those who sat out and those with fewer matches play first, avoiding repeated partners and opponents.
 
 ### Scores
 
@@ -81,7 +93,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 - Type one team's score and the other fills in (PPM 11: type 7 → 7-4).
 - With a PPM set, **you can't move to the next round if a score doesn't add up to the PPM** or is half entered. Blank matches are allowed. With "Free" nothing is checked.
 - In finished matches the winning team is shown in green.
-- **Undo round**: removes the last round if nobody has entered scores (e.g. someone arrived late in a League). In Random only extra rounds and finals can be undone.
+- **Undo round**: removes the last round if nobody has entered scores (e.g. someone arrived late in a League). In Americano only extra rounds and finals can be undone.
 
 ### Standings
 
@@ -93,7 +105,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 
 In *Scores*, "Finish the tournament":
 
-**Quick final round** (Random only): one round.
+**Quick final round** (Americano only): one round.
 - Rotating pairs: **1st + 3rd vs 2nd + 4th** on Court 1; everyone else plays on the other courts.
 - Fixed pairs: 1st pair vs 2nd pair.
 
@@ -159,7 +171,7 @@ npm start        # Production server: dist/ + /api on :8788
 ├── hooks/               # useShareSync (live sharing), usePolling (viewers), useAutoScroll (TV)
 ├── utils/
 │   ├── scheduler.ts     # Whist/Berger schedule, League rounds, extra rounds, packing into courts
-│   ├── classicSchedule.ts # Random schedule (no back-to-back rests)
+│   ├── classicSchedule.ts # Americano schedule (Classic / By skill)
 │   ├── ranking.ts       # League by standings
 │   ├── fixedPairs.ts    # Fixed pairs
 │   ├── playoff.ts       # Playoff (semifinals + final)

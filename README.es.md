@@ -11,10 +11,10 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ## Características
 
-- ✅ **Dos modos**: *Aleatorio* (todas las rondas preparadas al empezar) y *Liga* (una ronda cada vez; la gente puede entrar y salir)
+- ✅ **Dos modos**: *Americano* (todas las rondas preparadas al empezar; variante *Clásico* o *Por nivel*) y *Liga* (una ronda cada vez; la gente puede entrar y salir)
 - ✅ **Parejas rotativas o fijas**: con rotativas cambias de compañero cada ronda; con fijas juegas siempre con el mismo
 - ✅ **Cruces automáticos**: todos juegan con y contra gente distinta; opcionalmente, partidos igualados por nivel o por clasificación
-- ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos y **nadie descansa dos rondas seguidas**
+- ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos
 - ✅ **Rotación de pistas**: cada jugador va pasando por pistas distintas
 - ✅ **Resultados rápidos**: partidos a 11, 15 o 21 puntos (o libre); escribes un marcador y el otro se rellena solo (7 → 7-4)
 - ✅ **Clasificación en directo**: victorias, puntos, diferencia (DIF) y puntos por partido
@@ -28,15 +28,15 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ### Paso a paso
 
-1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Aleatorio o Liga), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
-2. **Empezar**: en Aleatorio se crean todas las rondas; en Liga se genera la primera.
+1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Americano o Liga), la variante si es Americano (Clásico o Por nivel), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
+2. **Empezar**: en Americano se crean todas las rondas; en Liga se genera la primera.
 3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
-4. **Siguiente ronda**: pasa con la flecha (Aleatorio) o pulsa "Generar ronda" (Liga).
+4. **Siguiente ronda**: pasa con la flecha (Americano) o pulsa "Generar ronda" (Liga).
 5. **Terminar**: en *Tabla* puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones.
 
 ### Elegir modo
 
-| | **Aleatorio** | **Liga** |
+| | **Americano** | **Liga** |
 |---|---|---|
 | **Rondas** | Todas preparadas al empezar | Una cada vez ("Generar ronda") |
 | **Jugadores** | Fijos durante todo el torneo | Puedes añadir gente y marcar quién está o descansa antes de cada ronda |
@@ -45,18 +45,30 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ### Cómo se hacen los cruces
 
-**Aleatorio, parejas rotativas (normal)**
-- Cada jugador hace pareja **una vez con cada uno** de los demás y se enfrenta a todos un número parecido de veces. Nadie repite compañero.
-- Número de rondas: jugadores − 1 (si son impares, tantas rondas como jugadores). Con 8 jugadores: 7 rondas.
-- Con 8, 12 o 16 jugadores el calendario es perfecto: pareja con todos una vez y rival de todos exactamente dos veces.
-- El nivel solo sirve para colocar a cada jugador en el calendario de forma que los partidos queden lo más igualados posible (con 8, 12 y 16 no cambia nada porque ya está todo equilibrado).
+El modo Americano tiene dos variantes:
 
-**Aleatorio + "Priorizar nivel inicial"**
-- Cada ronda se forman partidos **igualados por nivel** (Bajo = 1, Medio = 2, Alto = 3; cada equipo suma sus dos jugadores).
-- Los partidos salen más igualados, pero a cambio algunas parejas se repiten y otras nunca coinciden.
+| | **Clásico** | **Por nivel** |
+|---|---|---|
+| **Objetivo** | Que todos jueguen lo mismo, con y contra todos | Partidos igualados por nivel |
+| **Nivel** | No se usa | Se usa en cada ronda |
+| **Repeticiones** | Ninguna pareja se repite | Algunas parejas y rivales se repiten |
+| **Descansos** | Manda el calendario: con menos pistas alguien puede descansar dos rondas seguidas si no hay otra forma | Nunca dos descansos seguidos (si descansan menos de los que juegan) |
 
-**Aleatorio, parejas fijas**
-- **Todos contra todos**: cada pareja juega una vez contra cada otra pareja. Si hay un número impar de parejas, una descansa cada ronda.
+**Americano Clásico, parejas rotativas**
+- Cada jugador hace pareja con cada uno de los demás como mucho una vez y todos juegan **el mismo número de partidos**.
+- Con 8, 9, 12, 13, 16, 17, 20, 21… jugadores (múltiplos de 4 o uno más) cada uno hace pareja **con todos**; con 8, 12 y 16 además se enfrenta a todos exactamente dos veces.
+- Con el resto (10, 11, 14, 15…) es imposible hacer pareja con todos y jugar todos lo mismo: se juega lo mismo y faltan unas pocas parejas.
+- Rondas: jugadores − 1 si es múltiplo de 4; si no, tantas rondas como jugadores. Con 8 jugadores: 7 rondas; con 10: 10.
+
+**Americano Clásico, parejas fijas**
+- **Todos contra todos**: cada pareja juega una vez contra cada otra pareja, con las pistas que haya. Si hay un número impar de parejas, una descansa cada ronda.
+
+**Americano Por nivel, parejas rotativas**
+- Cada ronda se forman partidos **igualados por nivel** (Bajo = 1, Medio = 2, Alto = 3; cada equipo suma sus dos jugadores), evitando repetir compañero y rival en lo posible.
+- Juegan primero los que descansaron la ronda anterior y los que llevan menos partidos.
+
+**Americano Por nivel, parejas fijas**
+- Cada ronda, las parejas juegan contra rivales de **nivel parecido**, sin repetir rival en lo posible. No garantiza todos contra todos.
 
 **Liga**
 - Antes de cada ronda se eligen los partidos entre los jugadores que están (activos). Primero juegan los que descansaron la ronda anterior y los que llevan menos partidos.
@@ -69,11 +81,11 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ### Pistas y descansos
 
-- Tú eliges las pistas. En Aleatorio, por defecto, una pista por cada 4 jugadores.
-- Si sobran jugadores, descansan por turnos. **Nadie descansa dos rondas seguidas**, salvo que descansen más jugadores de los que juegan (por ejemplo, 12 jugadores en 1 pista).
-- En Aleatorio, si hay menos pistas que jugadores ÷ 4, los mismos partidos del calendario se reparten en más rondas.
+- Tú eliges las pistas. En Americano, por defecto, una pista por cada 4 jugadores.
+- Si sobran jugadores, descansan por turnos. En Liga y en Americano Por nivel **nadie descansa dos rondas seguidas** (salvo que descansen más jugadores de los que juegan). En Americano Clásico manda el calendario: con todas las pistas tampoco pasa, y con menos pistas solo si no hay otra forma de que todos jueguen con y contra todos.
+- En Americano Clásico, si hay menos pistas que jugadores ÷ 4, los mismos partidos del calendario se reparten en más rondas.
 - Los jugadores van cambiando de pista para no estar siempre en la misma.
-- **Rondas extra (+)** en Aleatorio: añade rondas cuando quieras. Juegan primero quienes descansaron y quienes llevan menos partidos, evitando repetir parejas y rivales.
+- **Rondas extra (+)** en Americano: añade rondas cuando quieras. Juegan primero quienes descansaron y quienes llevan menos partidos, evitando repetir parejas y rivales.
 
 ### Resultados
 
@@ -81,7 +93,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 - Escribes el marcador de un equipo y el del otro se rellena solo (con PPP 11, escribes 7 → 7-4).
 - Con PPP elegido, **no se puede pasar de ronda si algún resultado no suma los PPP** o está a medias. Los partidos en blanco sí se pueden dejar. Con "Libre" no se comprueba nada.
 - En los partidos terminados, el equipo ganador sale en verde.
-- **Deshacer ronda**: quita la última ronda si nadie ha apuntado resultados (por ejemplo, si llega alguien tarde en Liga). En Aleatorio solo se pueden deshacer las rondas extra y las finales.
+- **Deshacer ronda**: quita la última ronda si nadie ha apuntado resultados (por ejemplo, si llega alguien tarde en Liga). En Americano solo se pueden deshacer las rondas extra y las finales.
 
 ### Clasificación
 
@@ -93,7 +105,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 En *Tabla*, apartado "Terminar el torneo":
 
-**Ronda final rápida** (solo Aleatorio): una sola ronda.
+**Ronda final rápida** (solo Americano): una sola ronda.
 - Parejas rotativas: **1º + 3º contra 2º + 4º** en la Pista 1; el resto juega en las otras pistas.
 - Parejas fijas: 1ª pareja contra 2ª pareja.
 
@@ -159,7 +171,7 @@ npm start        # Servidor de producción: dist/ + /api en :8788
 ├── hooks/               # useShareSync (compartir en directo), usePolling (visores), useAutoScroll (TV)
 ├── utils/
 │   ├── scheduler.ts     # Calendario Whist/Berger, rondas de Liga, rondas extra, reparto en pistas
-│   ├── classicSchedule.ts # Calendario de Aleatorio (sin descansos seguidos)
+│   ├── classicSchedule.ts # Calendario de Americano (Clásico / Por nivel)
 │   ├── ranking.ts       # Liga por clasificación
 │   ├── fixedPairs.ts    # Parejas fijas
 │   ├── playoff.ts       # Playoff (semifinales + final)

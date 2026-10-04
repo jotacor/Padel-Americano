@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, LeaderboardEntry, Pair, PairMode, Round } from './types.ts';
 import { generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
-import { buildClassicSchedule, nextClassicRound } from './utils/classicSchedule.ts';
+import { buildClassicSchedule, classicRoundCount, nextClassicRound } from './utils/classicSchedule.ts';
 import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatch, matchTitle, PLAYOFF_PAIRS, PLAYOFF_PLAYERS, playoffState, roundBadge } from './utils/playoff.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
@@ -39,6 +39,8 @@ import {
   UserMinus,
   Minus,
   Shuffle,
+  Scale,
+  Repeat,
   Link2,
   Unlink,
   Download,
@@ -52,6 +54,8 @@ const SKILL_COLORS = {
   medium: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500', card: 'bg-amber-50 border-amber-200 hover:border-amber-300' },
   high: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500', card: 'bg-rose-50 border-rose-200 hover:border-rose-300' },
 };
+// Player cards when skill isn't used (Americano Classic)
+const NEUTRAL_COLORS = { dot: 'bg-slate-400', card: 'bg-slate-50 border-slate-100 hover:border-slate-200' };
 
 const MAX_COURTS = 10;
 
@@ -313,7 +317,7 @@ const App: React.FC = () => {
         ...(leagueRanking && { prioritizeRanking: true }),
       });
     } else {
-      const balanced = !fixed && prioritizeSkill;
+      const balanced = prioritizeSkill; // Americano variant: By skill (else Classic)
       // Nobody rests two rounds in a row (utils/classicSchedule.ts)
       const rounds = buildClassicSchedule({ players: tournamentPlayers, pairs: tournamentPairs, fixed, balanced }, numCourts);
       setTournament({
@@ -594,12 +598,9 @@ const App: React.FC = () => {
     : playable > usedCourts * 4 ? t('setup.restingPerRound', { n: playable - usedCourts * 4 })
     : null;
   // Random before start: full schedule (N−1 rounds, N if odd; pairs for fixed) spread over the chosen courts
-  const estimatedClassicRounds = (() => {
-    const n = isFixed ? currentPairs.length : players.length;
-    const fullRounds = n > 1 ? (n % 2 === 0 ? n - 1 : n) : 0;
-    const perRound = isFixed ? Math.floor(n / 2) : Math.floor(n / 4);
-    return numCourts && perRound > numCourts ? Math.ceil(fullRounds * perRound / numCourts) : fullRounds;
-  })();
+  const estimatedClassicRounds = classicRoundCount(isFixed ? currentPairs.length : players.length, isFixed, numCourts);
+  // Skill is only used by the League and Americano By skill (Classic ignores it: selector and badges hidden)
+  const usesSkill = tournament ? tournament.mode === 'event' || !!tournament.prioritizeSkill : eventMode || prioritizeSkill;
   // − and + together, the value on the right (aligned with the other numbers of the panel)
   const renderStepperControl = (
     display: React.ReactNode,
@@ -725,7 +726,7 @@ const App: React.FC = () => {
                   PADEL<span className={tc.primaryText}>AMERICANO</span>
                 </h1>
               </div>
-              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t('header.tagline')}</p>
+              <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] pl-1">{isEvent ? t('header.taglineLeague') : t((tournament ? tournament.prioritizeSkill : prioritizeSkill) ? 'header.taglineSkill' : 'header.taglineClassic')}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
@@ -801,8 +802,8 @@ const App: React.FC = () => {
                   <p id="player-name-error" role="alert" className="px-2 text-sm font-bold text-rose-500">{nameError}</p>
                 )}
                 
-                {/* Skill level selector (balances matches in both modes) */}
-                <div className="flex flex-wrap items-center gap-3 px-1">
+                {/* Skill level selector (League and Americano By skill) */}
+                {usesSkill && <div className="flex flex-wrap items-center gap-3 px-1">
                   <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('common.skillLabel')}</span>
                   {(['low', 'medium', 'high'] as const).map(level => (
                     <button
@@ -817,7 +818,7 @@ const App: React.FC = () => {
                       {t(`skill.${level}`)}
                     </button>
                   ))}
-                </div>
+                </div>}
               </div>
 
               {/* Fixed pairs */}
@@ -861,7 +862,7 @@ const App: React.FC = () => {
                   <div className="col-span-full py-16 md:py-20 text-center border-4 border-dashed border-slate-100 rounded-2xl md:rounded-[3rem] text-slate-300 font-black italic">{t('setup.noPlayers')}</div>
                 ) : players.map((p, idx) => {
                   const skill = p.skillLevel ?? 'medium';
-                  const colors = SKILL_COLORS[skill];
+                  const colors = usesSkill ? SKILL_COLORS[skill] : NEUTRAL_COLORS;
                   const partnerId = isFixed ? partnerOf(p.id) : null;
                   const inactive = tournament?.mode === 'event' && p.isActive === false;
                   return (
@@ -872,7 +873,7 @@ const App: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <PlayerName name={p.name} baseClass="block truncate font-black text-slate-800 text-base md:text-lg leading-tight" inline />
                       <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                        <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${colors.text}`}>{t(`skill.${skill}`)}</span>
+                        {usesSkill && <span className={`text-[10px] font-black uppercase tracking-wider shrink-0 ${SKILL_COLORS[skill].text}`}>{t(`skill.${skill}`)}</span>}
                         {partnerId && (
                           <span className="text-[10px] font-bold text-slate-500 truncate">
                             · {t('pairs.partnerOf', { name: players.find(x => x.id === partnerId)?.name ?? '' })}
@@ -958,6 +959,31 @@ const App: React.FC = () => {
                         {t('setup.event')}
                       </button>
                     </div>
+                    {/* Americano variant: Classic (same matches for all, no skill) or By skill (tournament.prioritizeSkill) */}
+                    {!eventMode && (
+                      <>
+                        <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.variant')}</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          {([false, true] as const).map(bySkill => {
+                            const Icon = bySkill ? Scale : Repeat;
+                            return (
+                              <button
+                                key={String(bySkill)}
+                                onClick={() => setPrioritizeSkill(bySkill)}
+                                aria-pressed={prioritizeSkill === bySkill}
+                                className={`p-3 rounded-xl text-sm font-bold transition-all text-center ${
+                                  prioritizeSkill === bySkill ? 'bg-white/10 border-2 border-white/20 text-white' : 'border-2 border-transparent text-slate-500 hover:border-white/10'
+                                }`}
+                              >
+                                <Icon className="w-5 h-5 mx-auto mb-1" />
+                                {t(bySkill ? 'setup.variantSkill' : 'setup.variantClassic')}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-slate-400 text-xs font-medium mt-2">{t(prioritizeSkill ? 'setup.variantSkillHint' : 'setup.variantClassicHint')}</p>
+                      </>
+                    )}
                     <h3 className="text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest mt-5 mb-3">{t('setup.pairing')}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {(['rotating', 'fixed'] as const).map(mode => {
@@ -978,7 +1004,6 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    {!eventMode && pairMode === 'rotating' && renderOption(prioritizeSkill, setPrioritizeSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillHint')}
                     {eventMode && (
                       <>
                         {renderOption(leagueSkill, setLeagueSkill, 'setup.prioritizeSkill', 'setup.prioritizeSkillLeagueHint')}

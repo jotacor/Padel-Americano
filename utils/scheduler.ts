@@ -10,6 +10,20 @@ import type { Player, Match, Round } from '../types.ts';
  * - Optimize court assignments to maximize variety
  */
 
+// 6 and 7 players (1 court): everyone plays 4 matches, never rests twice in a row, no partnership
+// repeats. The circle method can't do both for these sizes (found by exhaustive search).
+// Each entry: [teamA, teamB] by player slot.
+const SMALL_SCHEDULES: Record<number, [[number, number], [number, number]][]> = {
+  6: [
+    [[0, 1], [2, 3]], [[0, 4], [1, 5]], [[0, 2], [1, 3]],
+    [[2, 4], [3, 5]], [[0, 5], [1, 4]], [[2, 5], [3, 4]],
+  ],
+  7: [
+    [[0, 1], [2, 3]], [[0, 4], [5, 6]], [[1, 2], [3, 4]], [[0, 5], [1, 6]],
+    [[2, 4], [3, 5]], [[0, 6], [1, 3]], [[2, 5], [4, 6]],
+  ],
+};
+
 // Hardcoded verified schedule for 8 players from user image
 // Format: { t1: [court1_teamA_p1, court1_teamA_p2, court1_teamB_p1, court1_teamB_p2], 
 //           t2: [court2_teamA_p1, court2_teamA_p2, court2_teamB_p1, court2_teamB_p2] }
@@ -226,6 +240,84 @@ const assignSlotsBySkill = (template: Round[], players: Player[]): Player[] => {
   return best.map(i => players[i]);
 };
 
+/**
+ * 4c+2 and 4c+3 players: each circle round has an odd number of partner pairs, so one pair rests.
+ * Picks that pair in every round (backtracking) so everyone rests the same number of times and no
+ * partnership repeats:
+ * - 4c+3 (odd, n rounds): the resting pairs form a 2-factor (each player in exactly 2) → 3 rests each
+ *   (2 + the circle bye).
+ * - 4c+2 (even, n−1 rounds): they form a Hamiltonian path v1…vn; one extra round then plays
+ *   (v2v3)(v4v5)… with v1 and vn resting → 2 rests each.
+ * Returns null if the search fails (then the last pair rests, as before).
+ */
+const restingPairs = (rounds: [number, number][][], numPlayers: number): { picks: number[]; path?: number[] } | null => {
+  const isPath = numPlayers % 2 === 0;
+  const deg = new Array<number>(numPlayers).fill(0);
+  // Rounds left in which each player still has a pair (needed for the 2-factor pruning)
+  const appearances = new Array<number>(numPlayers).fill(0);
+  rounds.forEach(ps => ps.forEach(([a, b]) => { appearances[a]++; appearances[b]++; }));
+  const parent = Array.from({ length: numPlayers }, (_, i) => i);
+  const find = (x: number): number => (parent[x] === x ? x : find(parent[x]));
+  const picks: number[] = new Array(rounds.length).fill(-1);
+  let budget = 0;
+  // Tie-breaks: plain order first, then deterministic pseudo-random orders on retries
+  let tie: number[][] = rounds.map(ps => ps.map((_, i) => i));
+  const canPick = (a: number, b: number) => deg[a] < 2 && deg[b] < 2 && (!isPath || find(a) !== find(b));
+
+  // Depth-first, always on the round with the fewest valid pairs left (fails fast)
+  const search = (done: number): boolean => {
+    if (done === rounds.length) return isPath || deg.every(d => d === 2);
+    if (--budget < 0) return false;
+    let r = -1, options: number[] = [];
+    for (let k = 0; k < rounds.length; k++) {
+      if (picks[k] >= 0) continue;
+      const opts = rounds[k].map((_, i) => i).filter(i => canPick(...rounds[k][i]));
+      if (r < 0 || opts.length < options.length) { r = k; options = opts; }
+      if (!opts.length) return false;
+    }
+    options.sort((x, y) => {
+      const [a, b] = rounds[r][x], [c, d] = rounds[r][y];
+      return deg[a] + deg[b] - deg[c] - deg[d] || tie[r][x] - tie[r][y];
+    });
+    rounds[r].forEach(([a, b]) => { appearances[a]--; appearances[b]--; });
+    for (const i of options) {
+      const [a, b] = rounds[r][i];
+      const ra = find(a), rb = find(b);
+      deg[a]++; deg[b]++;
+      if (isPath) parent[ra] = rb;
+      // 2-factor: everyone must still be able to reach degree 2 with the rounds left
+      const feasible = isPath || deg.every((d, x) => 2 - d <= appearances[x]);
+      picks[r] = i;
+      if (feasible && search(done + 1)) return true;
+      picks[r] = -1;
+      if (isPath) parent[ra] = ra;
+      deg[a]--; deg[b]--;
+    }
+    rounds[r].forEach(([a, b]) => { appearances[a]++; appearances[b]++; });
+    return false;
+  };
+  let seed = 12345;
+  const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  let found = false;
+  for (let attempt = 0; attempt < 30 && !found; attempt++) {
+    if (attempt) tie = rounds.map(ps => ps.map(() => rand()));
+    budget = 5_000;
+    found = search(0);
+  }
+  if (!found) return null;
+  if (!isPath) return { picks };
+
+  // Walk the path from one end
+  const adj = Array.from({ length: numPlayers }, () => [] as number[]);
+  picks.forEach((i, r) => { const [a, b] = rounds[r][i]; adj[a].push(b); adj[b].push(a); });
+  const path = [adj.findIndex(n => n.length === 1)];
+  while (path.length < numPlayers) {
+    const cur = path[path.length - 1];
+    path.push(adj[cur].find(x => x !== path[path.length - 2])!);
+  }
+  return { picks, path };
+};
+
 const buildSlotSchedule = (players: Player[]): Round[] => {
   const numPlayers = players.length;
   if (numPlayers < 4) return [];
@@ -234,6 +326,20 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
   const playerCourtHistory = new Map<string, number[]>();
 
   // 1. Specialized Whist Schedules for Perfect Balance
+  if (SMALL_SCHEDULES[numPlayers]) {
+    return SMALL_SCHEDULES[numPlayers].map(([a, b], r) => {
+      const playing = new Set([...a, ...b]);
+      return {
+        index: r,
+        matches: [{
+          id: `r${r}-c0`, roundIndex: r, courtIndex: 0,
+          teamA: [players[a[0]].id, players[a[1]].id], teamB: [players[b[0]].id, players[b[1]].id],
+          scoreA: null, scoreB: null, isCompleted: false,
+        }],
+        byes: players.filter((_, i) => !playing.has(i)).map(p => p.id),
+      };
+    });
+  }
   if (numPlayers === 8) {
     const rounds: Round[] = [];
     
@@ -345,25 +451,26 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
   const pidToIdx = new Map<string, number>();
   players.forEach((p, i) => pidToIdx.set(p.id, i));
 
+  // Circle method: partner pairs of each round (player indices)
   const indices = Array.from({ length: n }, (_, i) => i);
-
+  const circle: { pairs: [number, number][]; byes: number[] }[] = [];
   for (let r = 0; r < n - 1; r++) {
-    const validPairs: [string, string][] = [];
-    const roundByes: string[] = [];
-
+    const pairs: [number, number][] = [];
+    const byes: number[] = [];
     for (let i = 0; i < n / 2; i++) {
-      const idx1 = indices[i];
-      const idx2 = indices[n - 1 - i];
-      const p1 = idx1 < numPlayers ? players[idx1] : null;
-      const p2 = idx2 < numPlayers ? players[idx2] : null;
-      if (p1 && p2) {
-        validPairs.push([p1.id, p2.id]);
-      } else {
-        if (p1) roundByes.push(p1.id);
-        if (p2) roundByes.push(p2.id);
-      }
+      const a = indices[i], b = indices[n - 1 - i];
+      if (a < numPlayers && b < numPlayers) pairs.push([a, b]);
+      else byes.push(a < numPlayers ? a : b);
     }
+    circle.push({ pairs, byes });
+    indices.splice(1, 0, indices.pop()!);
+  }
 
+  // 4c+2 / 4c+3 players: an odd number of pairs per round, so one pair rests each round. Which one is
+  // chosen so that everyone rests equally (same matches for all) — see restingPairs()
+  const resting = circle[0].pairs.length % 2 ? restingPairs(circle.map(c => c.pairs), numPlayers) : null;
+
+  const buildRound = (r: number, validPairs: [string, string][], roundByes: string[]) => {
     const numMatchesPossible = Math.floor(validPairs.length / 2);
     let matches: Match[] = [];
 
@@ -493,15 +600,23 @@ const buildSlotSchedule = (players: Player[]): Round[] => {
       }
     }
 
-    if (validPairs.length % 2 !== 0) {
-      const lastPair = validPairs[validPairs.length - 1];
-      roundByes.push(...lastPair);
-    }
 
     rounds.push({ index: r, matches, byes: roundByes });
+  };
 
-    const last = indices.pop()!;
-    indices.splice(1, 0, last);
+  const id = (i: number) => players[i].id;
+  circle.forEach((c, r) => {
+    const rest = resting ? resting.picks[r] : (c.pairs.length % 2 ? c.pairs.length - 1 : -1);
+    buildRound(r,
+      c.pairs.filter((_, i) => i !== rest).map(([a, b]) => [id(a), id(b)] as [string, string]),
+      [...c.byes, ...(rest >= 0 ? c.pairs[rest] : [])].map(id));
+  });
+  // 4c+2: one more round with the pairs that rested together (path v1…vn: v1 and vn rest)
+  if (resting?.path) {
+    const v = resting.path;
+    const pairs: [string, string][] = [];
+    for (let i = 1; i + 1 < v.length - 1; i += 2) pairs.push([id(v[i]), id(v[i + 1])]);
+    buildRound(n - 1, pairs, [id(v[0]), id(v[v.length - 1])]);
   }
 
   return rounds;
@@ -926,21 +1041,6 @@ export const generateEventRound = (
 };
 
 /**
- * Random mode with "prioritize skill": same number of rounds as the Whist schedule, but each
- * round is built like a League round (skill-balanced groups, avoiding repeats). Matches are
- * more even; in exchange some partnerships repeat and others never happen.
- */
-export const generateSkillBalancedSchedule = (players: Player[]): Round[] => {
-  const numRounds = players.length % 2 ? players.length : players.length - 1;
-  const numCourts = Math.floor(players.length / 4);
-  const rounds: Round[] = [];
-  for (let r = 0; r < numRounds; r++) {
-    rounds.push(generateEventRound(players, players, rounds, r, numCourts));
-  }
-  return rounds;
-};
-
-/**
  * Fit a full schedule into fewer courts (the club has fewer than players ÷ 4): same matches,
  * same order, packed greedily into rounds of at most `numCourts` matches with no player twice.
  * Keeps every partner/opponent guarantee of the schedule; players rest in turn.
@@ -1063,19 +1163,6 @@ export const avoidBackToBackRests = (rounds: Round[], playerIds: string[]): Roun
  */
 export const firstBackToBackRest = (rounds: Round[]): number =>
   rounds.findIndex((r, i) => i > 0 && r.byes.some(id => rounds[i - 1].byes.includes(id)));
-
-/**
- * Last resort for Random: from the first round where someone would rest twice in a row, the
- * remaining rounds are generated one at a time by `nextRound` (the "+" round logic, which puts
- * whoever rested last round on court). Keeps the number of rounds.
- */
-export const regenerateFromBackToBackRest = (rounds: Round[], nextRound: (previous: Round[]) => Round): Round[] => {
-  const first = firstBackToBackRest(rounds);
-  if (first < 0) return rounds;
-  const out = rounds.slice(0, first);
-  while (out.length < rounds.length) out.push(nextRound(out));
-  return out;
-};
 
 /**
  * Generate a championship round.

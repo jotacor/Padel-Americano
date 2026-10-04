@@ -4,9 +4,9 @@ import {
   generateAmericanoSchedule,
   generateChampionshipRound,
   generateEventRound,
-  generateSkillBalancedSchedule,
   packRounds,
 } from './scheduler.ts';
+import { buildClassicSchedule, classicRoundCount } from './classicSchedule.ts';
 import { expectValidRound, key, makePlayers, matchesPlayed, pairCounts, playersOf, scheduleText, seedRandom } from './testing.ts';
 import type { Player, Round } from '../types.ts';
 
@@ -23,10 +23,11 @@ const scheduleFor = (n: number) => {
 const SIZES = Array.from({ length: 27 }, (_, i) => i + 4); // 4..30
 
 describe('generateAmericanoSchedule', () => {
-  it.each(SIZES)('%i players: valid rounds, N−1 rounds (N if odd), nobody partners twice', n => {
+  it.each(SIZES)('%i players: valid rounds, N−1 rounds (N unless divisible by 4), same matches for all, nobody partners twice', n => {
     const players = makePlayers(n);
     const rounds = scheduleFor(n);
-    expect(rounds).toHaveLength(n % 2 ? n : n - 1);
+    expect(rounds).toHaveLength(n % 4 === 0 ? n - 1 : n);
+    expect(new Set(matchesPlayed(rounds).values()).size).toBe(1);
     rounds.forEach(r => {
       expectValidRound(r, ids(players), Math.floor(n / 4));
       expect(r.matches).toHaveLength(Math.floor(n / 4));
@@ -60,12 +61,12 @@ describe('generateAmericanoSchedule', () => {
   });
 });
 
-describe('generateSkillBalancedSchedule', () => {
-  it.each([8, 11, 14])('%i players: valid rounds, same round count as Whist', n => {
+describe('Americano By skill (buildClassicSchedule balanced)', () => {
+  it.each([8, 11, 14])('%i players: valid rounds, same round count as Classic', n => {
     seedRandom(n);
     const players = makePlayers(n, 'mixed');
-    const rounds = generateSkillBalancedSchedule(players);
-    expect(rounds).toHaveLength(n % 2 ? n : n - 1);
+    const rounds = buildClassicSchedule({ players, pairs: [], fixed: false, balanced: true }, Math.floor(n / 4));
+    expect(rounds).toHaveLength(classicRoundCount(n, false, Math.floor(n / 4)));
     rounds.forEach(r => expectValidRound(r, ids(players), Math.floor(n / 4)));
   });
 });
