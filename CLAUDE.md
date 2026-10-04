@@ -55,7 +55,7 @@
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
 | `utils/tournamentSchema.ts` | `validateTournament(v, meta?)`: shape validation shared by YAML import and (later) the server; new `Tournament` fields must be added here (unknown keys are dropped) |
 | `utils/tournamentSummary.ts` | `summarizeTournament` (progress + leader), no `yaml` import |
-| `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same PR (same structure/sections; code, commands, paths untranslated) |
+| `README.es.md` | Spanish translation of `README.md`. **Keep in sync**: any README.md change must be mirrored in README.es.md in the same change (same structure/sections; code, commands, paths untranslated). README layout: Features → How it works (for players/organizers: plain language, no algorithm jargon; every mode, variant, pairing rule, rests, scores, standings, finals/playoff, sharing, saving) → For developers (setup, dev, structure, deployment). Technical detail lives here in CLAUDE.md. When a feature changes how a tournament plays, update "How it works" in both READMEs |
 | `i18n/translations.ts` | UI strings per language (`en` = source of truth, `es`) |
 | `i18n/I18nContext.tsx` | `I18nProvider`, `useI18n()` hook (`t`, `lang`, `locale`, `courtLabel`), `LanguageLink` (discreet link to the other language: setup panel footer + viewer footer) |
 

@@ -2,7 +2,7 @@
 
 🌐 [English](README.md) · **Español**
 
-Una app web moderna para organizar torneos de **Pádel Americano** — el formato social en el que los jugadores rotan de pareja en cada ronda para que todos jueguen con y contra personas distintas.
+App web para organizar torneos de pádel entre amigos o en el club: apuntas a los jugadores, la app hace los cruces, apuntas los resultados y la clasificación se actualiza sola. Funciona en el móvil, sin cuentas, y se puede compartir en directo (enlace para los jugadores y pantalla para la TV del club).
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)
@@ -11,129 +11,132 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 
 ## Características
 
-### Torneo base
-- ✅ **Parejas fijas** — Opcional en ambos modos: tú eliges las parejas, solo rotan los rivales
-- ✅ **Dos modos** — *Aleatorio* (todas las rondas generadas de antemano, lógica Whist) y *Liga* (rondas de una en una, equilibradas por nivel, los jugadores pueden entrar/descansar entre rondas)
-- ✅ **Emparejamiento por clasificación** — Opción de Liga: cada ronda vuelve a elegir parejas y rivales según los resultados, sin dejar de jugar contra todos
-- ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
-- ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
-- ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos y nadie descansa dos rondas seguidas (siempre que no descansen más de los que juegan)
-- ✅ **Nombres en mayúsculas** — Los nombres de los jugadores siempre se muestran en mayúsculas
-- ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
-- ✅ **Puntos por partido** — Partidos a 11, 15 o 21 puntos (impares: sin empates; 11 por defecto, o libre): escribes un marcador y el otro se rellena (13 → 8); teclado numérico, Enter salta al siguiente marcador; aviso si un resultado no suma
-- ✅ **Ganadores resaltados** — En los partidos terminados, el equipo ganador aparece en verde
+- ✅ **Dos modos**: *Aleatorio* (todas las rondas preparadas al empezar) y *Liga* (una ronda cada vez; la gente puede entrar y salir)
+- ✅ **Parejas rotativas o fijas**: con rotativas cambias de compañero cada ronda; con fijas juegas siempre con el mismo
+- ✅ **Cruces automáticos**: todos juegan con y contra gente distinta; opcionalmente, partidos igualados por nivel o por clasificación
+- ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos y **nadie descansa dos rondas seguidas**
+- ✅ **Rotación de pistas**: cada jugador va pasando por pistas distintas
+- ✅ **Resultados rápidos**: partidos a 11, 15 o 21 puntos (o libre); escribes un marcador y el otro se rellena solo (7 → 7-4)
+- ✅ **Clasificación en directo**: victorias, puntos, diferencia (DIF) y puntos por partido
+- ✅ **Final**: *Ronda final* rápida o *Playoff* (semifinales + final) entre los mejores
+- ✅ **Rondas extra (+)** y **deshacer la última ronda** si aún no tiene resultados
+- ✅ **Compartir**: enlace de solo lectura para los jugadores, pantalla de clasificación para la TV (se desplaza sola) y textos para pegar en WhatsApp ("Copiar ronda", "Copiar clasificación")
+- ✅ **Guardar en archivo**: exporta e importa el torneo (`padel-liga-martes-2026-10-04-v3.yaml`)
+- ✅ **En español** (inglés disponible), nombres siempre en mayúsculas, sin cuentas: todo se guarda en el propio móvil
 
-### Gestión flexible del torneo
-- ✅ **Deshacer una ronda** — Quita la última ronda mientras nadie haya apuntado resultados (¿alguien llegó tarde? deshaz y genera otra)
-- ✅ **Añadir rondas bajo demanda** — Botón "+" para ampliar el torneo con una rotación justa de jugadores
-- ✅ **Ronda de campeonato** — Final rápida (Aleatorio): 1.º+3.º vs 2.º+4.º clasificado
-- ✅ **Playoff** — En todos los modos: los 8 primeros en parejas equilibradas (1+8 vs 4+5, 2+7 vs 3+6) o las 4 primeras parejas fijas (1 vs 4, 2 vs 3), semifinales y final; el resto descansa
-- ✅ **Resultados del campeonato** — Muestra el equipo ganador, el subcampeón y la clasificación individual
-- ✅ **Configuración bloqueada** — Los jugadores quedan bloqueados al empezar el torneo (evita accidentes)
+## Cómo funciona
+
+### Paso a paso
+
+1. **Ajustes**: ponle nombre al torneo (opcional), apunta a los jugadores (mínimo 4) con su nivel (Bajo, Medio, Alto), elige el modo (Aleatorio o Liga), el tipo de parejas (rotativas o fijas), las pistas y los puntos por partido (PPP).
+2. **Empezar**: en Aleatorio se crean todas las rondas; en Liga se genera la primera.
+3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
+4. **Siguiente ronda**: pasa con la flecha (Aleatorio) o pulsa "Generar ronda" (Liga).
+5. **Terminar**: en *Tabla* puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones.
+
+### Elegir modo
+
+| | **Aleatorio** | **Liga** |
+|---|---|---|
+| **Rondas** | Todas preparadas al empezar | Una cada vez ("Generar ronda") |
+| **Jugadores** | Fijos durante todo el torneo | Puedes añadir gente y marcar quién está o descansa antes de cada ronda |
+| **Pistas** | Se eligen al empezar | Se pueden cambiar entre rondas |
+| **Ideal para** | Grupo cerrado con tiempo para jugar todas las rondas | Sesiones abiertas: gente que llega tarde o se va antes, no sabes cuántas rondas habrá |
+
+### Cómo se hacen los cruces
+
+**Aleatorio, parejas rotativas (normal)**
+- Cada jugador hace pareja **una vez con cada uno** de los demás y se enfrenta a todos un número parecido de veces. Nadie repite compañero.
+- Número de rondas: jugadores − 1 (si son impares, tantas rondas como jugadores). Con 8 jugadores: 7 rondas.
+- Con 8, 12 o 16 jugadores el calendario es perfecto: pareja con todos una vez y rival de todos exactamente dos veces.
+- El nivel solo sirve para colocar a cada jugador en el calendario de forma que los partidos queden lo más igualados posible (con 8, 12 y 16 no cambia nada porque ya está todo equilibrado).
+
+**Aleatorio + "Priorizar nivel inicial"**
+- Cada ronda se forman partidos **igualados por nivel** (Bajo = 1, Medio = 2, Alto = 3; cada equipo suma sus dos jugadores).
+- Los partidos salen más igualados, pero a cambio algunas parejas se repiten y otras nunca coinciden.
+
+**Aleatorio, parejas fijas**
+- **Todos contra todos**: cada pareja juega una vez contra cada otra pareja. Si hay un número impar de parejas, una descansa cada ronda.
+
+**Liga**
+- Antes de cada ronda se eligen los partidos entre los jugadores que están (activos). Primero juegan los que descansaron la ronda anterior y los que llevan menos partidos.
+- Se evita repetir compañero y rival siempre que se pueda.
+- Dos opciones para igualar los partidos (se pueden combinar):
+  - **Priorizar nivel inicial** (activada por defecto): usa el nivel que pusiste a cada jugador para que los dos equipos queden igualados.
+  - **Priorizar clasificación**: usa los resultados. Los que van arriba juegan con los que van arriba y los de abajo con los de abajo, y los equipos se igualan. Aun así se va rotando para jugar contra todos. Cuenta la proporción de puntos ganados, no el total, para no castigar a quien descansó o llegó tarde.
+  - Con las dos: al principio manda el nivel y, según se juega, cada vez pesan más los resultados. Sin ninguna: solo rotación.
+- **Liga con parejas fijas**: cada ronda juegan primero las parejas que menos han jugado, contra rivales de nivel parecido y sin repetir rival en lo posible. Si un miembro de la pareja no está, la pareja descansa entera. Se pueden formar parejas nuevas durante la liga.
+
+### Pistas y descansos
+
+- Tú eliges las pistas. En Aleatorio, por defecto, una pista por cada 4 jugadores.
+- Si sobran jugadores, descansan por turnos. **Nadie descansa dos rondas seguidas**, salvo que descansen más jugadores de los que juegan (por ejemplo, 12 jugadores en 1 pista).
+- En Aleatorio, si hay menos pistas que jugadores ÷ 4, los mismos partidos del calendario se reparten en más rondas.
+- Los jugadores van cambiando de pista para no estar siempre en la misma.
+- **Rondas extra (+)** en Aleatorio: añade rondas cuando quieras. Juegan primero quienes descansaron y quienes llevan menos partidos, evitando repetir parejas y rivales.
+
+### Resultados
+
+- **PPP (puntos por partido)**: 11, 15, 21 o Libre. Son impares para que no haya empates.
+- Escribes el marcador de un equipo y el del otro se rellena solo (con PPP 11, escribes 7 → 7-4).
+- Con PPP elegido, **no se puede pasar de ronda si algún resultado no suma los PPP** o está a medias. Los partidos en blanco sí se pueden dejar. Con "Libre" no se comprueba nada.
+- En los partidos terminados, el equipo ganador sale en verde.
+- **Deshacer ronda**: quita la última ronda si nadie ha apuntado resultados (por ejemplo, si llega alguien tarde en Liga). En Aleatorio solo se pueden deshacer las rondas extra y las finales.
+
+### Clasificación
+
+- Orden: **victorias → puntos totales → diferencia de puntos (DIF)**. Lo que cuenta primero es ganar el partido.
+- También se muestra la media de puntos por partido (solo informativa).
+- Con parejas fijas, la clasificación es por pareja.
+
+### Terminar el torneo
+
+En *Tabla*, apartado "Terminar el torneo":
+
+**Ronda final rápida** (solo Aleatorio): una sola ronda.
+- Parejas rotativas: **1º + 3º contra 2º + 4º** en la Pista 1; el resto juega en las otras pistas.
+- Parejas fijas: 1ª pareja contra 2ª pareja.
+
+**Playoff** (todos los modos): semifinales y final, sin partido por el 3º puesto. **El resto descansa.**
+- Parejas rotativas: los **8 primeros** forman parejas equilibradas: 1º+8º, 2º+7º, 3º+6º y 4º+5º.
+  - Semifinal 1: (1º+8º) contra (4º+5º)
+  - Semifinal 2: (2º+7º) contra (3º+6º)
+- Parejas fijas: las **4 primeras parejas**. Semifinal 1: 1ª contra 4ª. Semifinal 2: 2ª contra 3ª.
+- Cuando terminan las dos semifinales, pulsa "Crear final": juegan las dos parejas ganadoras.
+- En Liga solo entran los jugadores activos. Con una sola pista, cada semifinal va en una ronda.
+
+Al terminar la final se muestran **Campeones** y **Subcampeones** en la app, en el enlace compartido y en la pantalla de la TV.
 
 ### Compartir
-- ✅ **Copiar ronda y clasificación** — "Copiar ronda" y "Copiar clasificación" dejan el texto en el portapapeles (`ANA-LUIS vs MARTA-JUAN`) para pegarlo donde quieras
-- ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una clasificación para pantalla (TV) (`/display/bala-zapato`) que se desplaza sola si la lista no cabe
-- ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con el servidor, los espectadores ven las actualizaciones automáticamente
-- ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
-- ✅ **Limpieza automática** — Los enlaces compartidos caducan 24 horas después del último cambio
-- ✅ **Sincronización fiable** — Reintenta con mala cobertura y avisa si el enlace no está al día; el visor abre en la ronda que se está jugando
 
-### Experiencia de usuario
-- ✅ **Mobile-first** — Diseño adaptable que funciona genial en el móvil junto a las pistas
-- ✅ **Navegación con teclado** — Teclas de flecha para moverte entre rondas
-- ✅ **En español** — Español por defecto; inglés disponible con un enlace discreto en Ajustes y en el visor, o con `?lang=en` en cualquier URL (p. ej. la pantalla de TV)
-- ✅ **Sin cuenta** — Los datos se quedan en el dispositivo (localStorage)
-- ✅ **Exportar / Importar (YAML)** — Guarda un torneo en un archivo `.yaml` legible y cárgalo más tarde para ver resultados o seguir jugando; cada exportación incrementa un `revision` y añade una entrada a un registro `history` dentro del archivo
-- ✅ **Desempates** — Ordenado por partidos ganados → puntos totales → diferencia de puntos (columna extra: puntos por partido)
+- **Compartir** crea un enlace fácil de recordar (`/game/bala-zapato`) para que los jugadores vean rondas y clasificación (solo lectura; abre en la ronda que se está jugando).
+- **Clasificación para pantalla** (`/display/bala-zapato`): para la TV del club. Si la lista no cabe, baja despacio y vuelve arriba sola.
+- Se actualiza solo con cada resultado. El enlace caduca 24 horas después del último cambio.
+- **Copiar ronda / Copiar clasificación**: copia un texto para pegar en WhatsApp, por ejemplo `Pista 1: ANA-LUIS vs MARTA-JUAN (7-4)`.
 
-## Inicio rápido
+### Guardar el torneo
+
+- Todo se guarda en el propio móvil o navegador; no hace falta cuenta.
+- **Exportar** descarga un archivo `.yaml` (por ejemplo `padel-liga-martes-2026-10-04-v3.yaml`: modo, nombre, fecha de inicio y versión). Cada exportación sube la versión.
+- **Importar** carga un archivo para ver los resultados o seguir jugando.
+- Idioma: español por defecto; inglés con el enlace de Ajustes o añadiendo `?lang=en` a la dirección.
+
+---
+
+## Para programadores
+
+### Inicio rápido
 
 **Requisitos previos:** Node.js 20.19+
 
 ```bash
-# Instalar dependencias
-npm install
-
-# Iniciar el servidor de desarrollo (Vite + servidor de la API)
-npm run dev
+npm install   # Instalar dependencias
+npm run dev   # Vite + servidor de la API
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Los enlaces de compartir, pantalla y espectador funcionan también en local.
+Abre [http://localhost:3000](http://localhost:3000). Los enlaces de compartir, pantalla y espectador funcionan también en local.
 
-## Cómo funciona
-
-### Flujo del torneo
-
-1. **Configuración** — Añade jugadores con un nivel (mínimo 4; 8/12/16 para un equilibrio Whist "perfecto"), elige un modo y la modalidad de parejas
-2. **Configurar pistas** — Elige cuántas pistas tienes (Pista 1, 2, 3…)
-3. **Empezar** — *Aleatorio* crea todas las rondas de entrada; *Liga* las genera de una en una
-4. **Jugar** — Navega por las rondas e introduce los resultados tras cada partido
-5. **Ampliar** — Añade más rondas con el botón "+" si hay tiempo
-6. **Finales** — Crea la ronda de campeonato a partir de la clasificación
-7. **Resultados** — Consulta los equipos campeones y la clasificación individual
-
-### Modos de torneo
-
-| | **Aleatorio** (por defecto) | **Aleatorio + "Priorizar nivel inicial"** | **Liga** |
-|---|---|---|---|
-| **Rondas** | Todas generadas al inicio (N−1, o N si es impar; más si hay menos pistas) | Todas generadas al inicio (mismo número) | Una a una ("Generar ronda N") |
-| **Parejas** | Rotación Whist / Berger: cada uno forma pareja con todos una vez | Elegidas en cada ronda para equilibrar el nivel | Elegidas en cada ronda para equilibrar el nivel |
-| **Nivel** | Solo decide quién ocupa cada hueco del calendario. Sin efecto con 8/12/16 (toda asignación está igual de equilibrada); ayuda con otros tamaños | Criterio principal: grupos de 4 y reparto de equipos lo más igualados posible | Nivel inicial y/o clasificación, ver [Emparejamiento en Liga](#emparejamiento-en-liga) |
-| **Repeticiones** | Ninguna: sin parejas repetidas, rivales repartidos de forma uniforme | Algunas parejas se repiten, otras nunca coinciden (8 jugadores: ~7 de 28 parejas) | Se evitan en lo posible (penalizadas, no prohibidas) |
-| **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel inicial" |
-| **Plantilla** | Bloqueada al empezar | Bloqueada al empezar | Añade jugadores y alterna activo/descanso entre rondas |
-| **Quién juega** | Fijado por el calendario (los descansos rotan) | Primero quienes han jugado menos partidos | Primero quienes han jugado menos partidos, solo jugadores activos |
-| **Pistas** | Tú eliges (por defecto jugadores ÷ 4). Con menos pistas → el mismo calendario repartido en más rondas (se mantienen las garantías de parejas/rivales mientras nadie tenga que descansar dos rondas seguidas), los jugadores descansan por turnos | Igual que Aleatorio | Tú eliges (4 por defecto), modificable entre rondas; los jugadores sobrantes descansan |
-| **Rondas extra (+)** | Rotación justa evitando repeticiones, rivales igualados por nivel | Mismo algoritmo que Liga | Botón de siguiente ronda |
-| **Finales** | 1.º+3.º vs 2.º+4.º | 1.º+3.º vs 2.º+4.º | — |
-| **Ideal para** | Grupo cerrado con tiempo para el calendario completo | Grupo de nivel mixto donde importan más los partidos igualados que conocer a todos | Sesiones abiertas donde la gente llega/se va, número de rondas desconocido |
-
-Los niveles cuentan como Bajo = 1, Medio = 2, Alto = 3 (el nivel de un equipo es la suma de ambos jugadores).
-
-#### Emparejamiento en Liga
-
-Dos opciones en la configuración de Liga, combinables:
-
-| | **Priorizar nivel inicial** (activada por defecto) | **Priorizar clasificación** |
-|---|---|---|
-| **Se basa en** | Nivel marcado a cada jugador (Bajo/Medio/Alto) | Resultados hasta el momento, recalculados antes de cada ronda |
-| **Grupos de 4** | Niveles mezclados, equipos lo más igualados posible | Fuerza parecida (los de arriba con los de arriba, estilo Mexicano), equipos lo más igualados posible |
-| **Repeticiones** | Se evitan parejas/rivales repetidos en lo posible | Se permiten contra rivales de nivel parecido, pero el coste crece (al cuadrado) cuanto más se adelanta un rival respecto al que menos has enfrentado, más una penalización en las dos últimas rondas → todos siguen jugando contra todos |
-| **Parejas fijas** | Rivales con nivel de pareja parecido | Rivales por clasificación: las parejas parecidas coinciden más |
-
-- **Fuerza según la clasificación** = percentil de puntos ganados por punto jugado (no puntos totales, para no penalizar descansos ni llegadas tardías), en la misma escala 1–3 que el nivel.
-- **Ambas activadas**: al principio cuenta el nivel inicial y los resultados van pesando más según se juega (los resultados pesan n/(n+2) tras n partidos). **Solo clasificación**: todos empiezan iguales. **Ninguna**: solo rotación.
-- Simulado (ambas opciones vs solo nivel, 12–30 jugadores, 2–5 pistas, 10 rondas): parejas rotativas → 6–18% menos diferencia de nivel por partido cuando cada jugador juega ≥8 partidos (sin diferencia con pocos partidos), menos parejas repetidas, cobertura de rivales igual o mejor. Parejas fijas → ~5–15% menos diferencia, cobertura a ≤6 puntos de solo nivel.
-
-**Parejas fijas** (opcional en ambos modos, *Parejas: Fijas*): tú formas las parejas y solo rotan los rivales.
-
-| | **Aleatorio + Parejas fijas** | **Liga + Parejas fijas** |
-|---|---|---|
-| **Calendario** | Todos contra todos: cada pareja se enfrenta a cada otra pareja una vez | Una ronda cada vez: primero las parejas que menos han jugado, evitando rivales repetidos y equilibrando el nivel de las parejas (o la clasificación, ver arriba) |
-| **Requisitos** | Todos los jugadores deben tener pareja | Los jugadores sin pareja esperan; se pueden formar parejas nuevas durante la liga |
-| **Descanso** | Una pareja descansa por ronda si el número de parejas es impar | Una pareja descansa junta (alternar a un miembro alterna a ambos) |
-| **Clasificación / Finales** | Por pareja; final 1.ª vs 2.ª pareja (3.ª vs 4.ª en la pista siguiente) o playoff con las 4 primeras parejas | Por pareja; playoff con las 4 primeras parejas |
-
-### Algoritmo de calendario
-
-El modo *Aleatorio* (parejas rotativas) usa la lógica de **torneo Whist**:
-
-| Jugadores | Rondas | Pistas | Equilibrio |
-|-----------|--------|--------|------------|
-| 8 | 7 | 2 | Pareja con todos una vez, rival de todos dos veces |
-| 12 | 11 | 3 | Pareja con todos una vez, rival de todos dos veces |
-| 16 | 15 | 4 | Pareja con todos una vez, rival de todos dos veces |
-| Otros | N-1 | Varía | Rotación con tabla de Berger (pareja con todos una vez) |
-
-**Rotación de pistas**: Los jugadores rotan automáticamente entre pistas en cada ronda — el algoritmo registra el historial de pistas y optimiza las asignaciones.
-
-**Rondas adicionales**: Al añadir rondas bajo demanda, el algoritmo:
-- Prioriza a los jugadores que han jugado menos partidos
-- Evita emparejamientos recientes de pareja/rival
-- Gestiona los descansos con un número impar de jugadores
-
-## Desarrollo
+### Desarrollo
 
 ```bash
 npm run dev      # Vite (HMR, :3000) + servidor de la API (server/index.ts, :8788, se reinicia al cambiar); Ctrl-C detiene ambos
@@ -145,16 +148,22 @@ npm start        # Servidor de producción: dist/ + /api en :8788
 
 `npm run dev` ([`scripts/dev.mjs`](scripts/dev.mjs)) ejecuta el servidor de la API y Vite redirige `/api` hacia él. Los torneos compartidos se guardan como ficheros JSON en `./data` (bórralo para reiniciar). Cambia el puerto de la API con `API_PORT=8789 npm run dev`; los argumentos extra pasan a Vite (`npm run dev -- --port 3001`).
 
-## Estructura del proyecto
+### Estructura del proyecto
 
 ```
 ├── App.tsx              # Componente React principal (UI + estado)
-├── GameViewer.tsx       # Visor de solo lectura para torneos compartidos
+├── GameViewer.tsx       # Visor de solo lectura (/game/:id)
+├── LeaderboardDisplay.tsx # Clasificación para pantalla (/display/:id)
 ├── types.ts             # Interfaces TypeScript
 ├── components/          # Piezas de UI compartidas (modal de compartir, …)
-├── hooks/               # useShareSync (compartir en directo), usePolling (visores)
+├── hooks/               # useShareSync (compartir en directo), usePolling (visores), useAutoScroll (TV)
 ├── utils/
-│   ├── scheduler.ts     # Calendario del torneo + rondas adicionales
+│   ├── scheduler.ts     # Calendario Whist/Berger, rondas de Liga, rondas extra, reparto en pistas
+│   ├── classicSchedule.ts # Calendario de Aleatorio (sin descansos seguidos)
+│   ├── ranking.ts       # Liga por clasificación
+│   ├── fixedPairs.ts    # Parejas fijas
+│   ├── playoff.ts       # Playoff (semifinales + final)
+│   ├── leaderboard.ts   # Clasificación
 │   └── tournamentFile.ts # Exportar/importar YAML + validación
 ├── server/              # Servidor Node (sin dependencias en ejecución)
 │   ├── index.ts         # Entrada: PORT, DATA_DIR, DIST_DIR
@@ -165,10 +174,10 @@ npm start        # Servidor de producción: dist/ + /api en :8788
 ├── index.tsx            # Punto de entrada React + rutas
 ├── index.html           # Esqueleto HTML + meta tags OG
 ├── scripts/dev.mjs      # Desarrollo local: Vite + servidor de la API
-└── CLAUDE.md            # Archivo de contexto para agentes de IA
+└── CLAUDE.md            # Contexto técnico detallado (algoritmos, convenciones)
 ```
 
-## Despliegue
+### Despliegue
 
 Un único contenedor Docker sirve todo (frontend + API) y guarda los torneos compartidos como ficheros en `/data`. Apunta tu dominio a él (p. ej. con el proxy de Cloudflare) y pon HTTPS delante.
 
@@ -199,17 +208,14 @@ Abre [http://localhost:8788](http://localhost:8788).
 | `-v padel-data:/data` | Los torneos compartidos (`/data/shares/*.json`) sobreviven a reinicios; cada uno caduca 24 h después de su último cambio |
 | `-e PORT` | Puerto interno (por defecto `8788`) |
 
-Hace falta HTTPS para copiar al portapapeles fuera de localhost: usa un proxy inverso o el proxy de Cloudflare delante del contenedor.
+**CI**: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) comprueba tipos, tests y build en cada push a `main`; [`.github/workflows/docker.yml`](.github/workflows/docker.yml) construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub. Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).
 
-**CI** ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): cada push a `main` construye la imagen y publica `jotacor/padelamericano:latest` y `:<short-sha>` en Docker Hub (las PR no lo activan). Requiere el secreto del repositorio `DOCKER_PASSWORD` (un token de acceso de Docker Hub).
+### Contribuir
 
-## Contribuir
+1. Crea una rama: `git checkout -b feature/tu-funcionalidad`
+2. Haz cambios y pruébalos en local (`npm run dev`, `npm run typecheck`, `npm test`)
+3. Fusiona tras revisarlo
 
-1. Crea una rama de funcionalidad: `git checkout -b feature/tu-funcionalidad`
-2. Haz cambios y pruébalos en local (`npm run dev`, `npm test`)
-3. Abre una PR — el CI comprueba tipos, tests y build
-4. Fusiona tras la revisión
-
-## Licencia
+### Licencia
 
 MIT
