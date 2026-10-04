@@ -12,6 +12,7 @@ import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import { ymd } from './utils/dates.ts';
 import ShareModal from './components/ShareModal.tsx';
+import InfoView from './components/InfoView.tsx';
 import { roundText, standingsText } from './utils/shareText.ts';
 import { copyText, newId } from './utils/browser.ts';
 import { generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
@@ -40,6 +41,7 @@ import {
   UserMinus,
   Minus,
   Shuffle,
+  BookOpen,
   Scale,
   Repeat,
   Link2,
@@ -106,7 +108,7 @@ const PANEL_VALUE = 'text-xl lg:text-lg xl:text-2xl font-black';
 const App: React.FC = () => {
   const { t, locale, courtLabel } = useI18n();
   const [saved] = useState(readSavedState);
-  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard'>(saved.tournament ? 'rounds' : 'setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'rounds' | 'leaderboard' | 'info'>(saved.tournament ? 'rounds' : 'setup');
   const [players, setPlayers] = useState<Player[]>(saved.players);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
@@ -740,7 +742,8 @@ const App: React.FC = () => {
         {[
           { tab: 'setup', icon: Settings, label: t('nav.setup') },
           { tab: 'rounds', icon: Layout, label: t('nav.matches'), disabled: !tournament },
-          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament }
+          { tab: 'leaderboard', icon: Trophy, label: t('nav.scores'), disabled: !tournament },
+          { tab: 'info', icon: BookOpen, label: t('nav.info'), disabled: false }
         ].map(item => (
           <button 
             key={item.tab}
@@ -804,6 +807,8 @@ const App: React.FC = () => {
             )}
           </div>
         </header>
+
+        {activeTab === 'info' && <InfoView />}
 
         {activeTab === 'setup' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">

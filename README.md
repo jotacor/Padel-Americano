@@ -22,6 +22,7 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 - ✅ **Extra rounds (+)** and **undo the last round** while it has no scores
 - ✅ **Sharing**: read-only link for the players, standings screen for the TV (scrolls by itself) and texts to paste in WhatsApp ("Copy round", "Copy standings")
 - ✅ **Save to a file**: export and import the tournament (`padel-league-tuesday-2026-10-04-v3.yaml`)
+- ✅ **Info tab**: inside the app, everything you need to run a tournament (modes, variants, pairing, rests, scoring, finals)
 - ✅ **Spanish by default** (English available), names always in capitals, no accounts: everything stays on the device
 
 ## How It Works
@@ -32,7 +33,9 @@ Web app to run padel tournaments with friends or at the club: add the players, t
 2. **Start**: Americano creates every round; League creates the first one.
 3. **Play**: *Matches* shows who plays on each court; enter the scores when they finish.
 4. **Next round**: move on with the arrow (Americano) or press "Generate round" (League).
-5. **Finish**: in *Scores* create the Final round or a Playoff. When the final is over, the champions are shown.
+5. **Finish**: in *Scores* create the Final round or a Playoff. When the final is over, the champions are shown. *End tournament* (in red, in Setup) closes the tournament.
+
+The app's *Info* tab sums all this up, handy during the tournament.
 
 ### Choosing a mode
 
@@ -172,7 +175,7 @@ npm start        # Production server: dist/ + /api on :8788
 ├── GameViewer.tsx       # Read-only viewer (/game/:id)
 ├── LeaderboardDisplay.tsx # Leaderboard display (/display/:id)
 ├── types.ts             # TypeScript interfaces
-├── components/          # Shared UI pieces (share modal, …)
+├── components/          # Shared UI pieces (share modal, Info tab, …)
 ├── hooks/               # useShareSync (live sharing), usePolling (viewers), useAutoScroll (TV)
 ├── utils/
 │   ├── scheduler.ts     # Whist/Berger schedule, League rounds, extra rounds, packing into courts

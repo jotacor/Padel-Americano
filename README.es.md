@@ -22,6 +22,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 - ✅ **Rondas extra (+)** y **deshacer la última ronda** si aún no tiene resultados
 - ✅ **Compartir**: enlace de solo lectura para los jugadores, pantalla de clasificación para la TV (se desplaza sola) y textos para pegar en WhatsApp ("Copiar ronda", "Copiar clasificación")
 - ✅ **Guardar en archivo**: exporta e importa el torneo (`padel-liga-martes-2026-10-04-v3.yaml`)
+- ✅ **Pestaña Info**: dentro de la app, todo lo que hace falta saber para organizar (modos, variantes, cruces, descansos, puntuación, finales)
 - ✅ **En español** (inglés disponible), nombres siempre en mayúsculas, sin cuentas: todo se guarda en el propio móvil
 
 ## Cómo funciona
@@ -32,7 +33,9 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 2. **Empezar**: en Americano se crean todas las rondas; en Liga se genera la primera.
 3. **Jugar**: en *Partidos* ves quién juega en cada pista; apunta los resultados al terminar.
 4. **Siguiente ronda**: pasa con la flecha (Americano) o pulsa "Generar ronda" (Liga).
-5. **Terminar**: en *Tabla* puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones.
+5. **Terminar**: en *Tabla* puedes crear la Ronda final o un Playoff. Al acabar la final salen los campeones. *Finalizar torneo* (en rojo, en Ajustes) cierra el torneo.
+
+La pestaña *Info* de la app resume todo esto para tenerlo a mano durante el torneo.
 
 ### Elegir modo
 
@@ -172,7 +175,7 @@ npm start        # Servidor de producción: dist/ + /api en :8788
 ├── GameViewer.tsx       # Visor de solo lectura (/game/:id)
 ├── LeaderboardDisplay.tsx # Clasificación para pantalla (/display/:id)
 ├── types.ts             # Interfaces TypeScript
-├── components/          # Piezas de UI compartidas (modal de compartir, …)
+├── components/          # Piezas de UI compartidas (modal de compartir, pestaña Info, …)
 ├── hooks/               # useShareSync (compartir en directo), usePolling (visores), useAutoScroll (TV)
 ├── utils/
 │   ├── scheduler.ts     # Calendario Whist/Berger, rondas de Liga, rondas extra, reparto en pistas
