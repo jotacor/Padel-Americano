@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Player, Tournament, LeaderboardEntry, Pair, PairMode } from './types.ts';
+import { Player, Tournament, LeaderboardEntry, Pair, PairMode, Round } from './types.ts';
 import { generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
 import { buildClassicSchedule, nextClassicRound } from './utils/classicSchedule.ts';
 import { generatePlayoffFinal, generatePlayoffSemifinals, isFinal, isPlayoffMatch, matchTitle, PLAYOFF_PAIRS, PLAYOFF_PLAYERS, playoffState, roundBadge } from './utils/playoff.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
-import { applyScoreInput, DEFAULT_POINTS, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
+import { applyScoreInput, DEFAULT_POINTS, firstInvalidScore, isInvalidScore, POINTS_OPTIONS, scoreSumMismatch, type Side } from './utils/scoring.ts';
 import { useShareSync } from './hooks/useShareSync.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
@@ -423,7 +423,7 @@ const App: React.FC = () => {
   };
 
   const addRound = () => {
-    if (!tournament) return;
+    if (!tournament || !scoresOk(tournament.rounds)) return;
     const newRoundIndex = tournament.rounds.length;
     
     const fixed = tournament.pairMode === 'fixed';
@@ -463,7 +463,7 @@ const App: React.FC = () => {
   };
 
   const addChampionshipRound = () => {
-    if (!tournament || leaderboard.length < minForFinals) return;
+    if (!tournament || leaderboard.length < minForFinals || !scoresOk(tournament.rounds)) return;
     const newRoundIndex = tournament.rounds.length;
     const newRound = isFixed
       ? generateFixedPairsChampionship(
@@ -546,7 +546,7 @@ const App: React.FC = () => {
   const hasFinals = !!tournament?.rounds.some(r => r.matches.some(m => isFinal(m) || isPlayoffMatch(m)));
   const canPlayoff = playoffSeeds.length >= (isFixed ? PLAYOFF_PAIRS : PLAYOFF_PLAYERS);
   const addPlayoff = () => {
-    if (!tournament || !canPlayoff || hasFinals) return;
+    if (!tournament || !canPlayoff || hasFinals || !scoresOk(tournament.rounds)) return;
     const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
     const semis = generatePlayoffSemifinals(playoffSeeds, playoffPool, tournament.rounds.length, nc);
     setTournament({ ...tournament, rounds: [...tournament.rounds, ...semis] });
@@ -554,7 +554,7 @@ const App: React.FC = () => {
     setActiveTab('rounds');
   };
   const addPlayoffFinal = () => {
-    if (!tournament) return;
+    if (!tournament || !scoresOk(tournament.rounds)) return;
     const final = generatePlayoffFinal(tournament.rounds, playoffPool, tournament.rounds.length);
     if (!final) return;
     setTournament({ ...tournament, rounds: [...tournament.rounds, final] });
@@ -625,8 +625,25 @@ const App: React.FC = () => {
   /** Text (round line-up, standings) on the clipboard, to paste wherever you like */
   const copyToClipboard = async (text: string, done: TranslationKey) => {
     if (!(await copyText(text))) return void window.prompt('', text);
-    setToast(t(done));
-    setTimeout(() => setToast(null), 2500);
+    showToast(t(done));
+  };
+  const showToast = (message: string, ms = 2500) => {
+    setToast(message);
+    setTimeout(() => setToast(null), ms);
+  };
+  // With points per match, a half-entered result or one not adding up blocks moving on (blank is fine)
+  const scoresOk = (rounds: Round[]): boolean => {
+    if (!tournament) return true;
+    const bad = firstInvalidScore(rounds, tournament.pointsPerMatch);
+    if (!bad) return true;
+    setActiveTab('rounds');
+    setCurrentRoundIndex(bad.roundIndex);
+    showToast(t('rounds.fixScores', { match: matchTitle(bad.match, t, courtLabel), round: bad.roundIndex + 1, total: tournament.pointsPerMatch ?? 0 }), 4500);
+    return false;
+  };
+  const nextRound = () => {
+    if (!tournament || currentRoundIndex >= tournament.rounds.length - 1) return;
+    if (scoresOk([tournament.rounds[currentRoundIndex]])) setCurrentRoundIndex(currentRoundIndex + 1);
   };
   const copyRound = (text: string) => copyToClipboard(text, 'share.roundCopied');
   const copyStandings = (text: string) => copyToClipboard(text, 'share.standingsCopied');
@@ -657,8 +674,8 @@ const App: React.FC = () => {
       
       if (e.key === 'ArrowLeft' && currentRoundIndex > 0) {
         setCurrentRoundIndex(i => i - 1);
-      } else if (e.key === 'ArrowRight' && currentRoundIndex < tournament.rounds.length - 1) {
-        setCurrentRoundIndex(i => i + 1);
+      } else if (e.key === 'ArrowRight') {
+        nextRound();
       }
     };
     
@@ -1066,9 +1083,6 @@ const App: React.FC = () => {
                     )}
                     <div className="text-4xl md:text-7xl font-black text-slate-900 flex items-center justify-center gap-2">
                       {currentRoundIndex + 1}<span className="text-slate-300 text-base md:text-2xl font-bold">/ {tournament.rounds.length}</span>
-                      {tournament.pointsPerMatch && (
-                        <span className="ml-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{t('rounds.toPoints', { n: tournament.pointsPerMatch })}</span>
-                      )}
                       {currentRoundIndex === tournament.rounds.length - 1 && tournament.mode !== 'event' && !playoff.started && (
                         <button 
                           onClick={addRound} 
@@ -1079,8 +1093,11 @@ const App: React.FC = () => {
                         </button>
                       )}
                     </div>
+                    {tournament.pointsPerMatch && (
+                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{t('rounds.toPoints', { n: tournament.pointsPerMatch })}</span>
+                    )}
                   </div>
-                  <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={() => setCurrentRoundIndex(i => i + 1)} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
+                  <button disabled={currentRoundIndex === tournament.rounds.length - 1} onClick={nextRound} className="p-3 md:p-6 rounded-xl md:rounded-[2rem] text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-0"><ChevronRight className="w-8 h-8 md:w-12 md:h-12" strokeWidth={3} /></button>
                 </div>
                 <div className="flex justify-center gap-6 -mt-2 md:-mt-4">
                   <button onClick={() => copyRound(roundText(tournament, currentRoundIndex, textCtx))} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 font-bold text-[10px] md:text-xs uppercase tracking-widest py-2 transition-colors">
@@ -1147,9 +1164,11 @@ const App: React.FC = () => {
                             <PlayerName name={p2b?.name || t('common.unknown')} baseClass={`text-xl md:text-3xl font-[900] tracking-tight italic ${teamBWon ? winnerTextClass : 'text-slate-900'}`} />
                           </div>
                         </div>
-                        {scoreSumMismatch(match, tournament.pointsPerMatch) !== null && (
-                          <p className="-mt-3 mb-4 md:-mt-8 md:mb-8 text-center text-xs font-bold text-amber-600">
-                            {t('rounds.sumWarning', { sum: scoreSumMismatch(match, tournament.pointsPerMatch) ?? 0, total: tournament.pointsPerMatch ?? 0 })}
+                        {isInvalidScore(match, tournament.pointsPerMatch) && (
+                          <p className="-mt-3 mb-4 md:-mt-8 md:mb-8 text-center text-xs font-bold text-rose-500">
+                            {scoreSumMismatch(match, tournament.pointsPerMatch) !== null
+                              ? t('rounds.sumWarning', { sum: scoreSumMismatch(match, tournament.pointsPerMatch) ?? 0, total: tournament.pointsPerMatch ?? 0 })
+                              : t('rounds.missingScore')}
                           </p>
                         )}
                       </div>

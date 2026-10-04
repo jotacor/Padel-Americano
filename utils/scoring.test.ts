@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyScoreInput, POINTS_OPTIONS, scoreSumMismatch } from './scoring.ts';
+import { applyScoreInput, firstInvalidScore, isInvalidScore, POINTS_OPTIONS, scoreSumMismatch } from './scoring.ts';
 
 const empty = { scoreA: null, scoreB: null };
 
@@ -48,5 +48,28 @@ describe('applyScoreInput', () => {
     expect(scoreSumMismatch({ scoreA: 13, scoreB: 8 }, 21)).toBeNull();
     expect(scoreSumMismatch({ scoreA: 13, scoreB: 8 }, undefined)).toBeNull();
     expect(scoreSumMismatch({ scoreA: 13, scoreB: null }, 21)).toBeNull();
+  });
+});
+
+describe('isInvalidScore (blocks moving on)', () => {
+  const s = (scoreA: number | null, scoreB: number | null) => ({ scoreA, scoreB });
+  it('with a points total: half-entered or not adding up is invalid; blank or exact is fine', () => {
+    expect(isInvalidScore(s(null, null), 11)).toBe(false);
+    expect(isInvalidScore(s(7, 4), 11)).toBe(false);
+    expect(isInvalidScore(s(7, 9), 11)).toBe(true);
+    expect(isInvalidScore(s(7, null), 11)).toBe(true);
+    expect(isInvalidScore(s(null, 4), 11)).toBe(true);
+  });
+  it('free scoring never blocks', () => {
+    expect(isInvalidScore(s(7, 9), undefined)).toBe(false);
+    expect(isInvalidScore(s(7, null), undefined)).toBe(false);
+  });
+  it('finds the first invalid result', () => {
+    const rounds = [
+      { index: 0, matches: [s(7, 4), s(null, null)] },
+      { index: 1, matches: [s(6, 5), s(3, 3)] },
+    ];
+    expect(firstInvalidScore(rounds, 11)).toEqual({ roundIndex: 1, match: s(3, 3) });
+    expect(firstInvalidScore(rounds.slice(0, 1), 11)).toBeNull();
   });
 });

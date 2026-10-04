@@ -155,7 +155,7 @@ Order: Match Wins → Total Points → Point Differential (fixed, no user choice
 
 ### Score entry
 
-- `tournament.pointsPerMatch` (11 default / 15 / 21 / Libre — odd so no ties; `padel_points_per_match` stores 'free' explicitly; older values like 24 stay selectable, setup panel, editable any time; `padel_points_per_match` for setup): `utils/scoring.ts` `applyScoreInput` fills the other side with P − x unless the organizer typed that side by hand (`lastTypedSide` per match), so time-capped results (15-7) still work; `scoreSumMismatch` → non-blocking "Suman X de P"
+- `tournament.pointsPerMatch` (11 default / 15 / 21 / Libre — odd so no ties; `padel_points_per_match` stores 'free' explicitly; older values like 24 stay selectable, setup panel, editable any time; `padel_points_per_match` for setup): `utils/scoring.ts` `applyScoreInput` fills the other side with P − x unless the organizer typed that side by hand (`lastTypedSide` per match), so time-capped results (15-7) still work; `isInvalidScore` (half-entered, or sum ≠ P; blank is fine) shows "Suman X de P"/"Falta un resultado" and **blocks** moving to the next round (arrow/keys: current round) and creating rounds ("+", Generar ronda, finals, playoff: any round) via `scoresOk` → toast + jump to the match
 - Setup: points per match is a − / + stepper over 11 → 15 → 21 → Libre (`pointsSteps`, shares `renderStepperControl` with courts)
 - Score inputs: `type=text inputMode=numeric`, select on focus, Enter → next empty score (`data-score`)
 - "Undo round" (`canUndoRound`): last round with no score at all; League always, Random only finals or extra "+" rounds (previous round complete) — never the pre-generated schedule

@@ -7,8 +7,8 @@ export type Side = 'A' | 'B';
 
 /**
  * Scores after typing `raw` on one side. With a total P the other side is filled with P − value,
- * unless the user typed that side by hand (`lastTyped` = the other side): then it's left alone,
- * so a match cut short by time (15-7) can still be entered. Clearing a side clears an auto-filled
+ * unless the user typed that side by hand (`lastTyped` = the other side): then it's left alone
+ * (a sum ≠ P is then flagged and blocks moving on, see `isInvalidScore`). Clearing a side clears an auto-filled
  * other side too. Without P, only digits are kept.
  */
 export const applyScoreInput = (
@@ -34,6 +34,23 @@ export const applyScoreInput = (
   return { scoreA, scoreB, isCompleted: scoreA !== null && scoreB !== null };
 };
 
-/** Sum of a finished match when it differs from the points total (non-blocking warning), else null */
+/**
+ * With a points total, a result that blocks moving on: only one side entered, or both entered but
+ * not adding up to the total. A blank match is fine (not played yet / skipped).
+ */
+export const isInvalidScore = (m: Pick<Match, 'scoreA' | 'scoreB'>, pointsPerMatch?: number): boolean =>
+  !!pointsPerMatch && (m.scoreA !== null || m.scoreB !== null)
+  && (m.scoreA === null || m.scoreB === null || m.scoreA + m.scoreB !== pointsPerMatch);
+
+/** First invalid result (see `isInvalidScore`) in these rounds, or null */
+export const firstInvalidScore = <M extends Pick<Match, 'scoreA' | 'scoreB'>>(rounds: { index: number; matches: M[] }[], pointsPerMatch?: number) => {
+  for (const r of rounds) {
+    const match = r.matches.find(m => isInvalidScore(m, pointsPerMatch));
+    if (match) return { roundIndex: r.index, match };
+  }
+  return null;
+};
+
+/** Sum of a finished match when it differs from the points total (shown under the match; blocks moving on), else null */
 export const scoreSumMismatch = (m: Pick<Match, 'scoreA' | 'scoreB'>, pointsPerMatch?: number): number | null =>
   pointsPerMatch && m.scoreA !== null && m.scoreB !== null && m.scoreA + m.scoreB !== pointsPerMatch ? m.scoreA + m.scoreB : null;
