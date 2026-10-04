@@ -24,7 +24,7 @@ const tournament: Tournament = {
 describe('WhatsApp texts', () => {
   it('round line-up', () => {
     expect(roundText(tournament, 0, ctx)).toBe([
-      '🎾 Liga martes · Ronda 1/1 · 21p · gana quien llega a 11',
+      '🎾 Liga martes · Ronda 1/1 · Mejor de 21p',
       'Pista 1: ANA-LUIS vs MARTA-JUAN (15-9)',
       'Pista 2: PEDRO-LAURA vs SARA-IVÁN',
       'Descansan: NURIA, RAÚL',

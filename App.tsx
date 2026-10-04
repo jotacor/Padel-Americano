@@ -1202,7 +1202,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     {scoringOf(tournament) !== null && (
-                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0, w: winningPoints(tournament.pointsPerMatch ?? 0) })}</span>
+                      <span className="inline-block mt-1 md:mt-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-wider">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</span>
                     )}
                   </div>
                   {/* Last round: the finals buttons take the "next" arrow's place, stacked (the box keeps its size) */}

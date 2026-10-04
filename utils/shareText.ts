@@ -3,7 +3,7 @@ import type { LeaderboardEntry, Tournament } from '../types.ts';
 import type { TranslationKey } from '../i18n/translations.ts';
 import { isFinal, isPlayoffMatch, matchTitle } from './playoff.ts';
 import { formatDiff } from './leaderboard.ts';
-import { setsText, winningPoints } from './scoring.ts';
+import { setsText } from './scoring.ts';
 
 type T = (key: TranslationKey, params?: Record<string, string | number>) => string;
 interface Ctx { t: T; courtLabel: (index: number) => string; locale: string }
@@ -17,7 +17,7 @@ export const roundText = (tournament: Tournament, roundIndex: number, { t, court
   const title = [
     `🎾 ${tournament.name}`,
     t('text.round', { n: roundIndex + 1, total: tournament.rounds.length }),
-    ...(tournament.scoring === 'sets' ? [t('rounds.bestOfThree')] : tournament.pointsPerMatch ? [t('rounds.toPoints', { n: tournament.pointsPerMatch, w: winningPoints(tournament.pointsPerMatch) })] : []),
+    ...(tournament.scoring === 'sets' ? [t('rounds.bestOfThree')] : tournament.pointsPerMatch ? [t('rounds.toPoints', { n: tournament.pointsPerMatch })] : []),
   ].join(' · ');
   const matches = [...round.matches].sort((a, b) => a.courtIndex - b.courtIndex).map(m => {
     const court = isFinal(m) || isPlayoffMatch(m) ? `🏆 ${matchTitle(m, t, courtLabel)}` : courtLabel(m.courtIndex);

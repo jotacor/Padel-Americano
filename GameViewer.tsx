@@ -18,7 +18,7 @@ import {
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import { computeLeaderboard, formatDiff } from './utils/leaderboard.ts';
 import { liveRoundIndex } from './utils/rounds.ts';
-import { setsText, winningPoints } from './utils/scoring.ts';
+import { setsText } from './utils/scoring.ts';
 import { isFinal, isPlayoffMatch, matchTitle, roundBadge } from './utils/playoff.ts';
 import { usePolling } from './hooks/usePolling.ts';
 
@@ -194,7 +194,7 @@ const GameViewer: React.FC = () => {
                   {currentRoundIndex + 1}<span className="text-slate-300 text-base font-bold">/ {tournament.rounds.length}</span>
                 </div>
                 {(tournament.scoring === 'sets' || tournament.pointsPerMatch) && (
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0, w: winningPoints(tournament.pointsPerMatch ?? 0) })}</div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{tournament.scoring === 'sets' ? t('rounds.bestOfThree') : t('rounds.toPoints', { n: tournament.pointsPerMatch ?? 0 })}</div>
                 )}
               </div>
               <button 
