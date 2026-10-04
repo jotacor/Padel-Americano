@@ -1,5 +1,5 @@
 import type { Player, Match, Round, Pair } from '../types.ts';
-import { optimizeCourtAssignments, shuffle, skillValue } from './scheduler.ts';
+import { optimizeCourtAssignments, playOrder, restedLastRound, shuffle, skillValue } from './scheduler.ts';
 import { MATCH_WEIGHTS, repeatCost } from './ranking.ts';
 
 // Scheduling for fixed pairs: partners never change, only opponents rotate.
@@ -80,13 +80,9 @@ export const generateFixedPairsRound = (
     lastMet.set(meetKey(m.teamA, m.teamB), r.index);
   }));
 
-  // Fewest matches first, random order within the same count
-  const byCount = new Map<number, Pair[]>();
-  activePairs.forEach(p => {
-    const c = played.get(pairKey(p)) || 0;
-    byCount.set(c, [...(byCount.get(c) || []), p]);
-  });
-  const prioritized = [...byCount.keys()].sort((a, b) => a - b).flatMap(c => shuffle(byCount.get(c)!));
+  // Pairs that rested last round first, then fewest matches, random order within the same count
+  const rested = restedLastRound(existingRounds);
+  const prioritized = playOrder(shuffle(activePairs), p => rested.has(p[0]), p => played.get(pairKey(p)) || 0);
   const take = Math.min(numCourts * 2, Math.floor(prioritized.length / 2) * 2);
   const selected = prioritized.slice(0, take);
 

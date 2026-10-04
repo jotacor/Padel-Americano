@@ -47,6 +47,7 @@
 | `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |
 | `utils/ranking.ts` | League matchmaking by standings: strengths, ranked rotating round, repeat cost |
 | `utils/fixedPairs.ts` | Fixed pairs: round robin (Random), per-round matching (League), finals |
+| `utils/classicSchedule.ts` | Random mode entry points: `buildClassicSchedule` (start) and `nextClassicRound` ("+" rounds), used by App |
 | `utils/leaderboard.ts` | `computeLeaderboard()` shared by all views; per-pair entries in fixed mode |
 | `utils/playerNames.ts` | Name cleanup + duplicate check (frontend) |
 | `utils/tournamentFile.ts` | YAML export/import (pure): `serializeTournament`, `parseTournamentFile`, `bumpExportMeta`, `exportFilename`. Lazy-loaded by App (only module that imports `yaml`) |
@@ -66,6 +67,7 @@ Internal `mode` values are kept for stored-data compatibility: `'classic'` = **R
 - All rounds pre-generated using Whist tournament logic
 - Player roster locked after tournament starts
 - Courts chosen in setup (`classicCourts` state, null = players ÷ 4, saved as `tournament.numCourts`); fewer courts → `packRounds()` spreads the full schedule over more rounds (same matches, fewest-played first) — extra rounds and finals use `tournament.numCourts` too
+- **Nobody rests two rounds in a row** (all modes, whenever resting ≤ playing): every round generator orders players with `playOrder()` (rested last round first, then fewest played). Random: `packRounds` searches for full courts + last round's resters, `avoidBackToBackRests` reorders the rounds (same matches, courts re-rotated), and `regenerateFromBackToBackRest` generates any remaining tail like "+" rounds. Checked for 5–30 players × every court count in `utils/rests.test.ts`
 - Perfect schedules for 8, 12, 16 players
 - "Prioritize initial skill" toggle (rotating only, `tournament.prioritizeSkill`): `generateSkillBalancedSchedule` builds every round with the League algorithm instead of Whist → much more even matches (8p: avg diff 1.36 → ~0.65) but some partnerships repeat/never happen; extra rounds also use `generateEventRound`
 - `skillLevel` optional: `generateAmericanoSchedule` builds the Whist/Berger schedule on abstract slots, then `assignSlotsBySkill` picks the player→slot mapping minimizing Σ(match skill diff)². Partner/opponent guarantees are kept. For perfect Whist (8/12/16) every mapping gives the same total (each pair partners 1×, opposes 2×), so skill only helps other sizes

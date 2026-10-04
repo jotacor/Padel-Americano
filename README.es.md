@@ -17,7 +17,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 - ✅ **Emparejamiento por clasificación** — Opción de Liga: cada ronda vuelve a elegir parejas y rivales según los resultados, sin dejar de jugar contra todos
 - ✅ **Calendario inteligente** — Calendarios "Whist" matemáticamente óptimos para 8, 12 y 16 jugadores
 - ✅ **Rotación de pistas** — El algoritmo hace que los jugadores roten por distintas pistas en cada ronda
-- ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos
+- ✅ **Pistas a elegir** — Usa las pistas que te deje el club (− / +), en ambos modos y con cualquier número de jugadores; el resto descansa por turnos y nadie descansa dos rondas seguidas (siempre que no descansen más de los que juegan)
 - ✅ **Nombres en mayúsculas** — Los nombres de los jugadores siempre se muestran en mayúsculas
 - ✅ **Marcador en vivo** — Introduce los resultados por ronda y ve la clasificación actualizarse en tiempo real
 - ✅ **Puntos por partido** — Partidos a 11, 15 o 21 puntos (impares: sin empates; 11 por defecto, o libre): escribes un marcador y el otro se rellena (13 → 8); teclado numérico, Enter salta al siguiente marcador; aviso si un resultado no suma
@@ -83,7 +83,7 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Los enlaces
 | **Equilibrio de partidos** (8 jugadores, niveles mixtos) | Diferencia media de nivel por partido ≈ 1,36 | ≈ 0,64 | Similar a "Priorizar nivel inicial" |
 | **Plantilla** | Bloqueada al empezar | Bloqueada al empezar | Añade jugadores y alterna activo/descanso entre rondas |
 | **Quién juega** | Fijado por el calendario (los descansos rotan) | Primero quienes han jugado menos partidos | Primero quienes han jugado menos partidos, solo jugadores activos |
-| **Pistas** | Tú eliges (por defecto jugadores ÷ 4). Con menos pistas → el mismo calendario repartido en más rondas (se mantienen todas las garantías de parejas/rivales), los jugadores descansan por turnos | Igual que Aleatorio | Tú eliges (4 por defecto), modificable entre rondas; los jugadores sobrantes descansan |
+| **Pistas** | Tú eliges (por defecto jugadores ÷ 4). Con menos pistas → el mismo calendario repartido en más rondas (se mantienen las garantías de parejas/rivales mientras nadie tenga que descansar dos rondas seguidas), los jugadores descansan por turnos | Igual que Aleatorio | Tú eliges (4 por defecto), modificable entre rondas; los jugadores sobrantes descansan |
 | **Rondas extra (+)** | Rotación justa evitando repeticiones, rivales igualados por nivel | Mismo algoritmo que Liga | Botón de siguiente ronda |
 | **Finales** | 1.º+3.º vs 2.º+4.º | 1.º+3.º vs 2.º+4.º | — |
 | **Ideal para** | Grupo cerrado con tiempo para el calendario completo | Grupo de nivel mixto donde importan más los partidos igualados que conocer a todos | Sesiones abiertas donde la gente llega/se va, número de rondas desconocido |

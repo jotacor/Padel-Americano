@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Player, Tournament, LeaderboardEntry, Pair, PairMode } from './types.ts';
-import { generateAmericanoSchedule, generateAdditionalRound, generateChampionshipRound, generateEventRound, generateSkillBalancedSchedule, packRounds } from './utils/scheduler.ts';
+import { generateChampionshipRound, generateEventRound } from './utils/scheduler.ts';
+import { buildClassicSchedule, nextClassicRound } from './utils/classicSchedule.ts';
 import { useI18n, LanguageLink } from './i18n/I18nContext.tsx';
 import type { TranslationKey } from './i18n/translations.ts';
 import { cleanName, isNameTaken, upperNames, withUpperNames } from './utils/playerNames.ts';
@@ -10,7 +11,7 @@ import { liveRoundIndex } from './utils/rounds.ts';
 import ShareModal from './components/ShareModal.tsx';
 import { roundText, standingsText } from './utils/shareText.ts';
 import { copyText, newId } from './utils/browser.ts';
-import { generateFixedPairsSchedule, generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
+import { generateFixedPairsRound, generateFixedPairsChampionship, pairKey } from './utils/fixedPairs.ts';
 import { computeLeaderboard, pairOfEntry } from './utils/leaderboard.ts';
 import { generateRankedRound, leagueMatchmaking, playerStrengths } from './utils/ranking.ts';
 import { 
@@ -303,11 +304,8 @@ const App: React.FC = () => {
       });
     } else {
       const balanced = !fixed && prioritizeSkill;
-      const fullSchedule = fixed
-        ? generateFixedPairsSchedule(tournamentPairs)
-        : balanced ? generateSkillBalancedSchedule(tournamentPlayers) : generateAmericanoSchedule(tournamentPlayers);
-      // Fewer courts than players ÷ 4: same matches spread over more rounds
-      const rounds = packRounds(fullSchedule, numCourts, tournamentPlayers.map(p => p.id));
+      // Nobody rests two rounds in a row (utils/classicSchedule.ts)
+      const rounds = buildClassicSchedule({ players: tournamentPlayers, pairs: tournamentPairs, fixed, balanced }, numCourts);
       setTournament({
         id: newId(),
         name: t('tournament.classicName', { date: new Date().toLocaleDateString(locale) }),
@@ -451,11 +449,10 @@ const App: React.FC = () => {
       });
     } else {
       const nc = tournament.numCourts ?? Math.floor(tournament.players.length / 4);
-      const newRound = fixed
-        ? generateFixedPairsRound(tournament.pairs ?? [], tournament.players, tournament.rounds, newRoundIndex, nc)
-        : tournament.prioritizeSkill
-        ? generateEventRound(tournament.players, tournament.players, tournament.rounds, newRoundIndex, nc)
-        : generateAdditionalRound(tournament.players, tournament.rounds, newRoundIndex, nc);
+      const newRound = nextClassicRound(
+        { players: tournament.players, pairs: tournament.pairs ?? [], fixed, balanced: !!tournament.prioritizeSkill },
+        tournament.rounds, nc
+      );
       setTournament({
         ...tournament,
         rounds: [...tournament.rounds, newRound]

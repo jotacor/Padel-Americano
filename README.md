@@ -17,7 +17,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 - ✅ **Standings-based Matchmaking** — League option: every round re-matches partners and rivals from the results so far, while everyone still plays everyone
 - ✅ **Smart Scheduling** — Mathematically optimal "Whist" schedules for 8, 12, and 16 players
 - ✅ **Court Rotation** — Algorithm ensures players rotate across different courts each round
-- ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn
+- ✅ **Courts You Choose** — Use the courts the club gives you (− / +), in both modes, whatever the number of players; the rest sit out in turn and nobody sits out two rounds in a row (as long as no more players rest than play)
 - ✅ **Names in capitals** — Player names are always shown in uppercase
 - ✅ **Live Scoring** — Enter scores per round, see leaderboard update in real-time
 - ✅ **Points per match** — Matches to 11, 15 or 21 points (odd: no ties; 11 by default, or free): type one score and the other fills in (13 → 8); numeric keypad, Enter jumps to the next score; a warning if a result doesn't add up
@@ -83,7 +83,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. Sharing, di
 | **Match balance** (8 players, mixed skills) | Avg skill gap per match ≈ 1.36 | ≈ 0.64 | Similar to "Prioritize initial skill" |
 | **Roster** | Locked once started | Locked once started | Add players and toggle active/resting between rounds |
 | **Who plays** | Fixed by the schedule (byes rotate) | Fewest matches played first | Fewest matches played first, active players only |
-| **Courts** | You choose (default players ÷ 4). Fewer courts → the same schedule spread over more rounds (all partner/opponent guarantees kept), players rest in turn | Same as Random | You choose (default 4), changeable between rounds; extra players rest |
+| **Courts** | You choose (default players ÷ 4). Fewer courts → the same schedule spread over more rounds (partner/opponent guarantees kept as long as nobody has to rest twice in a row), players rest in turn | Same as Random | You choose (default 4), changeable between rounds; extra players rest |
 | **Extra rounds (+)** | Fair rotation avoiding repeats, skill-even opponents | Same algorithm as League | Next round button |
 | **Finals** | 1st+3rd vs 2nd+4th | 1st+3rd vs 2nd+4th | — |
 | **Best for** | Closed group with time for the full schedule | Mixed-level group where even matches matter more than meeting everyone | Open sessions where people arrive/leave, unknown number of rounds |
