@@ -42,6 +42,7 @@
 | `hooks/useShareSync.ts` | Organizer sharing: create/delete, one PUT in flight, debounce 1.2 s, retries 2/5/15/30 s (+ on online/visible), 404 → expired alert, 401/403 → revoked; share bound to `tournamentId` |
 | `utils/shareText.ts` | Texts to copy: `roundText` ("Pista 1: ANA-LUIS vs MARTA-JUAN (7-4)", resting) and `standingsText` (+ live link) → "Copiar ronda" / "Copiar clasificación" (clipboard + toast) |
 | `utils/browser.ts` | `copyText` (clipboard with `execCommand` fallback) and `newId` (UUID without `crypto.randomUUID`): app must work on plain http (LAN IP), where those APIs don't exist — never call `navigator.clipboard`/`crypto.randomUUID` directly |
+| `hooks/useAutoScroll.ts` | TV display (`/display/:id`): long lists scroll by themselves (pause 4 s, down 40 px/s, pause, back up; user input pauses 15 s) |
 | `hooks/usePolling.ts` | Viewer/display polling, paused while the tab is hidden |
 | `components/ShareModal.tsx` | Share links + sync status (retry button) |
 | `server/words.ts` | Spanish word list + `randomWordId()` for memorable share IDs |

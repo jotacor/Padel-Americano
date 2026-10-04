@@ -32,7 +32,7 @@ A modern web app for running **Padel Americano** tournaments — the social form
 
 ### Sharing
 - ✅ **Copy round & standings** — "Copy round" and "Copy standings" put the text on the clipboard (`ANA-LUIS vs MARTA-JUAN`) to paste wherever you like
-- ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`)
+- ✅ **Shareable Links** — Share with spectators via a memorable URL (`/game/bala-zapato`) plus a TV leaderboard display (`/display/bala-zapato`) that scrolls by itself when the list does not fit
 - ✅ **Real-time Sync** — Scores sync to the server, viewers see updates automatically
 - ✅ **Read-only Viewing** — Spectators can view rounds and scores without editing
 - ✅ **Auto-cleanup** — Shared links expire 24 hours after the last change

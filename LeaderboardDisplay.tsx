@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from './i18n/I18nContext.tsx';
 import { usePolling } from './hooks/usePolling.ts';
+import { useAutoScroll } from './hooks/useAutoScroll.ts';
 import { computeLeaderboard } from './utils/leaderboard.ts';
 
 const SKILL_COLORS = {
@@ -49,6 +50,8 @@ const LeaderboardDisplay: React.FC = () => {
   };
 
   usePolling(fetchTournament, POLL_INTERVAL, id);
+  // Long lists scroll slowly by themselves (TV)
+  useAutoScroll(!!tournament);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
 

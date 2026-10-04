@@ -32,7 +32,7 @@ Una app web moderna para organizar torneos de **Pádel Americano** — el format
 
 ### Compartir
 - ✅ **Copiar ronda y clasificación** — "Copiar ronda" y "Copiar clasificación" dejan el texto en el portapapeles (`ANA-LUIS vs MARTA-JUAN`) para pegarlo donde quieras
-- ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una pantalla de clasificación para TV (`/display/bala-zapato`)
+- ✅ **Enlaces para compartir** — Comparte con los espectadores mediante una URL fácil de recordar (`/game/bala-zapato`) y una clasificación para pantalla (TV) (`/display/bala-zapato`) que se desplaza sola si la lista no cabe
 - ✅ **Sincronización en tiempo real** — Los resultados se sincronizan con el servidor, los espectadores ven las actualizaciones automáticamente
 - ✅ **Visualización de solo lectura** — Los espectadores pueden ver rondas y resultados sin poder editar
 - ✅ **Limpieza automática** — Los enlaces compartidos caducan 24 horas después del último cambio
