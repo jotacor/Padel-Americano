@@ -136,9 +136,9 @@ const en = {
   'share.stop': 'Stop Sharing',
 
   // App — leaderboard
-  'lb.sortedBy': 'Sorted by Pts → Wins → Diff',
+  'lb.sortedBy': 'Sorted by Wins → Pts → Diff',
   'lb.avg': '{n} avg',
-  'lb.avgPerMatch': 'Avg {n} / Match',
+  'lb.perMatch': 'Pts/Match',
   'lb.rank': 'Rank',
   'lb.athlete': 'Athlete',
   'lb.pair': 'Pair',
@@ -161,6 +161,7 @@ const en = {
   'text.round': 'Round {n}/{total}',
   'text.resting': 'Resting: {names}',
   'text.live': 'Live: {url}',
+  'text.standingsLine': '{wins}W · {pts} pts',
   'share.copyRound': 'Copy round',
   'share.roundCopied': 'Round copied',
   'share.copyStandings': 'Copy standings',
@@ -339,9 +340,9 @@ const es: Translations = {
   'share.stop': 'Dejar de Compartir',
 
   // App — leaderboard
-  'lb.sortedBy': 'Orden: Pts → Victorias → Dif',
+  'lb.sortedBy': 'Orden: Victorias → Pts → Dif',
   'lb.avg': '{n} media',
-  'lb.avgPerMatch': 'Media {n} / Partido',
+  'lb.perMatch': 'Pts/Partido',
   'lb.rank': 'Pos.',
   'lb.athlete': 'Jugador',
   'lb.pair': 'Pareja',
@@ -364,6 +365,7 @@ const es: Translations = {
   'text.round': 'Ronda {n}/{total}',
   'text.resting': 'Descansan: {names}',
   'text.live': 'En directo: {url}',
+  'text.standingsLine': '{wins}V · {pts} pts',
   'share.copyRound': 'Copiar ronda',
   'share.roundCopied': 'Ronda copiada',
   'share.copyStandings': 'Copiar clasificación',

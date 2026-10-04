@@ -146,7 +146,7 @@ All state lives in `App.tsx` using React hooks.
 
 ### Scoring & Leaderboard
 
-Tiebreaker order: Total Points → Match Wins → Point Differential
+Order: Match Wins → Total Points → Point Differential (fixed, no user choice; `computeLeaderboard` → all views, finals, "Copiar clasificación"). Scores table also shows Pts/Match (informative only)
 
 ### Score entry
 

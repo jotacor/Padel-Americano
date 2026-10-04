@@ -534,6 +534,7 @@ const App: React.FC = () => {
   const getPlayer = (id: string) => tournament?.players.find(p => p.id === id);
 
   const leaderboard = useMemo<LeaderboardEntry[]>(() => computeLeaderboard(tournament), [tournament]);
+  const fmtAvg = (n: number) => n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const matchmaking = tournament ? leagueMatchmaking(tournament) : null;
   const matchmakingKey: TranslationKey = !matchmaking ? 'matchmaking.skill'
@@ -1307,7 +1308,7 @@ const App: React.FC = () => {
                             <span className="text-slate-300">-</span>
                             <span className="text-slate-400">{t('common.ties', { n: entry.ties })}</span>
                           </span>
-                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: entry.avgPoints })}</span>
+                          <span className="text-[9px] text-slate-400 font-bold">{t('lb.avg', { n: fmtAvg(entry.avgPoints) })}</span>
                           {!isFixed && (
                             <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase ${SKILL_COLORS[skill].bg} ${SKILL_COLORS[skill].text}`}>
                               {t(`skill.${skill}`)}
@@ -1334,6 +1335,7 @@ const App: React.FC = () => {
                       {!isFixed && <th className="px-8 py-8 text-center">{t('common.skill')}</th>}
                       <th className="px-12 py-8 text-center">{t('lb.record')}</th>
                       <th className="px-12 py-8 text-right">{t('lb.totalPoints')}</th>
+                      <th className="pl-4 pr-12 py-8 text-right">{t('lb.perMatch')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1359,7 +1361,6 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <PlayerName name={entry.playerName} baseClass="font-black text-slate-900 text-2xl italic uppercase" inline />
                             </div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('lb.avgPerMatch', { n: entry.avgPoints })}</div>
                           </td>
                           {!isFixed && (
                             <td className="px-8 py-10 text-center">
@@ -1385,6 +1386,9 @@ const App: React.FC = () => {
                           </td>
                           <td className="px-12 py-10 text-right">
                             <span className="font-black text-6xl tracking-tighter text-slate-900 italic leading-none">{entry.totalPoints}</span>
+                          </td>
+                          <td className="pl-4 pr-12 py-10 text-right">
+                            <span className="font-black text-3xl tracking-tighter text-slate-400 italic leading-none">{fmtAvg(entry.avgPoints)}</span>
                           </td>
                         </tr>
                       );

@@ -2,13 +2,13 @@ import type { Tournament, LeaderboardEntry, Pair } from '../types.ts';
 import { pairKey } from './fixedPairs.ts';
 
 const sortEntries = (entries: LeaderboardEntry[]) => entries.sort((a, b) =>
-  b.totalPoints - a.totalPoints ||
   b.wins - a.wins ||
+  b.totalPoints - a.totalPoints ||
   b.pointDifferential - a.pointDifferential
 );
 
 /**
- * Standings. Tiebreakers: total points → wins → point differential.
+ * Standings: wins → total points → point differential (the match won is what counts).
  * Fixed pairs: one entry per pair (playerId = pairKey, name "Ana & Luis").
  */
 export const computeLeaderboard = (tournament: Tournament | null | undefined): LeaderboardEntry[] => {
