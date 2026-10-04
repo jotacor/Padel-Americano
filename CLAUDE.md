@@ -6,12 +6,11 @@
 
 ## Workflow
 
-**ALWAYS use feature branches and PRs.** Never push directly to `main`. Every change — no matter how small — goes through:
-1. Create a feature branch (`feature/...`, `fix/...`)
-2. Commit and push to the branch
-3. Open a PR via `gh pr create`
-4. Test locally (`npm run dev`) or with the Docker image; CI must be green
-5. Merge only after preview is verified
+**Local only: never push, never open GitHub PRs.** Integration branch = local `dev`; the owner merges `dev` → `main` gradually.
+1. Work in a local feature branch (`feat/...`, `fix/...`, `chore/...`) from `dev` — or directly on `dev` when the owner asks
+2. Verify: `npm run typecheck`, `npm run build`, real browser (desktop + 390 px mobile)
+3. Keep a numbered table of pending branches; merge into `dev` only the ones the owner names (cherry-pick their own commits if stacked)
+4. Delete local branches once merged; the owner deletes remote ones
 
 ## Tech Stack
 
