@@ -211,7 +211,7 @@ docker compose down            # stop (data kept in the padel-data volume; add -
 
 Optional: `HOST_PORT=8080` (host port, default 8788) in a `.env` file next to `docker-compose.yml` (gitignored).
 
-Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`). Portainer: create a stack from `docker-compose.yml`, swapping the volume for a host folder if you prefer (e.g. `/mnt/pool/apps/padel:/data`).
+Prebuilt image: `docker pull jotacor/padelamericano:latest` (published by CI from `main`). The app shows, in grey under Import, the first 6 letters of the running commit; when building the image yourself pass it with `GIT_COMMIT=$(git rev-parse HEAD) docker compose up -d --build`. Portainer: create a stack from `docker-compose.yml`, swapping the volume for a host folder if you prefer (e.g. `/mnt/pool/apps/padel:/data`).
 
 **Plain Docker:**
 

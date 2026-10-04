@@ -211,7 +211,7 @@ docker compose down            # detener (los datos se conservan en el volumen p
 
 Opcional: `HOST_PORT=8080` (puerto del host, 8788 por defecto) en un archivo `.env` junto a `docker-compose.yml` (ignorado por git).
 
-Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`). Portainer: crea un stack con `docker-compose.yml`, cambiando el volumen por una carpeta del host si lo prefieres (p. ej. `/mnt/pool/apps/padel:/data`).
+Imagen prediseñada: `docker pull jotacor/padelamericano:latest` (publicada por CI desde `main`). La app muestra, en gris bajo Importar, las 6 primeras letras del commit que está corriendo; al construir la imagen tú mismo pásalo con `GIT_COMMIT=$(git rev-parse HEAD) docker compose up -d --build`. Portainer: crea un stack con `docker-compose.yml`, cambiando el volumen por una carpeta del host si lo prefieres (p. ej. `/mnt/pool/apps/padel:/data`).
 
 **Docker simple:**
 

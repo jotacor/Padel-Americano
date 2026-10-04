@@ -2,7 +2,10 @@
 # Optional: put HOST_PORT=... in a .env file next to this one.
 services:
   padel:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-} # optional: GIT_COMMIT=$(git rev-parse HEAD) docker compose up -d --build
     image: jotacor/padelamericano:latest
     ports:
       - "${HOST_PORT:-8788}:8788"

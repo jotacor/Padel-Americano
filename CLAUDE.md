@@ -163,6 +163,10 @@ Order: Match Wins → Total Points → Point Differential (fixed, no user choice
 - Finals lock earlier rounds (`isRoundLocked`): rounds before the first playoff/final round, and the semifinals once the final exists, become read-only (inputs disabled, "Ronda cerrada" notice); undoing the finals round reopens them. The "+" button is hidden once any finals round exists. Tabla keeps only the champions block
 - "Undo round" (`canUndoRound`): last round with no score at all; League always, Americano only finals or extra "+" rounds (previous round complete) — never the pre-generated schedule
 
+## Version shown in the app
+
+The setup panel footer shows the first 6 letters of the commit (pale grey, under Import / language). `vite.config.ts` defines `__APP_COMMIT__` (declared in `vite-env.d.ts`) from `GIT_COMMIT` or the local `git rev-parse --short=6 HEAD`, else `dev`. The Docker image has no `.git`: CI passes `--build-arg GIT_COMMIT=$GITHUB_SHA`; with compose, `GIT_COMMIT=$(git rev-parse HEAD) docker compose up -d --build`
+
 ## Commands
 
 ```bash

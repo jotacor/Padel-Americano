@@ -125,6 +125,7 @@ const en = {
   'setup.generate': 'START',
   'setup.goToMatches': 'GO TO MATCHES',
   'setup.clearAll': 'Clear All Data',
+  'setup.version': 'Version (commit)',
   'setup.exportYaml': 'Export',
   'setup.importYaml': 'Import',
 
@@ -368,6 +369,7 @@ const es: Translations = {
   'setup.generate': 'INICIAR',
   'setup.goToMatches': 'IR A PARTIDOS',
   'setup.clearAll': 'Borrar Todos los Datos',
+  'setup.version': 'Versión (commit)',
   'setup.exportYaml': 'Exportar',
   'setup.importYaml': 'Importar',
 

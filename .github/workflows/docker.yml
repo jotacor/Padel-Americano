@@ -12,6 +12,7 @@ jobs:
     - name: Build the Docker image
       run: |
         docker build . --file Dockerfile \
+        --build-arg GIT_COMMIT=$GITHUB_SHA \
         --tag jotacor/padelamericano:latest \
         --tag jotacor/padelamericano:$(echo $GITHUB_SHA | cut -c1-8)
     - name: Docker login

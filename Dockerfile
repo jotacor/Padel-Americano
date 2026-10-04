@@ -8,6 +8,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+# Commit shown in the app (no .git inside the image): docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD)
+ARG GIT_COMMIT=""
+ENV GIT_COMMIT=$GIT_COMMIT
 RUN npm run build
 
 # ---- Runtime: no node_modules needed ----

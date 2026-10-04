@@ -1143,6 +1143,8 @@ const App: React.FC = () => {
                     }}
                   />
                 </div>
+                {/* Running version (first 6 letters of the commit) */}
+                <p className="text-center font-mono text-[10px] tracking-widest text-slate-600 select-all" title={t('setup.version')}>{__APP_COMMIT__}</p>
               </div>
             </div>
           </div>
