@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateLeagueClassicRound } from './leagueClassic.ts';
+import { shortScheduleRounds } from './scheduler.ts';
 import { expectValidRound, makePlayers, seedRandom } from './testing.ts';
 import type { Pair, Round } from '../types.ts';
 
@@ -32,12 +33,14 @@ describe('League Classic (everyone with and against everyone)', () => {
     }
   });
 
-  it('rotating, everyone present: partner everyone once (8, 12, 16 players)', () => {
+  it('rotating, everyone present: the short Americano Classic schedule — everyone faces everyone, no partner repeats (8, 12, 16 players)', () => {
     seedRandom(2);
     for (const n of [8, 12, 16]) {
-      const ps = partnerships(play(n, n / 4, n - 1, null));
-      expect(new Set(ps).size, `${n} players`).toBe(n * (n - 1) / 2);
-      expect(ps).toHaveLength(new Set(ps).size);
+      const rounds = play(n, n / 4, shortScheduleRounds(n)!, null);
+      const ps = partnerships(rounds);
+      expect(ps, `${n} players`).toHaveLength(new Set(ps).size);
+      const opp = new Set(rounds.flatMap(r => r.matches.flatMap(m => m.teamA.flatMap(a => m.teamB.map(b => [a, b].sort().join('|'))))));
+      expect(opp.size, `${n} players`).toBe(n * (n - 1) / 2);
     }
   });
 

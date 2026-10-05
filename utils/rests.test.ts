@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildClassicSchedule, nextClassicRound } from './classicSchedule.ts';
-import { generateEventRound } from './scheduler.ts';
+import { generateEventRound, shortScheduleRounds } from './scheduler.ts';
 import { generateRankedRound } from './ranking.ts';
 import { generateFixedPairsRound } from './fixedPairs.ts';
 import { expectValidRound, makePlayers, seedRandom } from './testing.ts';
@@ -35,14 +35,13 @@ describe('nobody rests two rounds in a row', () => {
     });
   }
 
-  it('Americano Classic: keeps every match of the schedule when reordering is enough (19 players, 4 courts)', () => {
+  it('Americano Classic, 19 players, 4 courts: the short schedule as generated, no partnership repeats', () => {
     seedRandom(2);
     const players = makePlayers(19);
     const rounds = buildClassicSchedule({ players, pairs: [], fixed: false, balanced: false }, 4);
     const partners = rounds.flatMap(r => r.matches.flatMap(m => [m.teamA, m.teamB].map(t => [...t].sort().join('+'))));
-    expect(rounds).toHaveLength(19);
-    expect(partners).toHaveLength(19 * 4 * 2);
-    expect(new Set(partners).size).toBe(partners.length); // the Berger schedule: no partnership repeats
+    expect(rounds).toHaveLength(shortScheduleRounds(19)!);
+    expect(new Set(partners).size).toBe(partners.length);
     expect(backToBack(rounds)).toEqual([]);
   });
 
@@ -73,8 +72,8 @@ describe('Americano Classic: same matches for everyone, with and against everyon
     return count;
   };
 
-  it('rotating, 4–30 players, any courts: everyone plays the same, no partnership repeats; with all courts nobody rests twice in a row', () => {
-    for (let n = 4; n <= 30; n++) {
+  it('rotating, 4–28 players, any courts: everyone faces everyone, no partnership repeats, same matches (±1); with all courts nobody rests twice in a row', () => {
+    for (let n = 4; n <= 28; n++) {
       const players = makePlayers(n, 'mixed');
       for (let c = 1; c <= Math.floor(n / 4); c++) {
         const rounds = buildClassicSchedule({ players, pairs: [], fixed: false, balanced: false }, c);
@@ -82,11 +81,12 @@ describe('Americano Classic: same matches for everyone, with and against everyon
         rounds.forEach(r => expectValidRound(r, players.map(p => p.id), c));
         const counts = played(rounds);
         expect(counts.size, label).toBe(n);
-        expect(new Set(counts.values()).size, label).toBe(1);
+        expect(Math.max(...counts.values()) - Math.min(...counts.values()), label).toBeLessThanOrEqual(n % 4 === 0 ? 0 : 1);
         const ps = partnerships(rounds);
         expect(new Set(ps).size, label).toBe(ps.length);
-        if (n % 4 <= 1) expect(ps.length, label).toBe(n * (n - 1) / 2);
-        if (c === Math.floor(n / 4)) expect(backToBack(rounds), label).toEqual([]);
+        expect(new Set(rounds.flatMap(r => r.matches.flatMap(m => m.teamA.flatMap(a => m.teamB.map(b => [a, b].sort().join('|')))))).size, label).toBe(n * (n - 1) / 2);
+        // 7 players on 1 court: facing everyone and never resting twice in a row can't both hold (exhaustive search)
+        if (c === Math.floor(n / 4) && n !== 7) expect(backToBack(rounds), label).toEqual([]);
       }
     }
   });

@@ -5,6 +5,7 @@ import {
   generateChampionshipRound,
   generateEventRound,
   packRounds,
+  shortScheduleRounds,
 } from './scheduler.ts';
 import { buildClassicSchedule, classicRoundCount } from './classicSchedule.ts';
 import { expectValidRound, key, makePlayers, matchesPlayed, pairCounts, playersOf, scheduleText, seedRandom } from './testing.ts';
@@ -23,23 +24,26 @@ const scheduleFor = (n: number) => {
 const SIZES = Array.from({ length: 27 }, (_, i) => i + 4); // 4..30
 
 describe('generateAmericanoSchedule', () => {
-  it.each(SIZES)('%i players: valid rounds, N−1 rounds (N unless divisible by 4), same matches for all, nobody partners twice', n => {
+  it.each(SIZES.filter(n => n <= 28))('%i players (short schedule): everyone faces everyone, nobody partners twice, same matches (±1), about half the rounds', n => {
     const players = makePlayers(n);
     const rounds = scheduleFor(n);
-    expect(rounds).toHaveLength(n % 4 === 0 ? n - 1 : n);
-    expect(new Set(matchesPlayed(rounds).values()).size).toBe(1);
+    expect(rounds).toHaveLength(shortScheduleRounds(n)!);
+    // shorter than the full Whist/Berger schedule (7 players: same length, the full one doesn't face everyone)
+    if (n === 7) expect(rounds).toHaveLength(7); else expect(rounds.length).toBeLessThan(n % 4 === 0 ? n - 1 : n);
+    const played = [...matchesPlayed(rounds).values()];
+    expect(played).toHaveLength(n);
+    expect(Math.max(...played) - Math.min(...played)).toBeLessThanOrEqual(n % 4 === 0 ? 0 : 1);
     rounds.forEach(r => {
       expectValidRound(r, ids(players), Math.floor(n / 4));
       expect(r.matches).toHaveLength(Math.floor(n / 4));
     });
-    const { partners } = pairCounts(rounds);
+    const { partners, opponents } = pairCounts(rounds);
     expect(Math.max(...partners.values())).toBe(1);
-    // Everyone partners everyone when the byes allow it (N ≡ 0 or 1 mod 4)
-    if (n % 4 <= 1) expect(partners.size).toBe(n * (n - 1) / 2);
+    expect(opponents.size).toBe(n * (n - 1) / 2);
   });
 
-  it.each([8, 12, 16])('Whist %i: everyone partners once and opposes everyone twice', n => {
-    const { partners, opponents } = pairCounts(scheduleFor(n));
+  it.each([8, 12, 16])('full Whist %i (generateAmericanoSchedule(players, true)): partners once, opposes everyone twice', n => {
+    const { partners, opponents } = pairCounts(generateAmericanoSchedule(makePlayers(n), true));
     const pairs = n * (n - 1) / 2;
     expect(partners.size).toBe(pairs);
     expect(opponents.size).toBe(pairs);
@@ -122,16 +126,24 @@ describe('generateEventRound (League)', () => {
 });
 
 describe('generateAdditionalRound (Random "+")', () => {
-  it('respects the chosen courts and gives rests to whoever played most', () => {
+  it('respects the chosen courts; who rested last round plays, then rests go to whoever played most', () => {
     seedRandom(3);
     const players = makePlayers(14);
     const rounds = packRounds(scheduleFor(14), 2, ids(players));
     const played = matchesPlayed(rounds);
+    const rested = new Set(rounds[rounds.length - 1].byes);
     const round = generateAdditionalRound(players, rounds, rounds.length, 2);
     expectValidRound(round, ids(players), 2);
     expect(round.matches).toHaveLength(2);
-    const maxPlaying = Math.max(...playersOf(round).map(id => played.get(id) || 0));
-    round.byes.forEach(id => expect(played.get(id) || 0).toBeGreaterThanOrEqual(maxPlaying));
+    const playing = playersOf(round);
+    // whoever rested plays (all of them if they fit in the 8 places, else the 8 places go to them)
+    if (rested.size <= playing.length) round.byes.forEach(id => expect(rested.has(id)).toBe(false));
+    else playing.forEach(id => expect(rested.has(id)).toBe(true));
+    const others = playing.filter(id => !rested.has(id));
+    if (others.length) {
+      const maxPlaying = Math.max(...others.map(id => played.get(id) || 0));
+      round.byes.filter(id => !rested.has(id)).forEach(id => expect(played.get(id) || 0).toBeGreaterThanOrEqual(maxPlaying));
+    }
   });
 });
 
@@ -149,12 +161,14 @@ describe('generateChampionshipRound', () => {
 });
 
 describe('performance', () => {
-  it('generates a 40-player Random schedule quickly', () => {
+  it('short schedules up to 28 players; more → full schedule, still quick (40 players)', () => {
+    expect(shortScheduleRounds(28)).not.toBeNull();
+    expect(shortScheduleRounds(29)).toBeNull();
     const t = performance.now();
-    const rounds = generateAmericanoSchedule(makePlayers(40));
+    const full = generateAmericanoSchedule(makePlayers(40));
     expect(performance.now() - t).toBeLessThan(1500);
-    expect(rounds).toHaveLength(39);
-    rounds.forEach(r => expectValidRound(r, ids(makePlayers(40)), 10));
+    expect(full).toHaveLength(39);
+    full.forEach(r => expectValidRound(r, ids(makePlayers(40)), 10));
   });
 
   it('generates a League round with 40 players on 10 courts quickly', () => {

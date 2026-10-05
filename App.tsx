@@ -616,7 +616,6 @@ const App: React.FC = () => {
   const matchmakingKey: TranslationKey = !matchmaking ? 'matchmaking.skill'
     : matchmaking.skill && matchmaking.ranking ? 'matchmaking.both' : matchmaking.ranking ? 'matchmaking.ranking'
     : matchmaking.skill ? 'matchmaking.skill' : 'matchmaking.rotation';
-  const isPerfect = tournament && tournament.mode !== 'event' && !isFixed && !tournament.prioritizeSkill && [8, 12, 16].includes(tournament.players.length);
 
   // Active players for event mode
   const activePlayers = players.filter(p => p.isActive !== false);
@@ -782,15 +781,6 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 self-center md:self-auto">
-          {isPerfect && (
-              <div className="flex items-center gap-3 bg-emerald-50 text-emerald-700 px-4 py-2 md:px-6 md:py-3 rounded-2xl md:rounded-[1.5rem] border border-emerald-100 shadow-sm">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" />
-              <div className="flex flex-col">
-                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1">{t('header.whistTournament')}</span>
-                <span className="text-xs md:text-sm font-bold leading-none">{t('header.perfectBalance')}</span>
-              </div>
-            </div>
-          )}
             {tournament && (
               <button
                 onClick={() => shareSync.share ? setShowShareModal(true) : startSharing()}

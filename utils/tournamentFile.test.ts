@@ -37,7 +37,7 @@ describe('YAML export/import', () => {
 
   it('summarizes progress', () => {
     const s = summarizeTournament(sample());
-    expect(s).toMatchObject({ roundsPlayed: 1, totalRounds: 7, matchesCompleted: 2, totalMatches: 14 });
+    expect(s).toMatchObject({ roundsPlayed: 1, totalRounds: 4, matchesCompleted: 2, totalMatches: 8 }); // 8 players: short Classic, 4 rounds
     expect(s.leader).toBeTruthy();
   });
 

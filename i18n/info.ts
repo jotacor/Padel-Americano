@@ -21,7 +21,7 @@ const es: InfoSection[] = [
       {
         kind: 'choose',
         rows: [
-          ['Grupo cerrado y quieres que todos jueguen con y contra todos', '**Americano · Clásico**'],
+          ['Grupo cerrado y quieres que todos se enfrenten a todos', '**Americano · Clásico**'],
           ['Niveles muy distintos y quieres partidos igualados', '**Americano · Por nivel**'],
           ['La gente llega tarde, se va antes o juegas varias jornadas', '**Liga**'],
           ['Las parejas vienen hechas y juegan siempre juntas', 'Parejas **Fijas**'],
@@ -97,7 +97,7 @@ const es: InfoSection[] = [
       {
         kind: 'list',
         items: [
-          'En **Clásico**, al acabar todas las rondas todos han jugado los mismos partidos. Con 8, 12 o 16 jugadores el calendario es perfecto.',
+          'En **Clásico** (rotativas) hay unas la mitad de rondas que jugadores: todos se enfrentan a todos, nadie repite compañero y todos juegan lo mismo (±1 partido).',
           'En **Por nivel** nadie descansa dos rondas seguidas, pero alguna pareja puede repetirse.',
           'Con pocas pistas para tanta gente, algunos descansarán más a menudo: es inevitable.',
         ],
@@ -113,7 +113,7 @@ const en: InfoSection[] = [
       {
         kind: 'choose',
         rows: [
-          ['A closed group and everyone should play with and against everyone', '**Americano · Classic**'],
+          ['A closed group and everyone should face everyone', '**Americano · Classic**'],
           ['Very different levels and you want even matches', '**Americano · By skill**'],
           ['People arrive late, leave early, or you play several sessions', '**League**'],
           ['Pairs come ready-made and always play together', '**Fixed** pairs'],
@@ -189,7 +189,7 @@ const en: InfoSection[] = [
       {
         kind: 'list',
         items: [
-          'In **Classic**, once every round is played everyone has played the same number of matches. With 8, 12 or 16 players the schedule is perfect.',
+          'In **Classic** (rotating) there are about half as many rounds as players: everyone faces everyone, nobody repeats a partner and everyone plays the same (±1 match).',
           'In **By skill** nobody sits out two rounds in a row, but a partnership may repeat.',
           'With few courts for many players, some will rest more often: it can\'t be avoided.',
         ],

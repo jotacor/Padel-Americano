@@ -11,7 +11,7 @@ App web para organizar torneos de pádel entre amigos o en el club: apuntas a lo
 
 ## Características
 
-- ✅ **Dos modos**: *Americano* (todas las rondas preparadas al empezar) y *Liga* (una ronda cada vez; la gente puede entrar y salir), cada uno con variante *Clásico* (todos con y contra todos) o *Por nivel*
+- ✅ **Dos modos**: *Americano* (todas las rondas preparadas al empezar) y *Liga* (una ronda cada vez; la gente puede entrar y salir), cada uno con variante *Clásico* (todos contra todos) o *Por nivel*
 - ✅ **Parejas rotativas o fijas**: con rotativas cambias de compañero cada ronda; con fijas juegas siempre con el mismo
 - ✅ **Cruces automáticos**: todos juegan con y contra gente distinta; opcionalmente, partidos igualados por nivel o por clasificación
 - ✅ **Las pistas que tengas**: eliges cuántas pistas hay (− / +); el resto descansa por turnos
@@ -52,16 +52,15 @@ El modo Americano tiene dos variantes:
 
 | | **Clásico** | **Por nivel** |
 |---|---|---|
-| **Objetivo** | Que todos jueguen lo mismo, con y contra todos | Partidos igualados por nivel |
+| **Objetivo** | Que todos jueguen lo mismo y contra todos, sin repetir compañero | Partidos igualados por nivel |
 | **Nivel** | No se usa | Se usa en cada ronda |
 | **Repeticiones** | Ninguna pareja se repite | Algunas parejas y rivales se repiten |
 | **Descansos** | Manda el calendario: con menos pistas alguien puede descansar dos rondas seguidas si no hay otra forma | Nunca dos descansos seguidos (si descansan menos de los que juegan) |
 
 **Americano Clásico, parejas rotativas**
-- Cada jugador hace pareja con cada uno de los demás como mucho una vez y todos juegan **el mismo número de partidos**.
-- Con 8, 9, 12, 13, 16, 17, 20, 21… jugadores (múltiplos de 4 o uno más) cada uno hace pareja **con todos**; con 8, 12 y 16 además se enfrenta a todos exactamente dos veces.
-- Con el resto (10, 11, 14, 15…) es imposible hacer pareja con todos y jugar todos lo mismo: se juega lo mismo y faltan unas pocas parejas.
-- Rondas: jugadores − 1 si es múltiplo de 4; si no, tantas rondas como jugadores. Con 8 jugadores: 7 rondas; con 10: 10.
+- Calendario corto: unas **la mitad de rondas que jugadores** (8 jugadores: 4 rondas; 16: 8), como si fueran parejas.
+- Cada jugador **se enfrenta a todos** los demás al menos una vez y **nunca repite compañero** (hace pareja con más o menos la mitad).
+- Todos juegan el mismo número de partidos; si el número de jugadores no es múltiplo de 4, como mucho 1 partido de diferencia.
 
 **Americano Clásico, parejas fijas**
 - **Todos contra todos**: cada pareja juega una vez contra cada otra pareja, con las pistas que haya. Si hay un número impar de parejas, una descansa cada ronda.
@@ -74,7 +73,7 @@ El modo Americano tiene dos variantes:
 - Cada ronda, las parejas juegan contra rivales de **nivel parecido**, sin repetir rival en lo posible. No garantiza todos contra todos.
 
 **Liga Clásico**
-- Una liga normal: **todos con y contra todos** (parejas fijas: cada pareja contra cada otra; rotativas: pareja con todos), sin nivel ni clasificación.
+- Una liga normal: **todos con y contra todos** (parejas fijas: cada pareja contra cada otra; rotativas: todos contra todos sin repetir compañero), sin nivel ni clasificación.
 - Mientras estén todos, sigue el mismo calendario que el Americano Clásico, ronda a ronda.
 - Si falta alguien, la ronda se juega con los presentes y con enfrentamientos que aún no se han jugado; quien faltó juega los suyos más adelante si da tiempo. Si sobran pistas, los presentes sin partidos pendientes juegan entre ellos.
 - Manda el calendario: puede que alguien descanse dos rondas seguidas.
@@ -178,7 +177,8 @@ npm start        # Servidor de producción: dist/ + /api en :8788
 ├── components/          # Piezas de UI compartidas (modal de compartir, pestaña Info, …)
 ├── hooks/               # useShareSync (compartir en directo), usePolling (visores), useAutoScroll (TV)
 ├── utils/
-│   ├── scheduler.ts     # Calendario Whist/Berger, rondas de Liga, rondas extra, reparto en pistas
+│   ├── scheduler.ts     # Calendarios del Americano, rondas de Liga, rondas extra, reparto en pistas
+│   ├── shortSchedules.ts # Calendarios cortos del Clásico (generados por scripts/generateShortSchedules.ts)
 │   ├── classicSchedule.ts # Calendario de Americano (Clásico / Por nivel)
 │   ├── ranking.ts       # Liga por clasificación
 │   ├── fixedPairs.ts    # Parejas fijas
